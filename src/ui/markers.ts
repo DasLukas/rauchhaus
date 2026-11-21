@@ -1,4 +1,4 @@
-import { DETECTORS, DOORS, ROOMS, SOURCES, type SimulationSnapshot } from '../simulation'
+import { DETECTORS, DOORS, ROOMS, CLASSROOM_SOURCES, type SimulationSnapshot } from '../simulation'
 import { icon } from './icons'
 
 interface Position {
@@ -31,7 +31,7 @@ export class Markers {
     activate: (id: string) => void,
   ) {
     const groups = [
-      [SOURCES, 'source'],
+      [CLASSROOM_SOURCES, 'source'],
       [DOORS, 'door'],
       [DETECTORS, 'detector'],
     ] as const

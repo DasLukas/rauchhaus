@@ -25,7 +25,7 @@ import {
   type DoorId,
   ROOMS,
   type SimulationSnapshot,
-  SOURCES,
+  CLASSROOM_SOURCES,
   type SourceId,
 } from '../simulation'
 import { HouseCamera, pickedFloor } from './camera'
@@ -114,7 +114,7 @@ function readAnchors(model: Group) {
   const roomFloors = new Map(ROOMS.map((room) => [room.id, room.floor]))
   const items = [
     ...DOORS.map((door) => ({ id: door.id, room: door.rooms[0] })),
-    ...SOURCES,
+    ...CLASSROOM_SOURCES,
     ...DETECTORS,
   ]
   for (const { id, room } of items) {
@@ -199,9 +199,12 @@ export async function createHouseScene(
     })
     const anchors = readAnchors(model)
     const positions = new Map<SourceId, Vector3>()
-    for (const { id } of SOURCES) {
+    for (const { id, marker } of CLASSROOM_SOURCES) {
       const point = anchors.get(id)
-      if (point) positions.set(id, point.position)
+      if (point) {
+        positions.set(id, point.position.clone())
+        point.position.fromArray(marker)
+      }
     }
     const hinges = DOORS.map((door) => {
       const object = model.getObjectByName(`hinge_${door.id}`)

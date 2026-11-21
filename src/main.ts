@@ -1,6 +1,6 @@
 import './style.css'
 import { createHouseScene, type HouseScene } from './scene'
-import { DETECTORS, DOORS, FLOORS, SOURCES } from './simulation'
+import { DETECTORS, DOORS, FLOORS, CLASSROOM_SOURCES } from './simulation'
 import { element, mountLayout, setButton } from './ui/layout'
 import { Markers } from './ui/markers'
 import { showPanel, type PanelKind } from './ui/panels'
@@ -72,7 +72,7 @@ function openPanel(kind: PanelKind) {
 function activate(id: string) {
   if (!ready || modal || session.stage) return
   const door = DOORS.find((item) => item.id === id)
-  const source = SOURCES.find((item) => item.id === id)
+  const source = CLASSROOM_SOURCES.find((item) => item.id === id)
   if (door) {
     session.toggleDoor(door.id)
     announce(door.label + (session.snapshot.doors[door.id] ? ' offen.' : ' geschlossen.'))

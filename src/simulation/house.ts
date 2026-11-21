@@ -139,6 +139,13 @@ export const SOURCES: readonly Source[] = layout.sources.map((source) => ({
   position: source.position as [number, number, number],
 }))
 
+/** Wall positions for the five selectable experiments, separate from their emission points. */
+export const CLASSROOM_SOURCES = Object.entries(layout.sourceMarkers).map(([id, marker]) => {
+  const source = SOURCES.find((item) => item.id === id)
+  if (!source) throw new Error(`Missing smoke source: ${id}`)
+  return { ...source, marker }
+})
+
 export const DETECTORS: readonly Detector[] = layout.detectors.map((detector) => ({
   ...detector,
   id: detector.id as DetectorId,

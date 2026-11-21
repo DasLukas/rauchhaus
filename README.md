@@ -2,7 +2,7 @@
 
 [Open the published version from main](https://daslukas.github.io/rauchhaus/)
 
-A one-page, touch-first 3D teaching tool for primary-school children aged 6–10. Choose an orange smoke source or tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed. Classroom use needs a WebGL 2 browser and a connection to load the site. The application runs entirely on the device after loading.
+A one-page, touch-first 3D teaching tool for primary-school children aged 6–10. Each level has one selectable smoke source. Its orange marker sits beside the object on the wall. Choose an orange smoke source or tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed. Classroom use needs a WebGL 2 browser and a connection to load the site. The application runs entirely on the device after loading.
 
 ![Central stairwell with apartments on both sides and a cutaway basement](docs/rauchhaus.png)
 

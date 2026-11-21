@@ -147,7 +147,7 @@ try {
   await page.locator('#load-state').waitFor({ state: 'hidden' })
   assert.equal(
     await page.locator('.marker:visible').count(),
-    layout.sources.length + layout.doors.length,
+    layout.floors.length + layout.doors.length,
   )
   assert.equal(await btn('Pause').isDisabled(), true)
   const capture = async (name) => {

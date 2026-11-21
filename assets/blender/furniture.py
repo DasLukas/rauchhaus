@@ -279,8 +279,7 @@ def low_cabinet(x, y, z, w, height, body):
         )
 
 
-def stove_suite():
-    # The kitchen appliances align with the first room's real counters.
+def refrigerator():
     box("Refrigerator feet", -2.70, 0.065, -0.49, 0.43, 0.13, 0.50, "oak", 0.025)
     box("Retro refrigerator", -2.70, 0.75, -0.50, 0.51, 1.44, 0.61, "yellow", 0.095)
     for h, cy in ((0.84, 0.55), (0.45, 1.23)):
@@ -296,6 +295,9 @@ def stove_suite():
             "porcelain",
             0.018,
         )
+
+
+def stove():
     box("Oven kickboard", -1.95, 0.061, -0.47, 0.55, 0.12, 0.50, "oak", 0.016)
     box("Oven body", -1.95, 0.40, -0.46, 0.62, 0.69, 0.64, "denim", 0.042)
     box("Stove top", -1.95, 0.731, -0.46, 0.65, 0.045, 0.67, "iron", 0.023)
@@ -355,6 +357,9 @@ def stove_suite():
         )
     box("Range hood stem", -1.96, 1.68, -0.75, 0.21, 0.29, 0.22, "cream", 0.028)
     box("Range hood", -1.96, 1.47, -0.69, 0.72, 0.095, 0.46, "cream", 0.042)
+
+
+def sink():
     box("Sink cupboard", -1.39, 0.365, -0.55, 0.43, 0.68, 0.54, "green", 0.033)
     box("Sink countertop", -1.39, 0.717, -0.50, 0.46, 0.052, 0.62, "cream", 0.024)
     oval("Sink rim", -1.39, 0.746, -0.46, 0.159, 0.105, 0.014, "silver")
@@ -392,6 +397,12 @@ def stove_suite():
             "honey",
             14,
         )
+
+
+def stove_suite():
+    refrigerator()
+    stove()
+    sink()
 
 
 def sideboard_candle():

@@ -2,9 +2,19 @@
 
 from math import cos, hypot, sin
 
+from house_plan import DOORS
 from mathutils.bvhtree import BVHTree
 from miniature_geometry import PARTS
-from structure import BACK_EDGE, FRONT_EDGE, HINGES, LAYOUT, PITCH, STEP_COUNT
+from structure import (
+    BACK_EDGE,
+    EYE,
+    FRONT_EDGE,
+    HINGES,
+    LAYOUT,
+    LEVELS,
+    PITCH,
+    STEP_COUNT,
+)
 
 
 def bounds(entries):
@@ -36,7 +46,7 @@ def check_swings():
         (group, e, bounds([e])) for group, entries in PARTS.items() if not group.startswith("hinge_") for e in entries
     ]
     disks = []
-    for d in LAYOUT["doors"]:
+    for d in DOORS:
         ident = d["id"]
         px, _, pz = HINGES[ident]
         vs, fs = joined(PARTS["hinge_" + ident])
@@ -86,7 +96,7 @@ def check_stairs():
         if above[0] is not None:
             raise ValueError(f"Stair headroom at {(x, y, z)}: {above[3]:.2f} m")
 
-    for level in range(-1, 3):
+    for level in LEVELS[:-1]:
         low = level * PITCH
         for side, y, z0, z1 in [
             (-1, low, FRONT_EDGE, BACK_EDGE),
@@ -95,18 +105,25 @@ def check_stairs():
             for i in range(STEP_COUNT):
                 z = z0 + (z1 - z0) * (i + 0.5) / STEP_COUNT
                 for dx in (-0.35, 0, 0.35):
-                    floor_at(side * 0.707 + dx, y + (i + 1) * PITCH / 2 / STEP_COUNT, z)
+                    floor_at(EYE + side * 0.707 + dx, y + (i + 1) * PITCH / 2 / STEP_COUNT, z)
         # Traverse the landing at both ends, including the turn across the core.
         for x in (-0.88, 0, 0.88):
-            floor_at(x, low + PITCH / 2, BACK_EDGE - 0.50)
-            floor_at(x, low + PITCH, FRONT_EDGE + 0.32)
+            floor_at(EYE + x, low + PITCH / 2, BACK_EDGE - 0.50)
+            floor_at(EYE + x, low + PITCH, FRONT_EDGE + 0.32)
         for x in (-0.98, 0.98):
-            floor_at(x, low, FRONT_EDGE + 0.30)
+            floor_at(EYE + x, low, FRONT_EDGE + 0.30)
         # The central eye is genuinely open between all floors.
-        if architecture.ray_cast((0, low + 0.02, 0), (0, 1, 0), PITCH)[0] is not None:
+        if architecture.ray_cast((EYE, low + 0.02, 0), (0, 1, 0), PITCH)[0] is not None:
             raise ValueError(f"Central stair eye is blocked above level {level}")
+    ext = LAYOUT.get("exteriorDoor")
+    if ext:
+        x = ext["x"]
+        for z in (ext["latchZ"] + 0.11, (ext["latchZ"] + ext["hingeZ"]) / 2, ext["hingeZ"] - 0.11):
+            for h in (0.08, 0.85, 1.79):
+                if architecture.ray_cast((x - 0.21, h, z), (1, 0, 0), 0.58)[0] is not None:
+                    raise ValueError(f"Blocked exterior entrance opening at {z=}, {h=}")
     print(
-        "Eight flights have continuous walkable treads, clear headroom and usable landings.",
+        f"{2 * (len(LEVELS) - 1)} flights have continuous walkable treads, clear headroom and usable landings.",
         flush=True,
     )
 

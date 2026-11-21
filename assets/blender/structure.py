@@ -1,16 +1,16 @@
 """Shell, walkable return stair, basement cut and rooftop equipment."""
 
-import json
 from math import atan, cos, hypot, sin
-from pathlib import Path
 
+from house_plan import DOORS, LAYOUT, SMALL
 from miniature_geometry import box, orb, post, prism, select_collection, tube
 
-LAYOUT = json.loads((Path(__file__).resolve().parents[2] / "src/simulation/layout.json").read_text())
 DIMS = LAYOUT["dimensions"]
 PITCH = DIMS["levelHeight"]
 FRONT, BACK = DIMS["maxZ"], DIMS["minZ"]
 CORE = DIMS["stairHalfWidth"]
+EYE = DIMS["stairEyeX"]
+LEVELS = [f["level"] for f in LAYOUT["floors"]]
 ROOF = LAYOUT["roof"]
 HINGES = {}
 ANGLES = {}
@@ -69,6 +69,10 @@ def add_door(d):
     ANGLES[ident] = d["openAngle"]
     ANCHORS[ident] = (x, y + 1.06, pivot)
     previous = select_collection("hinge_" + ident)
+    if d is LAYOUT.get("exteriorDoor"):
+        street_leaf(x, y, pivot, latch, height)
+        select_collection(previous)
+        return
     color = "turquoise" if ident.startswith("i") else ("denim" if f < 0 else "coral")
     box(
         "Painted apartment door",
@@ -131,11 +135,38 @@ def add_door(d):
     select_collection(previous)
 
 
+def street_leaf(x, y, pivot, latch, height):
+    """Glazed street door in the exterior side wall, modelled in its closed position."""
+    z = (pivot + latch) / 2
+    width = pivot - latch
+    for zz in (pivot - 0.063, latch + 0.063):
+        box("Entrance leaf stile", x, y + height / 2, zz, 0.058, height - 0.065, 0.074, "teal", 0.012)
+    for h, thickness in ((0.083, 0.10), (0.71, 0.068), (height - 0.065, 0.074)):
+        box("Entrance leaf rail", x, y + h, z, 0.058, thickness, width - 0.055, "teal", 0.011)
+    box("Entrance kick panel", x, y + 0.389, z, 0.039, 0.54, width - 0.153, "turquoise", 0.018)
+    box("Glass door pane", x, y + (height + 0.68) / 2, z, 0.021, height - 0.84, width - 0.153, "window", 0.006)
+    for side in (-1, 1):
+        for yy in (0.83, 1.12):
+            post(
+                "Entrance handle fixing",
+                (x + side * 0.03, y + yy, latch + 0.15),
+                (x + side * 0.075, y + yy, latch + 0.15),
+                0.018,
+                "gold",
+            )
+        post(
+            "Entrance pull",
+            (x + side * 0.074, y + 0.8, latch + 0.15),
+            (x + side * 0.074, y + 1.15, latch + 0.15),
+            0.022,
+            "gold",
+        )
+
+
 # Door centres at the front of the shaft require full-width floor landings.
 FRONT_EDGE = 0.82
 BACK_EDGE = -0.96
 STEP_COUNT = 7
-TREADS = []
 
 
 def rail_run(x, y, z1, z2, height, rise):
@@ -168,7 +199,7 @@ def flights(level):
     mid = y + PITCH / 2
     box(
         "Half landing",
-        0,
+        EYE,
         mid - 0.07,
         (BACK_EDGE + BACK) / 2,
         CORE * 2 - 0.11,
@@ -178,11 +209,10 @@ def flights(level):
         0.017,
     )
     # Left flight runs away from the facade; right flight returns to the storey landing.
-    for idx, (side, low, begin, end) in enumerate([(-1, y, FRONT_EDGE, BACK_EDGE), (1, mid, BACK_EDGE, FRONT_EDGE)]):
+    for side, low, begin, end in [(-1, y, FRONT_EDGE, BACK_EDGE), (1, mid, BACK_EDGE, FRONT_EDGE)]:
         riser = (PITCH / 2) / STEP_COUNT
         tread = (end - begin) / STEP_COUNT
-        cx = side * 0.707
-        path = [(begin, low)]
+        cx = EYE + side * 0.707
         for i in range(STEP_COUNT):
             top = low + (i + 1) * riser
             z = begin + (i + 0.5) * tread
@@ -208,8 +238,6 @@ def flights(level):
                 "warmgrey",
                 0.008,
             )
-            path.append((begin + (i + 1) * tread, top))
-        TREADS.append((level, idx, path))
         for edge in (-0.53, 0.53):
             post(
                 "Stair carriage",
@@ -220,34 +248,34 @@ def flights(level):
                 segments=6,
             )
         # Inner guard and an accessible timber handrail at the outside wall.
-        rail_run(side * 0.128, low, begin, end, 0.73, PITCH / 2)
+        rail_run(EYE + side * 0.128, low, begin, end, 0.73, PITCH / 2)
         post(
             "Wall handrail",
-            (side * 1.285, low + 0.77, begin),
-            (side * 1.285, low + 0.77 + PITCH / 2, end),
+            (EYE + side * 1.285, low + 0.77, begin),
+            (EYE + side * 1.285, low + 0.77 + PITCH / 2, end),
             0.04,
             "honey",
         )
     tube(
         "Half-landing handrail",
         [
-            (-0.128, mid + 0.73, BACK_EDGE),
-            (-0.128, mid + 0.73, BACK_EDGE - 0.08),
-            (0.128, mid + 0.73, BACK_EDGE - 0.08),
-            (0.128, mid + 0.73, BACK_EDGE),
+            (EYE - 0.128, mid + 0.73, BACK_EDGE),
+            (EYE - 0.128, mid + 0.73, BACK_EDGE - 0.08),
+            (EYE + 0.128, mid + 0.73, BACK_EDGE - 0.08),
+            (EYE + 0.128, mid + 0.73, BACK_EDGE),
         ],
         0.041,
         "honey",
     )
     # The floor landing connects the returning inner handrail to the next ascending flight.
-    if level < 2:
+    if level < max(LEVELS) - 1:
         tube(
             "Storey handrail turn",
             [
-                (0.128, y + PITCH + 0.73, FRONT_EDGE),
-                (0.128, y + PITCH + 0.73, FRONT_EDGE + 0.08),
-                (-0.128, y + PITCH + 0.73, FRONT_EDGE + 0.08),
-                (-0.128, y + PITCH + 0.73, FRONT_EDGE),
+                (EYE + 0.128, y + PITCH + 0.73, FRONT_EDGE),
+                (EYE + 0.128, y + PITCH + 0.73, FRONT_EDGE + 0.08),
+                (EYE - 0.128, y + PITCH + 0.73, FRONT_EDGE + 0.08),
+                (EYE - 0.128, y + PITCH + 0.73, FRONT_EDGE),
             ],
             0.041,
             "honey",
@@ -441,7 +469,8 @@ def roof():
     post("Ridge cap", (0, ridge + 0.17, -2.24), (0, ridge + 0.17, 2.24), 0.085, "tomato")
     # The PV array follows the actual western roof plane. Its edge projects above
     # the clay roof, including when viewed from the shallow cutaway camera.
-    for xx in (-5.38, -3.34, -1.30):
+    for xx in (1.19, 3.18) if SMALL else (-5.38, -3.34, -1.30):
+        panel_angle = -angle if xx > 0 else angle
         for zz in (-1.15, 0.13, 1.41):
             base = ceiling(xx) + 0.30
             box(
@@ -454,7 +483,7 @@ def roof():
                 1.16,
                 "silver",
                 0.023,
-                roll=angle,
+                roll=panel_angle,
             )
             box(
                 "Photovoltaic module",
@@ -466,20 +495,20 @@ def roof():
                 1.085,
                 "solar",
                 0.012,
-                roll=angle,
+                roll=panel_angle,
             )
             for j in (-0.61, -0.30, 0, 0.30, 0.61):
                 box(
                     "Solar cell divider",
-                    xx + j * cos(angle),
-                    base + 0.055 + j * sin(angle),
+                    xx + j * cos(panel_angle),
+                    base + 0.055 + j * sin(panel_angle),
                     zz,
                     0.012,
                     0.006,
                     1.064,
                     "pvgrid",
                     0.001,
-                    roll=angle,
+                    roll=panel_angle,
                 )
             for j in (-0.27, 0, 0.27):
                 box(
@@ -492,7 +521,7 @@ def roof():
                     0.013,
                     "pvgrid",
                     0.001,
-                    roll=angle,
+                    roll=panel_angle,
                 )
 
 
@@ -512,27 +541,20 @@ def add_structure():
                 if hall
                 else ("basement" if f < 0 else ("apricot", "rosewall", "peach", "cream")[(f + (1 if c > 0 else 0)) % 4])
             )
-            h = ceiling(max(abs(a), abs(b))) - y if f == 3 else DIMS["clearHeight"]
-            box(
-                "Stairwell back" if hall else "Apartment back",
-                c,
-                y + h / 2,
-                BACK,
-                b - a,
-                h,
-                0.12,
-                walls,
-                0.014,
-            )
-            if f == 3:
-                outline = [(a, y + h), (b, y + h)]
+            h = ceiling(max(abs(a), abs(b))) - y if f == ROOF["floor"] else DIMS["clearHeight"]
+            if SMALL and f == ROOF["floor"]:
+                outline = [(a, y), (b, y), (b, ceiling(b))]
                 if a < 0 < b:
                     outline.append((0, ceiling(0)))
-                elif c < 0:
-                    outline.append((b, ceiling(b)))
-                else:
-                    outline.append((a, ceiling(a)))
-                prism("Attic back", outline, BACK - 0.06, BACK + 0.06, walls)
+                outline.append((a, ceiling(a)))
+                prism("Pitched back wall", outline, BACK - 0.06, BACK + 0.06, walls)
+            else:
+                box("Stairwell back" if hall else "Apartment back", c, y + h / 2, BACK, b - a, h, 0.12, walls, 0.014)
+                if f == ROOF["floor"]:
+                    peak = 0 if a <= 0 <= b else (b if b < 0 else a)
+                    prism(
+                        "Attic back", [(a, y + h), (b, y + h), (peak, ceiling(peak))], BACK - 0.06, BACK + 0.06, walls
+                    )
             if not hall:
                 box(
                     "Apartment ceiling",
@@ -586,7 +608,7 @@ def add_structure():
                 for xx in (-0.88, 0.88):
                     box(
                         "Stair dado",
-                        xx,
+                        EYE + xx,
                         y + 0.49,
                         BACK + 0.073,
                         0.88,
@@ -595,17 +617,23 @@ def add_structure():
                         "sagebox",
                         0.012,
                     )
-                window(0, y + 1.52, 1.04, 0.86, "porcelain")
+                window(EYE, y + 1.52, 1.04, 0.86, "porcelain")
                 # Put the landing sign and frosted light near the apartment doors.
                 # Both are legible from the cut face and sit outside the tread runs.
-                number_plate(1.14, y + 2.07, FRONT - 0.016, ["K", "E", "1", "2", "D"][f + 1])
-                post("Plaque bracket", (1.14, y + 2.07, FRONT - 0.055), (CORE, y + 2.07, FRONT - 0.055), 0.021, "slate")
-                box("Sconce backplate", -CORE + 0.07, y + 1.97, 0.56, 0.055, 0.24, 0.18, "slate", 0.018)
-                orb("Landing sconce", -CORE + 0.105, y + 1.97, 0.56, 0.092, 0.124, 0.083, "lemon")
+                number_plate(EYE + 1.14, y + 2.07, FRONT - 0.016, ["K", "E", "1", "2", "D"][f + 1])
+                post(
+                    "Plaque bracket",
+                    (EYE + 1.14, y + 2.07, FRONT - 0.055),
+                    (EYE + CORE, y + 2.07, FRONT - 0.055),
+                    0.021,
+                    "slate",
+                )
+                box("Sconce backplate", EYE - CORE + 0.07, y + 1.97, 0.56, 0.055, 0.24, 0.18, "slate", 0.018)
+                orb("Landing sconce", EYE - CORE + 0.105, y + 1.97, 0.56, 0.092, 0.124, 0.083, "lemon")
                 depth = FRONT - FRONT_EDGE
                 box(
                     "Landing",
-                    0,
+                    EYE,
                     y - 0.066,
                     FRONT - depth / 2,
                     2 * CORE,
@@ -616,7 +644,7 @@ def add_structure():
                 )
                 box(
                     "Landing edge",
-                    0,
+                    EYE,
                     y - 0.06,
                     FRONT,
                     2 * CORE,
@@ -625,21 +653,21 @@ def add_structure():
                     "warmgrey",
                     0.011,
                 )
-                if f < 3:
+                if f < max(LEVELS):
                     flights(f)
-                if f in (-1, 3):
+                if f in (min(LEVELS), max(LEVELS)):
                     # Unused side of the terminal landing is guarded.
-                    side = 1 if f < 0 else -1
-                    rail_run(side * 0.1, y, FRONT_EDGE, FRONT_EDGE + 0.015, 0.73, 0)
+                    side = 1 if f == min(LEVELS) else -1
+                    rail_run(EYE + side * 0.1, y, FRONT_EDGE, FRONT_EDGE + 0.015, 0.73, 0)
                     post(
                         "Final landing guard",
-                        (side * 0.13, y + 0.73, FRONT_EDGE),
-                        (side * 1.28, y + 0.73, FRONT_EDGE),
+                        (EYE + side * 0.13, y + 0.73, FRONT_EDGE),
+                        (EYE + side * 1.28, y + 0.73, FRONT_EDGE),
                         0.04,
                         "honey",
                     )
                     for step in range(1, 6):
-                        x = side * (0.13 + step * 0.22)
+                        x = EYE + side * (0.13 + step * 0.22)
                         post(
                             "Final guard baluster",
                             (x, y, FRONT_EDGE),
@@ -660,6 +688,10 @@ def add_structure():
                 0.027,
             )
         for xx in (left, right):
+            # The exterior door builder supplies the returns and lintel around this opening.
+            ext = LAYOUT.get("exteriorDoor")
+            if ext and f == ext["floor"] and abs(xx - ext["x"]) < 0.001:
+                continue
             h = ceiling(xx) - y if f == 3 else DIMS["clearHeight"]
             box(
                 "Left outer wall" if xx < 0 else "Right outer wall",
@@ -673,7 +705,12 @@ def add_structure():
                 0.015,
             )
             box("Sanded cut edge", xx, y + h / 2, FRONT, 0.13, h, 0.06, "rim", 0.012)
-    for d in LAYOUT["doors"]:
+    for d in DOORS:
         add_door(d)
-    entrance()
+    if SMALL:
+        from small_house import street_entrance
+
+        street_entrance()
+    else:
+        entrance()
     roof()

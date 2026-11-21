@@ -6,7 +6,8 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 import { build, preview } from 'vite'
-import layout from '../src/simulation/layout.json' with { type: 'json' }
+import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
+import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
 const targetUrl = process.env.RAUCHHAUS_TEST_URL
@@ -16,7 +17,7 @@ let context
 
 // Projected jamb markers provide a scale and location for sampling the shared
 // stairwell. The two compared images use the same room, camera and elapsed time.
-async function landingColor(page, level) {
+async function landingColor(page, level, layout = largeHouse) {
   await page.evaluate(
     () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
   )
@@ -24,23 +25,26 @@ async function landingColor(page, level) {
   const entrances = layout.doors.filter((door) => door.rooms.includes(landing))
   const below = layout.floors.find((floor) => floor.level === level - 1).landing
   const lowerDoor = layout.doors.find((door) => door.rooms.includes(below))
-  const ids = [...entrances.map((door) => door.id), lowerDoor.id]
-  const clip = await page.evaluate((ids) => {
-    const overlay = document.querySelector('#markers').getBoundingClientRect()
-    const [left, right, lower] = ids.map((id) => {
-      // Guided exploration hides unrelated controls, but keeps their projections current.
-      const marker = document.querySelector(`[data-marker="${id}"]`)
-      return { x: parseFloat(marker.style.left), y: parseFloat(marker.style.top) }
-    })
-    const span = Math.abs(right.x - left.x)
-    const height = lower.y - left.y
-    return {
-      x: Math.round(overlay.left + Math.min(left.x, right.x) + span * 0.24),
-      y: Math.round(overlay.top + left.y - height * 0.44),
-      width: Math.max(8, Math.round(span * 0.52)),
-      height: Math.max(6, Math.round(height * 0.31)),
-    }
-  }, ids)
+  const ids = [entrances[0].id, lowerDoor.id, entrances[1]?.id].filter(Boolean)
+  const clip = await page.evaluate(
+    ({ ids, widthToHeight }) => {
+      const overlay = document.querySelector('#markers').getBoundingClientRect()
+      const [left, lower, right] = ids.map((id) => {
+        // Projected coordinates remain available when the lesson hides the marker.
+        const marker = document.querySelector(`[data-marker="${id}"]`)
+        return { x: parseFloat(marker.style.left), y: parseFloat(marker.style.top) }
+      })
+      const height = lower.y - left.y
+      const span = right ? Math.abs(right.x - left.x) : height * widthToHeight
+      return {
+        x: Math.round(overlay.left + left.x + span * 0.24),
+        y: Math.round(overlay.top + left.y - height * 0.44),
+        width: Math.max(8, Math.round(span * 0.52)),
+        height: Math.max(6, Math.round(height * 0.31)),
+      }
+    },
+    { ids, widthToHeight: (layout.dimensions.stairHalfWidth * 2) / layout.dimensions.levelHeight },
+  )
   const image = await page.screenshot({ clip })
   return page.evaluate(async (data) => {
     const buffer = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
@@ -82,7 +86,7 @@ async function verifyLaundry(page) {
     (route) =>
       route.fulfill({
         contentType: 'text/html',
-          body: `<!doctype html><link rel="icon" href="./haus.svg">
+        body: `<!doctype html><link rel="icon" href="./haus.svg">
         <style>
           body { margin: 0; background: #9ee5f5 }
           #viewport, #markers { position: absolute; inset: 0 }
@@ -133,6 +137,11 @@ try {
   const page = context.pages()[0] ?? (await context.newPage())
   page.setDefaultTimeout(16000)
   const errors = []
+  const modelRequests = new Set()
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname
+    if (path.endsWith('.glb')) modelRequests.add(path.split('/').at(-1))
+  })
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (msg) => {
     if (msg.type() === 'error') console.error(msg.text())
@@ -143,17 +152,80 @@ try {
   assert.match(await page.title(), /Das Rauchhaus/)
   const marker = (id) => page.locator(`[data-marker="${id}"]`)
   const btn = (name) => page.getByRole('button', { name, exact: true })
-  await marker('s_tv').waitFor()
-  await page.locator('#load-state').waitFor({ state: 'hidden' })
-  assert.equal(
-    await page.locator('.marker:visible').count(),
-    layout.floors.length + layout.doors.length,
-  )
-  assert.equal(await btn('Pause').isDisabled(), true)
   const capture = async (name) => {
     if (evidence) await page.screenshot({ path: join(evidence, `${name}.png`) })
   }
+  async function checkLesson(layout, prefix) {
+    await btn('Lernimpuls').click()
+    await btn('Versuch starten').click()
+    await page.getByText('1 von 2 · Tür offen').waitFor()
+    await btn('Ergebnis ansehen').click()
+    await btn('Türvergleich starten').waitFor()
+    const openLanding = await landingColor(page, 2, layout)
+    await capture(`${prefix}-offen`)
+    await btn('Türvergleich starten').click()
+    await page.getByText('2 von 2 · Tür geschlossen').waitFor()
+    await btn('Ergebnis ansehen').click()
+    await btn('Vergleich abschließen').waitFor()
+    const closedLanding = await landingColor(page, 2, layout)
+    await capture(`${prefix}-geschlossen`)
+    const colorDifference = Math.hypot(...openLanding.map((v, i) => v - closedLanding[i]))
+    assert.ok(
+      colorDifference > 9,
+      `Upper landing should visibly change between trials (RGB distance ${colorDifference.toFixed(1)})`,
+    )
+    console.log('Passed the rendered television door comparison.')
+    await btn('Vergleich abschließen').click()
+    await page.getByText('Beobachtung vergleichen').click()
+    await page.getByText('Eine geschlossene Tür bremst den Rauch.', { exact: true }).waitFor()
+    await btn('Weiter entdecken').click()
+    await page.locator('#app:not(.learning)').waitFor()
+  }
 
+  await marker('entry').waitFor()
+  assert.deepEqual([...modelRequests], ['rauchhaus-klein.glb'])
+  assert.equal(await page.locator('.house-picker [aria-current]').textContent(), 'Kleines Haus')
+  assert.equal(
+    await page.locator('.marker:visible').count(),
+    smallHouse.floors.length + smallHouse.doors.length + Number(Boolean(smallHouse.exteriorDoor)),
+  )
+  await capture('haus-klein')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await marker('entry').click()
+  const glass = await page.evaluate(async () => {
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+    const anchor = (id) => document.querySelector(`[data-marker="${id}"]`).style
+    const storey = parseFloat(anchor('d0').top) - parseFloat(anchor('d1').top)
+    const stage = document.querySelector('#markers').getBoundingClientRect()
+    // A point on the open leaf, beyond the HTML control at its hinge.
+    const x = stage.x + parseFloat(anchor('entry').left) + storey * 0.30
+    const y = stage.y + parseFloat(anchor('entry').top)
+    return { x, y, target: document.elementFromPoint(x, y)?.tagName }
+  })
+  assert.equal(glass.target, 'CANVAS')
+  await page.mouse.click(glass.x, glass.y)
+  assert.equal(await marker('entry').getAttribute('aria-pressed'), 'false')
+  await marker('entry').click()
+  assert.equal(await marker('entry').getAttribute('aria-pressed'), 'true')
+  await checkLesson(smallHouse, 'vergleich-klein')
+  assert.equal(await marker('entry').getAttribute('aria-pressed'), 'true')
+  await page.setViewportSize({ width: 820, height: 1180 })
+  await page.getByRole('link', { name: 'Großes Haus' }).click()
+  await marker('s_washer').waitFor()
+  assert.equal(modelRequests.has('rauchhaus.glb'), true)
+  await page.getByRole('link', { name: 'Kleines Haus' }).click()
+  await marker('entry').waitFor()
+  assert.equal(await marker('entry').getAttribute('aria-pressed'), 'false')
+  await capture('haus-klein-hochformat')
+  await page.getByRole('link', { name: 'Großes Haus' }).click()
+  await marker('s_washer').waitFor()
+  await page.setViewportSize({ width: 1448, height: 1086 })
+  assert.equal(await page.locator('.house-picker [aria-current]').textContent(), 'Großes Haus')
+  assert.equal(
+    await page.locator('.marker:visible').count(),
+    largeHouse.floors.length + largeHouse.doors.length,
+  )
+  assert.equal(await btn('Pause').isDisabled(), true)
   await capture('haus')
   await marker('s_tv').click()
   await marker('m_living').waitFor()
@@ -176,30 +248,7 @@ try {
   await btn('Hilfe').click()
   await page.getByRole('heading', { name: 'So geht’s' }).waitFor()
   await page.keyboard.press('Escape')
-  await btn('Lernimpuls').click()
-  await btn('Versuch starten').click()
-  await page.getByText('1 von 2 · Tür offen').waitFor()
-  await btn('Ergebnis ansehen').click()
-  await btn('Türvergleich starten').waitFor()
-  const openLanding = await landingColor(page, 2)
-  await capture('vergleich-offen')
-  await btn('Türvergleich starten').click()
-  await page.getByText('2 von 2 · Tür geschlossen').waitFor()
-  await btn('Ergebnis ansehen').click()
-  await btn('Vergleich abschließen').waitFor()
-  const closedLanding = await landingColor(page, 2)
-  await capture('vergleich-geschlossen')
-  const colorDifference = Math.hypot(...openLanding.map((v, i) => v - closedLanding[i]))
-  assert.ok(
-    colorDifference > 9,
-    `Upper landing should visibly change between trials (RGB distance ${colorDifference.toFixed(1)})`,
-  )
-  console.log('Passed the rendered television door comparison.')
-  await btn('Vergleich abschließen').click()
-  await page.getByText('Beobachtung vergleichen').click()
-  await page.getByText('Eine geschlossene Tür bremst den Rauch.', { exact: true }).waitFor()
-  await btn('Weiter entdecken').click()
-  await page.locator('#app:not(.learning)').waitFor()
+  await checkLesson(largeHouse, 'vergleich')
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'true')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.reload()
@@ -227,7 +276,7 @@ try {
     )
     const targets = await page.evaluate(() => {
       const markers = Array.from(
-        document.querySelectorAll('#markers button:not([hidden]),.toolbar button'),
+        document.querySelectorAll('#markers button:not([hidden]),.toolbar button,.house-picker a'),
       )
       return {
         fits: document.documentElement.scrollWidth <= innerWidth,
@@ -242,7 +291,7 @@ try {
       }
     })
     assert.equal(targets.fits, true)
-    assert.equal(targets.doors, layout.doors.length)
+    assert.equal(targets.doors, largeHouse.doors.length)
     assert.deepEqual(
       targets.blocked,
       [],

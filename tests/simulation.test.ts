@@ -8,6 +8,8 @@ import {
   ROOMS,
   SOURCES,
   SmokeSimulation,
+  getHouse,
+  houseVariantForSearch,
   layerBase,
   volumeAbove,
   type SimulationSnapshot,
@@ -28,6 +30,108 @@ function mass(snapshot: SimulationSnapshot): number {
 function outsideLiving(snapshot: SimulationSnapshot): number {
   return mass(snapshot) - snapshot.rooms.living.smokeMass
 }
+
+describe('selectable houses', () => {
+  it('uses the small house by default and recognizes the explicit large-house route', () => {
+    expect(houseVariantForSearch('')).toBe('klein')
+    expect(houseVariantForSearch('?haus=klein')).toBe('klein')
+    expect(houseVariantForSearch('?haus=other')).toBe('klein')
+    expect(houseVariantForSearch('?klasse=2&haus=gross')).toBe('gross')
+    expect(getHouse('klein').modelFilename).toBe('rauchhaus-klein.glb')
+    expect(getHouse('gross').modelFilename).toBe('rauchhaus.glb')
+  })
+
+  it.each(['klein', 'gross'] as const)(
+    'places one classroom control per storey in %s',
+    (variant) => {
+      const house = getHouse(variant)
+      const floors = house.classroomSources.map((source) => {
+        const room = house.rooms.find((room) => room.id === source.room)
+        if (!room) throw new Error(`Unknown compartment for ${source.id}`)
+        const [x, y, z] = source.marker
+        expect(x).toBeGreaterThan(room.minX)
+        expect(x).toBeLessThan(room.maxX)
+        expect(y).toBeGreaterThan(room.floorY)
+        expect(y).toBeLessThan(room.ceilingY)
+        expect(z).toBeGreaterThan(room.minZ)
+        expect(z).toBeLessThan(source.position[2])
+        expect(Math.hypot(x - source.position[0], y - source.position[1])).toBeGreaterThan(0.5)
+        return room.floor
+      })
+      expect(floors.sort((a, b) => a - b)).toEqual(house.floors.map((f) => f.level))
+    },
+  )
+
+  const small = getHouse('klein')
+  it('connects the right-hand stairwell to one apartment per floor and omits the basement', () => {
+    expect(small.floors.map((floor) => floor.level)).toEqual([0, 1, 2, 3])
+    for (const floor of small.floors) {
+      const landing = small.rooms.find((room) => room.id === floor.landing)
+      if (!landing) throw new Error('Missing stair landing')
+      const apartments = small.rooms.filter(
+        (room) => room.floor === floor.level && room !== landing,
+      )
+      expect(apartments.length).toBe([2, 1, 2, 1][floor.level])
+      expect(apartments.every((room) => room.maxX < landing.minX)).toBe(true)
+      expect(small.doors.filter((door) => door.rooms[1] === landing.id)).toHaveLength(1)
+      expect(small.dimensions.stairEyeX).toBeGreaterThan(landing.minX)
+      expect(small.dimensions.stairEyeX).toBeLessThan(landing.maxX)
+    }
+    const sim = new SmokeSimulation(small)
+    expect(sim.snapshot().doors.entry).toBe(false)
+    expect(() => sim.start('s_washer')).toThrow(RangeError)
+    expect(() => sim.setDoor('dbr', true)).toThrow(RangeError)
+    expect(() => new SmokeSimulation(getHouse('gross')).setDoor('entry', true)).toThrow(RangeError)
+  })
+
+  it('keeps the open/closed television comparison visible on both small-house landings', () => {
+    function watch(open: boolean) {
+      const sim = new SmokeSimulation(small)
+      sim.setDoor('d1', open)
+      sim.start('s_tv')
+      sim.advance(26)
+      return sim.snapshot()
+    }
+    const open = watch(true)
+    const closed = watch(false)
+    expect(open.detectors.m_living).toBe(true)
+    for (const landing of ['stair1', 'stair2'] as const) {
+      expect(open.rooms[landing].opacity).toBeGreaterThan(closed.rooms[landing].opacity + 0.15)
+      expect(open.rooms[landing].layerBaseY).toBeLessThan(closed.rooms[landing].layerBaseY)
+    }
+    expect(open.escapedMass).toBe(0)
+    expect(mass(open)).toBeCloseTo(mass(closed), 9)
+  })
+
+  it('accounts for smoke lost through the exterior entrance and preserves prior losses on closure', () => {
+    function kitchen(open: boolean) {
+      const sim = new SmokeSimulation(small)
+      sim.setDoor('d0', true)
+      sim.setDoor('entry', open)
+      sim.start('s_stove')
+      sim.advance(56)
+      return sim
+    }
+    const sim = kitchen(true)
+    const open = sim.snapshot()
+    const closed = kitchen(false).snapshot()
+    expect(open.doorFlow.entry).toBeGreaterThan(0)
+    expect(open.escapedMass).toBeGreaterThan(10 * closed.escapedMass)
+    expect(open.rooms.stair0.smokeMass).toBeLessThan(closed.rooms.stair0.smokeMass)
+    expect(mass(open) + open.escapedMass).toBeCloseTo(mass(closed) + closed.escapedMass, 9)
+    sim.setDoor('entry', false)
+    expect(sim.snapshot().escapedMass).toBe(open.escapedMass)
+    sim.advance(6)
+    expect(sim.snapshot().escapedMass).toBeGreaterThanOrEqual(open.escapedMass)
+    expect(sim.snapshot().doorFlow.entry).toBeLessThan(open.doorFlow.entry / 10)
+    expect(mass(sim.snapshot()) + sim.snapshot().escapedMass).toBeCloseTo(
+      mass(open) + open.escapedMass,
+      9,
+    )
+    sim.reset()
+    expect(sim.snapshot().escapedMass).toBe(0)
+  })
+})
 
 describe('compartment transport', () => {
   it('places each doorway in the shared wall between its two rooms', () => {

@@ -671,3 +671,49 @@ nav,
     height: clamp(30px, 3.8vmin, 44px);
   }
 }
+
+/* Place both house choices next to the title, away from the cutaway. */
+.topbar {
+  display: grid;
+  grid-template-areas: "brand tools" "houses .";
+  grid-template-columns: max-content max-content;
+  row-gap: 5px;
+}
+.brand { grid-area: brand; }
+.learning-tools { grid-area: tools; }
+.house-picker {
+  grid-area: houses;
+  justify-self: start;
+  display: inline-flex;
+  gap: 0;
+  padding: 2px;
+  border-radius: 30px;
+  background: var(--paper);
+  box-shadow: var(--control-shadow);
+}
+.house-picker > * {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  padding-inline: 13px;
+  border-radius: 26px;
+  color: var(--ink);
+  font-weight: 850;
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.house-picker [aria-current] {
+  background: var(--teal);
+  color: white;
+}
+@media (max-width: 500px) {
+  .topbar { grid-template-areas: "brand tools" "houses houses"; }
+  .house-picker { justify-self: center; }
+}
+@media (min-width: 670px) and (max-height: 590px) {
+  .topbar {
+    grid-template-areas: "brand houses tools";
+    grid-template-columns: repeat(3, max-content);
+  }
+}

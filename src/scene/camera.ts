@@ -1,7 +1,8 @@
 import { MathUtils, OrthographicCamera, Vector3 } from 'three'
-import { FLOORS, ROOMS } from '../simulation'
+import { FLOORS, HOUSE_VARIANT, ROOMS } from '../simulation'
 
-const FRONT_YAW = -0.15
+// The small house has its entrance and solar panels on the right.
+const FRONT_YAW = HOUSE_VARIANT === 'klein' ? 0.26 : -0.15
 const ELEVATION = 0.16
 const clamp = MathUtils.clamp
 const levels = FLOORS.map((floor) => floor.level).sort((a, b) => a - b)
@@ -80,13 +81,15 @@ export class HouseCamera {
     }
   }
 
-  focus(floor: number, x = 0): void {
+  /** Center a room or landing; returns false for a level absent from this house. */
+  focus(floor: number, x = 0): boolean {
     const floorY = floorBases.get(floor)
-    if (floorY === undefined) return
+    if (floorY === undefined) return false
     this.floor = floor
     this.targetY = floorY + 1.22
     this.targetX = clamp(x, minX, maxX)
     this.zoom = 1
+    return true
   }
 
   reset(): void {

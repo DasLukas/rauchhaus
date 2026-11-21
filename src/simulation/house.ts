@@ -1,4 +1,5 @@
-import layout from './layout.json' with { type: 'json' }
+import largeLayout from './layout.json' with { type: 'json' }
+import smallLayout from './layout-small.json' with { type: 'json' }
 
 /** Identifiers shared by the model, the learning scenarios and their tests. */
 export type RoomId =
@@ -21,6 +22,7 @@ export type RoomId =
   | 'stair2'
   | 'stair3'
 export type DoorId =
+  | 'entry'
   | 'dbl'
   | 'dbr'
   | 'd0l'
@@ -54,6 +56,7 @@ export interface Room {
   readonly label: string
   readonly floor: number
   readonly floorY: number
+  readonly roof?: typeof largeLayout.roof
   /** Highest interior point of the room, including the attic gable. */
   readonly ceilingY: number
   readonly minX: number
@@ -67,7 +70,7 @@ export interface Door {
   readonly label: string
   readonly floor: number
   /** Positive doorway flow goes from the first room to the second room. */
-  readonly rooms: readonly [RoomId, RoomId]
+  readonly rooms: readonly [RoomId, RoomId | 'outside']
   readonly initiallyOpen: boolean
   readonly x: number
   readonly hingeZ: number
@@ -94,73 +97,109 @@ export interface Detector {
   readonly sensorY: number
 }
 
-export const DIMENSIONS = layout.dimensions
-export const ROOF = layout.roof
-export const FLOORS = layout.floors.map((f) => ({ ...f, landing: f.landing as RoomId }))
+export type HouseVariant = 'klein' | 'gross'
+
+/** Selects the small classroom house unless the URL explicitly requests the large house. */
+export function houseVariantForSearch(search: string): HouseVariant {
+  return new URLSearchParams(search).get('haus') === 'gross' ? 'gross' : 'klein'
+}
 
 /** Underside of the pitched roof at the specified horizontal coordinate. */
-export function roofHeightAt(x: number): number {
-  return ROOF.ridgeY - ROOF.slope * Math.abs(x)
+export function roofHeightAt(x: number, roof: typeof largeLayout.roof = ROOF): number {
+  return roof.ridgeY - roof.slope * Math.abs(x)
 }
 
 /**
- * The JSON stores wall centerlines for construction. The simulation occupies
- * the clear volume between wall faces. The open cutaway is a viewing plane.
+ * Convert the shared Blender wall centerlines to clear compartment dimensions,
+ * preserving the cutaway front as a viewing plane.
  */
-export const ROOMS: readonly Room[] = layout.rooms.map((room) => {
-  const floorY = DIMENSIONS.levelHeight * room.floor
-  const halfWall = DIMENSIONS.wallThickness / 2
-  const minX = room.minX + halfWall
-  const maxX = room.maxX - halfWall
-  const ridge = Math.max(minX, Math.min(0, maxX))
-  return {
-    ...room,
-    id: room.id as RoomId,
-    minX,
-    maxX,
-    floorY,
-    minZ: DIMENSIONS.minZ + halfWall,
-    maxZ: DIMENSIONS.maxZ,
-    ceilingY: room.floor === ROOF.floor ? roofHeightAt(ridge) : floorY + DIMENSIONS.clearHeight,
+export function getHouse(variant: HouseVariant) {
+  const layout = variant === 'gross' ? largeLayout : smallLayout
+  const { dimensions, roof } = layout
+  const floors = layout.floors.map((floor) => ({ ...floor, landing: floor.landing as RoomId }))
+  const rooms: Room[] = layout.rooms.map((room) => {
+    const floorY = dimensions.levelHeight * room.floor
+    const halfWall = dimensions.wallThickness / 2
+    const minX = room.minX + halfWall
+    const maxX = room.maxX - halfWall
+    const ridge = Math.max(minX, Math.min(0, maxX))
+    return {
+      ...room,
+      id: room.id as RoomId,
+      minX,
+      maxX,
+      floorY,
+      minZ: dimensions.minZ + halfWall,
+      maxZ: dimensions.maxZ,
+      roof: room.floor === roof.floor ? roof : undefined,
+      ceilingY:
+        room.floor === roof.floor ? roofHeightAt(ridge, roof) : floorY + dimensions.clearHeight,
+    }
+  })
+  const openings = [...layout.doors]
+  if ('exteriorDoor' in layout) {
+    const entry = layout.exteriorDoor
+    openings.push({ ...entry, rooms: [entry.room, 'outside'] })
   }
-})
+  const doors: Door[] = openings.map((door) => ({
+    ...door,
+    id: door.id as DoorId,
+    rooms: door.rooms as [RoomId, RoomId | 'outside'],
+    topY: door.floor * dimensions.levelHeight + door.height,
+  }))
+  const sources: Source[] = layout.sources.map((source) => ({
+    ...source,
+    id: source.id as SourceId,
+    room: source.room as RoomId,
+    position: source.position as [number, number, number],
+  }))
+  const classroomSources = Object.entries(layout.sourceMarkers).map(([id, marker]) => {
+    const source = sources.find((item) => item.id === id)
+    if (!source) throw new Error(`Missing smoke source: ${id}`)
+    return { ...source, marker }
+  })
+  const detectors: Detector[] = layout.detectors.map((detector) => ({
+    ...detector,
+    id: detector.id as DetectorId,
+    room: detector.room as RoomId,
+    position: detector.position as [number, number, number],
+    sensorY: detector.position[1],
+  }))
+  return {
+    dimensions,
+    roof,
+    floors,
+    rooms,
+    doors,
+    sources,
+    classroomSources,
+    detectors,
+    modelFilename: variant === 'klein' ? 'rauchhaus-klein.glb' : 'rauchhaus.glb',
+  }
+}
 
-export const DOORS: readonly Door[] = layout.doors.map((door) => ({
-  ...door,
-  id: door.id as DoorId,
-  rooms: door.rooms as [RoomId, RoomId],
-  topY: door.floor * DIMENSIONS.levelHeight + door.height,
-}))
-
-export const SOURCES: readonly Source[] = layout.sources.map((source) => ({
-  ...source,
-  id: source.id as SourceId,
-  room: source.room as RoomId,
-  position: source.position as [number, number, number],
-}))
-
-/** Wall positions for the five selectable experiments, separate from their emission points. */
-export const CLASSROOM_SOURCES = Object.entries(layout.sourceMarkers).map(([id, marker]) => {
-  const source = SOURCES.find((item) => item.id === id)
-  if (!source) throw new Error(`Missing smoke source: ${id}`)
-  return { ...source, marker }
-})
-
-export const DETECTORS: readonly Detector[] = layout.detectors.map((detector) => ({
-  ...detector,
-  id: detector.id as DetectorId,
-  room: detector.room as RoomId,
-  position: detector.position as [number, number, number],
-  sensorY: detector.position[1],
-}))
+export const HOUSE_VARIANT =
+  typeof window === 'undefined' ? 'gross' : houseVariantForSearch(window.location.search)
+export const HOUSE = getHouse(HOUSE_VARIANT)
+export const {
+  dimensions: DIMENSIONS,
+  roof: ROOF,
+  floors: FLOORS,
+  rooms: ROOMS,
+  doors: DOORS,
+  sources: SOURCES,
+  classroomSources: CLASSROOM_SOURCES,
+  detectors: DETECTORS,
+  modelFilename: MODEL_FILENAME,
+} = HOUSE
 
 /** Exact volume under the clipped gable, above a horizontal layer boundary. */
-function atticVolumeAbove(bounds: Room, height: number): number {
-  const reach = Math.max(0, (roofHeightAt(0) - height) / ROOF.slope)
+function atticVolumeAbove(bounds: Room, height: number, roof: typeof ROOF): number {
+  const reach = Math.max(0, (roof.ridgeY - height) / roof.slope)
   function section(near: number, far: number): number {
     const end = Math.min(reach, far)
     if (end <= near) return 0
-    return (end - near) * (roofHeightAt((near + end) / 2) - height)
+    return (end - near) * (roofHeightAt((near + end) / 2, roof) - height)
   }
   const left = section(Math.max(0, -bounds.maxX), Math.max(0, -bounds.minX))
   const right = section(Math.max(0, bounds.minX), Math.max(0, bounds.maxX))
@@ -174,15 +213,15 @@ export function floorArea(bounds: Room): number {
 /** Returns the volume between a horizontal plane and the room's ceiling. */
 export function volumeAbove(bounds: Room, y: number): number {
   const plane = Math.max(bounds.floorY, Math.min(bounds.ceilingY, y))
-  return bounds.floor === ROOF.floor
-    ? atticVolumeAbove(bounds, plane)
+  return bounds.roof
+    ? atticVolumeAbove(bounds, plane, bounds.roof)
     : (bounds.ceilingY - plane) * floorArea(bounds)
 }
 
 /** Returns the absolute height delimiting the specified upper-layer volume. */
 export function layerBase(bounds: Room, volume: number): number {
   if (volume <= 0) return bounds.ceilingY
-  if (bounds.floor !== ROOF.floor) {
+  if (!bounds.roof) {
     return Math.max(bounds.floorY, bounds.ceilingY - volume / floorArea(bounds))
   }
   if (volume >= volumeAbove(bounds, bounds.floorY)) return bounds.floorY

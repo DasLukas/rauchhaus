@@ -1,9 +1,5 @@
 import {
-  DETECTORS,
-  DOORS,
-  FLOORS,
-  ROOMS,
-  SOURCES,
+  HOUSE,
   floorArea,
   layerBase,
   volumeAbove,
@@ -33,6 +29,8 @@ export interface SimulationSnapshot {
   readonly source: SourceId | null
   /** Normalized emission strength; previously emitted smoke survives source burnout. */
   readonly sourceStrength: number
+  /** Smoke tracer that has crossed the exterior doorway into the open air. */
+  readonly escapedMass: number
   readonly rooms: Readonly<Record<RoomId, SmokeLayer>>
   readonly doors: Readonly<Record<DoorId, boolean>>
   readonly detectors: Readonly<Record<DetectorId, boolean>>
@@ -63,13 +61,14 @@ interface Cell {
   heatChange: number
 }
 
-interface Opening {
+type Opening = {
   readonly first: Cell
-  readonly second: Cell
-  readonly door: DoorId | null
   readonly topY: number
   transfer: number
-}
+} & (
+  | { readonly door: DoorId; readonly second: Cell | null }
+  | { readonly door: null; readonly second: Cell }
+)
 
 const TICK = 1 / 30
 const COOLING = Math.exp(-0.012 * TICK)
@@ -122,10 +121,12 @@ function stairFlow(lower: Cell, upper: Cell): number {
  * not calibrated predictions of real conditions, toxicity or safe passage.
  */
 export class SmokeSimulation {
-  private readonly cells = table(ROOMS, cell)
-  private readonly doors = table(DOORS, (door) => door.initiallyOpen)
-  private readonly flows = table(DOORS, () => 0)
-  private readonly stairFlows = table(ROOMS, () => 0)
+  private readonly house: typeof HOUSE
+  private readonly cells: Record<RoomId, Cell>
+  private readonly doors: Record<DoorId, boolean>
+  private readonly flows: Record<DoorId, number>
+  private readonly stairFlows: Record<RoomId, number>
+  private escapedMass = 0
   private readonly openings: Opening[]
   private source: SourceId | null = null
   private sourceCell: Cell | null = null
@@ -133,17 +134,22 @@ export class SmokeSimulation {
   private remainder = 0
   private cached: SimulationSnapshot | null = null
 
-  constructor() {
-    this.openings = DOORS.map((door) => ({
+  constructor(house = HOUSE) {
+    this.house = house
+    this.cells = table(house.rooms, cell)
+    this.doors = table(house.doors, (door) => door.initiallyOpen)
+    this.flows = table(house.doors, () => 0)
+    this.stairFlows = table(house.rooms, () => 0)
+    this.openings = house.doors.map((door) => ({
       first: this.cells[door.rooms[0]],
-      second: this.cells[door.rooms[1]],
+      second: door.rooms[1] === 'outside' ? null : this.cells[door.rooms[1]],
       door: door.id,
       topY: door.topY,
       transfer: 0,
     }))
-    for (let i = 1; i < FLOORS.length; i++) {
-      const lower = FLOORS[i - 1].landing
-      const upper = FLOORS[i].landing
+    for (let i = 1; i < house.floors.length; i++) {
+      const lower = house.floors[i - 1].landing
+      const upper = house.floors[i].landing
       this.openings.push({
         first: this.cells[lower],
         second: this.cells[upper],
@@ -156,11 +162,12 @@ export class SmokeSimulation {
 
   /** Empties the building, retaining every selected door position. */
   reset(): void {
-    for (const bounds of ROOMS) {
+    for (const bounds of this.house.rooms) {
       Object.assign(this.cells[bounds.id], cell(bounds))
       this.stairFlows[bounds.id] = 0
     }
-    for (const door of DOORS) this.flows[door.id] = 0
+    for (const door of this.house.doors) this.flows[door.id] = 0
+    this.escapedMass = 0
     this.source = null
     this.sourceCell = null
     this.ticks = 0
@@ -170,7 +177,7 @@ export class SmokeSimulation {
 
   /** Starts a fresh experiment with one source and the current door positions. */
   start(id: SourceId): void {
-    const source = SOURCES.find((item) => item.id === id)
+    const source = this.house.sources.find((item) => item.id === id)
     if (!source) throw new RangeError('Unknown smoke source')
     this.reset()
     this.source = id
@@ -210,7 +217,7 @@ export class SmokeSimulation {
     source.heat += 0.94 * emitted
     source.base = layerBase(source.bounds, source.volume)
 
-    for (const room of ROOMS) {
+    for (const room of this.house.rooms) {
       const zone = this.cells[room.id]
       zone.outflow = zone.volumeChange = zone.massChange = zone.heatChange = 0
     }
@@ -221,15 +228,17 @@ export class SmokeSimulation {
         rate = stairFlow(first, second)
       } else {
         const permeability = this.doors[door] ? 1 : LEAKAGE
-        rate = 0.94 * permeability * (doorwayHead(first, topY) - doorwayHead(second, topY))
+        // Fresh exterior air carries no upper-layer smoke into the model.
+        const backPressure = second ? doorwayHead(second, topY) : 0
+        rate = 0.94 * permeability * (doorwayHead(first, topY) - backPressure)
       }
       opening.transfer = rate * TICK
-      const donor = rate >= 0 ? first : second
+      const donor = rate < 0 && second ? second : first
       donor.outflow += Math.abs(opening.transfer)
     }
     for (const opening of this.openings) {
       const forward = opening.transfer >= 0
-      const donor = forward ? opening.first : opening.second
+      const donor = !forward && opening.second ? opening.second : opening.first
       const receiver = forward ? opening.second : opening.first
       if (donor.volume <= 0 || donor.outflow <= 0) {
         if (opening.door !== null) this.flows[opening.door] = 0
@@ -245,14 +254,18 @@ export class SmokeSimulation {
       donor.volumeChange -= volume
       donor.massChange -= tracer
       donor.heatChange -= heat
-      receiver.volumeChange += volume * (opening.door === null ? 1.25 : 1.12)
-      receiver.massChange += tracer
-      receiver.heatChange += heat
+      if (receiver) {
+        receiver.volumeChange += volume * (opening.door === null ? 1.25 : 1.12)
+        receiver.massChange += tracer
+        receiver.heatChange += heat
+      } else {
+        this.escapedMass += tracer
+      }
       const signedFlow = (forward ? 1 : -1) * Math.min(1, volume / TICK)
       if (opening.door !== null) this.flows[opening.door] = signedFlow
       else this.stairFlows[opening.first.bounds.id] = signedFlow
     }
-    for (const room of ROOMS) {
+    for (const room of this.house.rooms) {
       const zone = this.cells[room.id]
       zone.volume = Math.max(0, Math.min(zone.capacity, zone.volume + zone.volumeChange))
       zone.mass = Math.max(0, zone.mass + zone.massChange)
@@ -264,14 +277,14 @@ export class SmokeSimulation {
   /** Returns a read-only snapshot valid even after the next tick or restart. */
   snapshot(): SimulationSnapshot {
     if (this.cached) return this.cached
-    const rooms = table(ROOMS, (room) => {
+    const rooms = table(this.house.rooms, (room) => {
       const zone = this.cells[room.id]
       const density = zone.volume > 0 ? Math.min(1, zone.mass / zone.volume) : 0
       const depth = room.ceilingY - zone.base
       const opacity = 0.85 * (1 - Math.exp(-2.25 * density)) * (1 - Math.exp(-depth / 0.15))
       return Object.freeze({ layerBaseY: zone.base, opacity, density, smokeMass: zone.mass })
     })
-    const detectors = table(DETECTORS, (detector) => {
+    const detectors = table(this.house.detectors, (detector) => {
       const zone = rooms[detector.room]
       return zone.density >= 0.035 && zone.layerBaseY <= detector.sensorY
     })
@@ -279,6 +292,7 @@ export class SmokeSimulation {
     this.cached = Object.freeze({
       elapsed,
       source: this.source,
+      escapedMass: this.escapedMass,
       sourceStrength: this.source ? emission(elapsed) : 0,
       rooms: Object.freeze(rooms),
       detectors: Object.freeze(detectors),

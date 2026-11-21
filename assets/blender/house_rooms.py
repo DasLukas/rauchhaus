@@ -510,6 +510,9 @@ def furnish():
     middle()
     upper()
     attic()
+
+
+def detectors():
     select_collection("House structure")
     for det in LAYOUT["detectors"]:
         x, y, z = det["position"]

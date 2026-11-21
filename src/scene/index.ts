@@ -20,12 +20,14 @@ import {
 } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import {
+  CLASSROOM_SOURCES,
   DETECTORS,
   DOORS,
   type DoorId,
+  HOUSE_VARIANT,
+  MODEL_FILENAME,
   ROOMS,
   type SimulationSnapshot,
-  CLASSROOM_SOURCES,
   type SourceId,
 } from '../simulation'
 import { HouseCamera, pickedFloor } from './camera'
@@ -72,7 +74,7 @@ function lighting(scene: Scene): void {
   bounce.target.position.set(0, 3.5, 0)
   scene.add(bounce, bounce.target)
   const sun = new DirectionalLight(0xfff2da, 2.03)
-  sun.position.set(-9, 17, 13)
+  sun.position.set(HOUSE_VARIANT === 'klein' ? 9 : -9, 17, 13)
   sun.target.position.set(0, 4.2, 0)
   sun.castShadow = true
   sun.shadow.mapSize.set(1024, 1024)
@@ -187,7 +189,7 @@ export async function createHouseScene(
 
   try {
     const { scene: model } = await new GLTFLoader().loadAsync(
-      `${import.meta.env.BASE_URL}models/rauchhaus.glb`,
+      `${import.meta.env.BASE_URL}models/${MODEL_FILENAME}`,
     )
     scene.add(model)
     scene.updateMatrixWorld(true)
@@ -214,6 +216,7 @@ export async function createHouseScene(
         throw new Error(`Unexpected door angle for ${door.id}`)
       return { id: door.id, object, angle, rest: object.quaternion.clone() }
     })
+    const doorIds = new Map(hinges.map(({ object, id }) => [object, id]))
     smoke = new SmokeVolumes(positions)
     const clouds = addSkyClouds()
     scene.add(smoke, clouds)
@@ -264,8 +267,7 @@ export async function createHouseScene(
     }
 
     function focusFloor(floor: number, x = 0): void {
-      if (!Number.isFinite(floor)) return
-      camera.focus(floor, x)
+      if (!camera.focus(floor, x)) return
       callbacks.onFloorChange?.(camera.floor)
       reproject = true
     }
@@ -320,8 +322,9 @@ export async function createHouseScene(
       if (!hit) return
       let node: Object3D | null = hit.object
       while (node) {
-        if (node.name.startsWith('hinge_')) {
-          callbacks.onActivate(node.name.slice(6))
+        const doorId = doorIds.get(node)
+        if (doorId) {
+          callbacks.onActivate(doorId)
           return
         }
         node = node.parent

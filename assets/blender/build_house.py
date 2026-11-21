@@ -16,13 +16,13 @@ from mathutils.bvhtree import BVHTree
 # Blender does not add the directory of a --python script to its import path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_clearance import validate
-from house_rooms import furnish, garden
+from house_plan import MODEL_NAME, ROOT, SMALL
+from house_rooms import detectors, furnish, garden
 from miniature_geometry import PARTS, point, unit
 from structure import ANCHORS, ANGLES, HINGES, add_structure
 
-ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "assets/blender/rauchhaus.blend"
-WEB = ROOT / "public/models/rauchhaus.glb"
+SOURCE = ROOT / "assets/blender" / f"{MODEL_NAME}.blend"
+WEB = ROOT / "public/models" / f"{MODEL_NAME}.glb"
 
 
 def contact_shading():
@@ -150,18 +150,23 @@ def make_scene(editable, shade):
             ident = title[6:]
             parent = empty(title, HINGES[ident], coll)
             parent["openAngle"] = ANGLES[ident]
-        batches = [(entry[0], [entry]) for entry in entries] if editable else [(title + " surfaces", entries)]
-        for name, batch in batches:
-            obj = create_mesh(
-                name,
-                batch,
-                coll,
-                glass if title == "Entrance glazing" else material,
-                shade,
+        # Keep the glazed leaf and its frame under the same rotating parent while
+        # preserving a transparent material for just the pane in the web export.
+        solid_entries = [e for e in entries if e[0] != "Glass door pane"]
+        glass_entries = [e for e in entries if e[0] == "Glass door pane"]
+        for batch, paint in ((solid_entries, material), (glass_entries, glass)):
+            if not batch:
+                continue
+            batches = (
+                [(entry[0], [entry]) for entry in batch]
+                if editable
+                else [(title + (" glazing" if paint == glass else " surfaces"), batch)]
             )
-            if parent:
-                obj.parent = parent
-                obj.location -= parent.location
+            for name, geometry in batches:
+                obj = create_mesh(name, geometry, coll, paint, shade)
+                if parent:
+                    obj.parent = parent
+                    obj.location -= parent.location
     interaction = bpy.data.collections.new("Interaction anchors")
     scene.collection.children.link(interaction)
     for ident, loc in ANCHORS.items():
@@ -173,11 +178,11 @@ def studio():
     scene = bpy.context.scene
     cam_data = bpy.data.cameras.new("Front cutaway")
     cam_data.type = "ORTHO"
-    cam_data.ortho_scale = 20.4
+    cam_data.ortho_scale = 14.95 if SMALL else 20.4
     cam = bpy.data.objects.new("Front cutaway", cam_data)
     scene.collection.objects.link(cam)
-    cam.location = point((-3.2, 7.68, 22))
-    target = Vector(point((0, 4.23, 0)))
+    cam.location = point((5.35, 8.45, 22) if SMALL else (-3.2, 7.68, 22))
+    target = Vector(point((0, 5.4, 0) if SMALL else (0, 4.23, 0)))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
     scene.camera = cam
 
@@ -223,8 +228,16 @@ def build():
     started = time.monotonic()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     add_structure()
-    furnish()
-    garden()
+    if SMALL:
+        from small_house import garden as small_garden
+        from small_house import room_details
+
+        room_details()
+        small_garden()
+    else:
+        furnish()
+        garden()
+    detectors()
     validate()
     print("Sampling miniature contact shadows", flush=True)
     shade = contact_shading()

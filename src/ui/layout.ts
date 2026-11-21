@@ -1,7 +1,14 @@
+import { HOUSE_VARIANT, type HouseVariant } from '../simulation'
 import { icon, type IconName } from './icons'
 
 function control(id: string, glyph: IconName, label: string, compact = false) {
   return `<button id="${id}" type="button" class="pill${compact ? ' compact' : ''}" aria-label="${label}" title="${label}">${icon(glyph)}${compact ? '' : `<span>${label}</span>`}</button>`
+}
+
+/** Keep the current house selected and the alternative directly addressable. */
+function houseChoice(variant: HouseVariant, label: string) {
+  if (variant === HOUSE_VARIANT) return `<span aria-current="page">${label}</span>`
+  return `<a href="?haus=${variant}">${label}</a>`
 }
 
 /** Builds the single-screen workspace and its native, keyboard-accessible controls. */
@@ -9,14 +16,15 @@ export function mountLayout(host: HTMLElement) {
   host.innerHTML = `
     <header class="topbar">
       <h1 class="brand">${icon('brand')}<span>Das Rauchhaus</span></h1>
-      <nav aria-label="Lernen und Hilfe">${control('lesson', 'bulb', 'Lernimpuls')}${control('help', 'help', 'Hilfe')}</nav>
+      <nav class="house-picker" aria-label="Haus auswählen">${houseChoice('klein', 'Kleines Haus')}${houseChoice('gross', 'Großes Haus')}</nav>
+      <nav class="learning-tools" aria-label="Lernen und Hilfe">${control('lesson', 'bulb', 'Lernimpuls')}${control('help', 'help', 'Hilfe')}</nav>
     </header>
     <section class="stage" aria-label="Das Haus erkunden">
       <div id="viewport"></div>
       <div id="markers" aria-label="Rauchquellen und Türen"></div>
       <div id="load-state" role="status"><span class="spinner"></span><span>Das Haus wird aufgebaut …</span></div>
       <div id="trial" role="region" aria-label="Geführter Türvergleich" hidden>
-        <div class="trial-copy"><strong id="trial-name"></strong><span>Schau ins Treppenhaus in der Mitte.</span></div>
+        <div class="trial-copy"><strong id="trial-name"></strong><span>Schau ins Treppenhaus ${HOUSE_VARIANT === 'klein' ? 'rechts' : 'in der Mitte'}.</span></div>
         <button id="trial-next" class="action" type="button"><span id="trial-action"></span>${icon('next')}</button>
         <button id="trial-end" class="compact close" type="button" aria-label="Lernimpuls beenden">${icon('close')}</button>
       </div>

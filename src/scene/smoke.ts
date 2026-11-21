@@ -21,7 +21,6 @@ import {
   ROOF,
   ROOMS,
   type Room,
-  roofHeightAt,
   type SimulationSnapshot,
   SOURCES,
   type SourceId,
@@ -205,8 +204,8 @@ export class SmokeVolumes extends Group {
         layerBase: { value: room.ceilingY },
         localCeiling: { value: room.ceilingY },
         isGable: { value: room.floor === ROOF.floor ? 1 : 0 },
-        ridge: { value: roofHeightAt(0) },
-        roofSlope: { value: roofHeightAt(0) - roofHeightAt(1) },
+        ridge: { value: ROOF.ridgeY },
+        roofSlope: { value: ROOF.slope },
         sliceDepth: { value: (room.maxZ - room.minZ) / SLICE_COUNT },
         source: { value: new Vector3() },
         strength: { value: 0 },
@@ -236,7 +235,11 @@ export class SmokeVolumes extends Group {
       const local = snapshot.rooms[room.id]
       const u = material.uniforms
       u.strength.value = active?.room === room.id ? snapshot.sourceStrength : 0
-      if (active && u.strength.value > 0) u.source.value.copy(this.sourcePositions.get(active.id))
+      if (active && u.strength.value > 0) {
+        const anchor = this.sourcePositions.get(active.id)
+        if (anchor) u.source.value.copy(anchor)
+        else u.source.value.fromArray(active.position)
+      }
       u.time.value = snapshot.elapsed
       u.upperOpacity.value = local.opacity
       u.layerBase.value = local.layerBaseY

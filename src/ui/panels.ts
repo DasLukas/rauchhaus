@@ -1,3 +1,4 @@
+import { HOUSE_VARIANT } from '../simulation'
 import { icon } from './icons'
 import { element } from './layout'
 
@@ -8,18 +9,18 @@ const help = `
   <ul class="help-list">
     <li><i class="key source">${icon('smoke')}</i><div><strong>Rauch beobachten</strong><p>Tippe auf ein oranges Rauchzeichen. Schau, was zuerst an der Decke passiert.</p></div></li>
     <li><i class="key door">${icon('door')}</i><div><strong>Türen ausprobieren</strong><p>Tippe auf eine Tür oder ihr türkises Zeichen. Mit jedem Tipp öffnet oder schließt sie sich.</p></div></li>
-    <li><i class="key neutral">${icon('house')}</i><div><strong>Genauer hinschauen</strong><p>Tippe in eine Wohnung oder den Keller, um näher heranzugehen. In der Nahansicht kannst du das Haus mit dem Finger verschieben. Das Hauszeichen zeigt wieder alle Etagen.</p></div></li>
+    <li><i class="key neutral">${icon('house')}</i><div><strong>Genauer hinschauen</strong><p>Tippe auf ein Stockwerk, um näher heranzugehen. In der Nahansicht kannst du das Haus mit dem Finger verschieben. Das Hauszeichen zeigt wieder alle Etagen.</p></div></li>
     <li><i class="key neutral">${icon('alarm')}</i><div><strong>Rauchwarnmelder</strong><p>Erreicht Rauch einen Melder, erscheint dort das Alarmzeichen.</p></div></li>
   </ul>
   <details><summary>Für Erwachsene</summary><p>Das vereinfachte Modell zeigt, wie warmer Rauch aufsteigt, sich unter der Decke sammelt und durch Öffnungen weiterzieht. Geschlossene Türen bremsen ihn. Die Abläufe erlauben keine Aussage über sichere Aufenthalts- oder Fluchtzeiten.</p>
-  <p>Das Haus lässt sich mit der Tabulatortaste erkunden. Eingabe oder Leertaste betätigen markierte Tasten. In der Gesamtansicht drehen die Pfeiltasten das Haus. In der Nahansicht verschieben sie den Ausschnitt. Mit 0 wählst du den Keller, mit 1 bis 4 die Etagen vom Erdgeschoss bis zum Dach. Pos1 zeigt das ganze Haus.</p><p><a href="https://github.com/DasLukas/rauchhaus" target="_blank" rel="noopener">Projekt, Quellen und Lizenzen</a></p></details>
+  <p>Das Haus lässt sich mit der Tabulatortaste erkunden. Eingabe oder Leertaste betätigen markierte Tasten. In der Gesamtansicht drehen die Pfeiltasten das Haus. In der Nahansicht verschieben sie den Ausschnitt. Mit 1 bis 4 wählst du die Etagen vom Erdgeschoss bis zum Dach.${HOUSE_VARIANT === 'gross' ? ' Mit 0 wählst du den Keller.' : ''} Pos1 zeigt das ganze Haus.</p><p><a href="https://github.com/DasLukas/rauchhaus" target="_blank" rel="noopener">Projekt, Quellen und Lizenzen</a></p></details>
   <button type="button" class="action" data-close>Verstanden</button>`
 
 const intro = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('bulb')}</span>${closeButton}</header>
   <h2 id="sheet-title">Was passiert im Treppenhaus?</h2>
-  <p>Im ersten Stock entsteht links am Fernseher Rauch. Was glaubst du: Wohin zieht er, wenn die Wohnungstür offen ist?</p>
-  <p>Schau ins Treppenhaus zwischen den Wohnungen. Danach probierst du denselben Versuch mit geschlossener Tür.</p>
+  <p>Im ersten Stock entsteht am Fernseher Rauch. Was glaubst du: Wohin zieht er, wenn die Wohnungstür offen ist?</p>
+  <p>Schau ins Treppenhaus ${HOUSE_VARIANT === 'klein' ? 'rechts neben der Wohnung' : 'zwischen den Wohnungen'}. Danach probierst du denselben Versuch mit geschlossener Tür.</p>
   <button type="button" class="action" data-start>Versuch starten ${icon('next')}</button>`
 
 const result = `

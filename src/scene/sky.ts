@@ -7,6 +7,7 @@ import {
   MeshBasicMaterial,
   Vector3,
 } from 'three'
+import { DIMENSIONS, ROOF } from '../simulation'
 
 // Sculpted as one continuous curved surface so adjoining cloud lobes share
 // lighting, like the rounded furniture in the dollhouse.
@@ -77,9 +78,9 @@ export function addSkyClouds(): Group {
   const group = new Group()
   const material = new MeshBasicMaterial({ vertexColors: true, toneMapped: false })
   const positions = [
-    [-8.5, 9.1, -4.8, 1.64, 0.07],
-    [7.95, 9.45, -5.75, 1.48, -0.06],
-    [-10.55, 5.23, -5.3, 1.07, -0.1],
+    [DIMENSIONS.minX - 1.5, ROOF.ridgeY - 2.1, -4.8, 1.64, 0.07],
+    [DIMENSIONS.maxX + 0.95, ROOF.ridgeY - 1.75, -5.75, 1.48, -0.06],
+    [DIMENSIONS.minX - 3.55, ROOF.ridgeY - 5.97, -5.3, 1.07, -0.1],
   ]
   for (const [x, y, z, scale, seed] of positions) {
     const cloud = new Mesh(cloudShape(seed), material)

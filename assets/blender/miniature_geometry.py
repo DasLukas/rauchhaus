@@ -1,6 +1,7 @@
 """Rounded model primitives, named paint colors and collection geometry."""
 
 from collections import defaultdict
+from itertools import pairwise
 from math import ceil, cos, pi, sin
 
 from mathutils import Vector
@@ -290,6 +291,26 @@ def prism(name, outline, z1, z2, color):
     # Front faces use counter-clockwise XY coordinates.
     vs, ns, fs = [], [], []
     for z, normal in ((z1, (0, 0, -1)), (z2, (0, 0, 1))):
+        if name == "Pitched back wall" and z == z2:
+            # A single continuous plaster face follows both roof slopes. Include the
+            # ridge explicitly and subdivide the interior for the vertex light bake.
+            bottom = outline[0][1]
+            eaves = list(reversed(outline[2:]))
+            rows = ceil((max(h for _, h in eaves) - bottom) / 0.24)
+            columns = []
+            for (x0, h0), (x1, h1) in pairwise(eaves):
+                steps = ceil((x1 - x0) / 0.24)
+                columns.extend((x0 + (x1 - x0) * i / steps, h0 + (h1 - h0) * i / steps) for i in range(steps))
+            columns.append(eaves[-1])
+            first = len(vs)
+            for col, (x, top) in enumerate(columns):
+                for row in range(rows + 1):
+                    vs.append((x, bottom + (top - bottom) * row / rows, z))
+                    ns.append(normal)
+                    if col and row:
+                        end = first + col * (rows + 1) + row
+                        fs.append((end - rows - 2, end - 1, end, end - rows - 1))
+            continue
         if name == "Attic back" and z == z2:
             # Barycentric subdivision keeps the gable silhouette exact.
             left, right, ridge = (Vector(p) for p in outline)

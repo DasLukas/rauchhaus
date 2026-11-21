@@ -4,13 +4,19 @@
 
 A one-page, touch-first 3D teaching tool for primary-school children aged 6–10. Each level has one selectable smoke source. Its orange marker sits beside the object on the wall. Choose an orange smoke source or tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed. Classroom use needs a WebGL 2 browser and a connection to load the site. The application runs entirely on the device after loading.
 
-![Central stairwell with apartments on both sides and a cutaway basement](docs/rauchhaus.png)
+![The small house with the staircase and outside entrance on the right](docs/rauchhaus-klein.png)
 
-This branch has eight apartments around one continuous staircase. Each full storey pairs a one-room home with a two-room home, alternating sides. A glazed entrance, mailboxes, handrails and half-landings mark the common circulation space. The basement contains a bicycle store and a shared laundry. Start the washing-machine experiment and try opening or closing the laundry door. Photovoltaic panels are visible on the roof.
+**Kleines Haus** is the default. Four apartments share a staircase on the right across the ground floor, two upper storeys and the attic. A glazed entrance through the right exterior wall leads directly onto the ground-floor landing. Its own door control opens the entrance.
+
+Use **Großes Haus** above the scene to explore the larger building. Selecting a different house starts a fresh experiment in that house. The selected layout can be bookmarked with `?haus=klein` or `?haus=gross`.
+
+![The large house with its central staircase and basement](docs/rauchhaus.png)
+
+The large house has eight apartments around one continuous staircase. Each full storey pairs a one-room home with a two-room home, alternating sides. A glazed entrance, mailboxes, handrails and half-landings mark the common circulation space. The basement contains a bicycle store and a shared laundry. Start the washing-machine experiment and try opening or closing the laundry door. Photovoltaic panels are visible on the roof.
 
 ## Develop locally
 
-Install Node.js 24.15 or later and npm. The versioned GLB is ready to serve. Blender is needed only when changing the artwork.
+Install Node.js 24.15 or later and npm. Both versioned GLB files are ready to serve. Blender is needed only when changing the artwork.
 
 ```sh
 npm ci
@@ -34,14 +40,17 @@ The browser test starts Chrome with its sandbox enabled and a new temporary prof
 
 ## Editing the house
 
-Open [the editable Blender model](assets/blender/rauchhaus.blend) to inspect the furnished rooms, landscape, lighting, doors and anchors. The [Blender Python generator](assets/blender/build_house.py) builds the individual editable objects and the batched web version. Change the generator for reproducible artwork updates, then run the following from the project root with Blender 5.3 available.
+Open the editable [small house](assets/blender/rauchhaus-klein.blend) or [large house](assets/blender/rauchhaus.blend) to inspect the furnished rooms, landscape, lighting, doors and anchors. The [Blender Python generator](assets/blender/build_house.py) builds the individual editable objects and the batched web version. Change the generator for reproducible artwork updates, then run the following from the project root with Blender 5.3 available.
 
 ```sh
-blender --background --python assets/blender/build_house.py
+# Small house
+blender --background --python-exit-code 1 --python assets/blender/build_house.py -- --small
+# Large house
+blender --background --python-exit-code 1 --python assets/blender/build_house.py
 npm run check:model
 ```
 
-Before exporting, Blender checks each complete door and handle against nearby geometry at one-degree intervals. It also checks the stair treads, landings, headroom and open stairwell between floors. The generator replaces the versioned `.blend` and `public/models/rauchhaus.glb`. Save hand-modeled changes separately before regenerating. See the [architecture and model contract](ARCHITECTURE.md) for the shared layout and coordinates.
+Before exporting, Blender checks each complete door and handle against nearby geometry at one-degree intervals. It also checks the stair treads, landings, headroom and open stairwell between floors. The generator replaces the selected house’s versioned `.blend` and `.glb` files. Save hand-modeled changes separately before regenerating. See the [architecture and model contract](ARCHITECTURE.md) for the shared layout and coordinates.
 
 ## Development and publishing
 

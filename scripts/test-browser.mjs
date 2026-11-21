@@ -3,125 +3,18 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import { build, preview } from 'vite'
+import { preview } from 'vite'
 import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
 import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
+
+import { landingColor, verifySmoke } from './test-smoke-rendering.mjs'
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
 const targetUrl = process.env.RAUCHHAUS_TEST_URL
 const profile = await mkdtemp(join(tmpdir(), 'rauchhaus-chrome-'))
 let server
 let context
-
-// Projected jamb markers provide a scale and location for sampling the shared
-// stairwell. The two compared images use the same room, camera and elapsed time.
-async function landingColor(page, level, layout = largeHouse) {
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  )
-  const landing = layout.floors.find((floor) => floor.level === level).landing
-  const entrances = layout.doors.filter((door) => door.rooms.includes(landing))
-  const below = layout.floors.find((floor) => floor.level === level - 1).landing
-  const lowerDoor = layout.doors.find((door) => door.rooms.includes(below))
-  const ids = [entrances[0].id, lowerDoor.id, entrances[1]?.id].filter(Boolean)
-  const clip = await page.evaluate(
-    ({ ids, widthToHeight }) => {
-      const overlay = document.querySelector('#markers').getBoundingClientRect()
-      const [left, lower, right] = ids.map((id) => {
-        // Projected coordinates remain available when the lesson hides the marker.
-        const marker = document.querySelector(`[data-marker="${id}"]`)
-        return { x: parseFloat(marker.style.left), y: parseFloat(marker.style.top) }
-      })
-      const height = lower.y - left.y
-      const span = right ? Math.abs(right.x - left.x) : height * widthToHeight
-      return {
-        x: Math.round(overlay.left + left.x + span * 0.24),
-        y: Math.round(overlay.top + left.y - height * 0.44),
-        width: Math.max(8, Math.round(span * 0.52)),
-        height: Math.max(6, Math.round(height * 0.31)),
-      }
-    },
-    { ids, widthToHeight: (layout.dimensions.stairHalfWidth * 2) / layout.dimensions.levelHeight },
-  )
-  const image = await page.screenshot({ clip })
-  return page.evaluate(async (data) => {
-    const buffer = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
-    const bitmap = await createImageBitmap(new Blob([buffer], { type: 'image/png' }))
-    const canvas = document.createElement('canvas')
-    canvas.width = bitmap.width
-    canvas.height = bitmap.height
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(bitmap, 0, 0)
-    bitmap.close()
-    const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-    const total = [0, 0, 0]
-    for (let i = 0; i < rgba.length; i += 4) {
-      for (let channel = 0; channel < 3; channel++) total[channel] += rgba[i + channel]
-    }
-    return total.map((channel) => channel / (rgba.length / 4))
-  }, image.toString('base64'))
-}
-
-/** Render both 32-second simulation snapshots against the GLB at the tested site. */
-async function verifyLaundry(page) {
-  const bundle = await build({
-    configFile: false,
-    base: './',
-    logLevel: 'error',
-    build: {
-      write: false,
-      lib: {
-        entry: fileURLToPath(new URL('./laundry-render.mjs', import.meta.url)),
-        name: 'LaundryTest',
-        formats: ['iife'],
-      },
-    },
-  })
-  // Replace only the document in this browser. Relative model requests still
-  // reach the production preview (or supplied Pages URL) at its original base.
-  await page.route(
-    page.url(),
-    (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: `<!doctype html><link rel="icon" href="./haus.svg">
-        <style>
-          body { margin: 0; background: #9ee5f5 }
-          #viewport, #markers { position: absolute; inset: 0 }
-          #markers { visibility: hidden }
-        </style>
-        <div id="viewport"></div><div id="markers"></div>`,
-      }),
-    { times: 1 },
-  )
-  await page.setViewportSize({ width: 1000, height: 760 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.reload()
-  const output = Array.isArray(bundle) ? bundle[0].output : bundle.output
-  const entry = output.find((file) => file.type === 'chunk' && file.isEntry)
-  assert.ok(entry, 'Could not build the laundry rendering fixture')
-  await page.addScriptTag({ content: entry.code })
-  const selectDoor = await page.evaluateHandle(() => window.LaundryTest.mount())
-  const colors = []
-  for (const open of [false, true]) {
-    assert.equal(await selectDoor.evaluate((select, open) => select(open), open), true)
-    colors.push(await landingColor(page, 0))
-    if (evidence) {
-      await page.screenshot({
-        path: join(evidence, `keller-${open ? 'offen' : 'geschlossen'}.png`),
-      })
-    }
-  }
-  await selectDoor.dispose()
-  const difference = Math.hypot(...colors[1].map((value, i) => value - colors[0][i]))
-  assert.ok(
-    difference > 9,
-    `Laundry door should visibly affect the central ground-floor landing (RGB distance ${difference.toFixed(1)})`,
-  )
-  console.log(`Rendered laundry comparison (ground-floor RGB distance ${difference.toFixed(1)}).`)
-}
 
 try {
   if (evidence) await mkdir(evidence, { recursive: true })
@@ -198,7 +91,7 @@ try {
     const storey = parseFloat(anchor('d0').top) - parseFloat(anchor('d1').top)
     const stage = document.querySelector('#markers').getBoundingClientRect()
     // A point on the open leaf, beyond the HTML control at its hinge.
-    const x = stage.x + parseFloat(anchor('entry').left) + storey * 0.30
+    const x = stage.x + parseFloat(anchor('entry').left) + storey * 0.3
     const y = stage.y + parseFloat(anchor('entry').top)
     return { x, y, target: document.elementFromPoint(x, y)?.tagName }
   })
@@ -311,7 +204,7 @@ try {
   assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'true')
   await marker('m_laundry').waitFor()
   await btn('Pause').click()
-  await verifyLaundry(page)
+  await verifySmoke(page)
   assert.deepEqual(errors, [])
   console.log(
     'Passed: model load, smoke alarm, matched TV and laundry trials, opposed entrance doors, zoom and portrait touch controls.',

@@ -30,13 +30,13 @@ Open the address printed by Vite. To view this branch on a tablet, serve the loc
 | Command | Verifies |
 | --- | --- |
 | `npm run lint` | Static analysis |
-| `npm test` | Room transport, detector responses, source and door changes, time-step invariance and the matched learning trials |
+| `npm test` | Room filling, long-run smoke balance, detector responses, door changes, time-step invariance and the matched learning trials |
 | `npm run check:model` | Editable Blender source and self-contained WebGL export, including all control anchors, moving doors and mesh budgets |
 | `npm run build` | TypeScript types and production bundle in `dist/` |
 | `npm run check` | All four checks above |
-| `npm run test:browser` | Compares rendered smoke on the shared landings for both the television and washing-machine experiments, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
+| `npm run test:browser` | Compares smoke at the bedroom doorway and on the shared landings, measures furniture contrast in dense smoke, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
 
-The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. It exercises the actual washing-machine control and detector in the app. A rendering fixture advances two laundry scenarios to 32 model seconds and compares the same ground-floor landing in both images. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
+The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. It exercises the actual washing-machine control and detector in the app. A rendering fixture advances the television, laundry and desk-lamp experiments to repeatable observation points. The desk-lamp tests follow smoke through the attic door and, with that door closed, down to the lower landings. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
 
 ## Editing the house
 
@@ -58,9 +58,19 @@ Use short-lived branches and pull requests against `main`. GitHub Actions instal
 
 ## Teaching basis
 
-The house uses a qualitative upper/lower-zone model. Warm smoke rises, forms an upper layer, and transfers through openings. Existing smoke persists when a door closes. The modeled effects support classroom observation. Real fire development, escape times and safe occupancy cannot be inferred from the animation.
+Warm smoke rises to the ceiling. As the upper layer deepens, its lower edge reaches the top of an open door. Smoke then passes beneath the lintel, rises on the receiving side and spreads along the next ceiling. Closing the door reduces further transfer while smoke already in the room persists. The demonstration uses a light-to-dark grey palette to show increasing smoke loading. Its clock and colours are teaching choices. Real fire development, escape times and safe occupancy cannot be inferred from the animation.
 
-- [NIST two-zone fire and smoke modeling](https://pages.nist.gov/cfast/)
+To see a room fill, choose the desk lamp in the small house. Open the bedroom, landing and attic doors on the smoke path. The early plume is easy to follow. The teaching target is about 60% of the playroom volume occupied by the upper layer at 25 model seconds and about 80% at 40–45 seconds. The attic fills later. A source stays active throughout free exploration. Pause freezes the experiment, and restarting or selecting another source starts with clear rooms. Each guided television trial pauses at 40 model seconds for comparison.
+
+To follow smoke downstairs, repeat the desk-lamp experiment with its apartment door open and the attic apartment door closed. Watch the upper landings first. As smoke accumulates, the layer reaches the stair opening and spreads under the ceiling of the first-floor landing. The ground-floor landing follows later. The lower apartment doors can stay closed throughout.
+
+In the large house, start the ground-floor kettle and open its apartment door. Smoke reaching the attic landing initially mixes with clear air and appears lighter than the smoke near the source. With a sustained supply, smoke continues to mix between occupied layers. Watch how the railing at the top gradually becomes harder to see.
+
+- NIST describes the onset of doorway flow and the opposing lower air current in section 3.4.2 of its [CFAST model guide](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1026r1.pdf).
+- In full-scale apartment experiments, corridor visibility dropped sooner at 1.5 m above the floor than at 0.3 m after the apartment door opened. See figure 8 of [De Witte, Johansson and van Hees (2025)](https://doi.org/10.1177/07349041251377639).
+- Experiments with an upstairs fire in a two-storey building showed that smoke can descend through vertical connections and that its distribution depends on ventilation. [Qi et al. (2024)](https://doi.org/10.1016/j.jobe.2024.111264).
+- Full-scale stairwell experiments tracked light attenuation at each landing. With no upper outlet, the first smoke reaching the upper levels was dilute and the concentration there increased as smoke continued to enter. [Nii et al., figures 3 and 4](https://publications.iafss.org/publications/aofst/6/1b-1/view/aofst_6-1b-1.pdf).
+- The renderer attenuates background light exponentially along a sightline, following the slice rendering approach in section 4.3.1 of the [NIST Smokeview technical reference](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1017-2.pdf).
 - [Fire Safety Research Institute’s full-scale open/closed door comparison](https://fsri.org/program-update/close-you-doze-series-after)
 - [German Fire Services Association and vfdb guidance](https://www.feuerwehrverband.de/app/uploads/2020/05/DFV_vfdb_Fachempfehlung_Verhalten_Brandfall_2019b.pdf)
 - [Hardy et al. on guided exploration in primary science education](https://www.uni-muenster.de/imperia/md/content/didaktik_des_sachunterrichts/dokumente/literaturmoeller/article.pdf). The study concerned floating and sinking. The prediction, observation and comparison sequence applies that instructional approach here.

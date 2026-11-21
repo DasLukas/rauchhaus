@@ -17,7 +17,9 @@ import {
 import {
   DIMENSIONS,
   DOORS,
+  type Door,
   FLOORS,
+  PLUME_RISE_SPEED,
   ROOF,
   ROOMS,
   type Room,
@@ -31,28 +33,24 @@ const SLICE_COUNT = 19
 // The fixed sample planes face the open cutaway, back to front. Each fragment
 // is depth-tested against opaque furniture, so the bed or a door can occlude a
 // plume without requiring a second off-screen render on a tablet.
-function roomSlices(room: Room): BufferGeometry {
+function roomSlices(room: Room, doors: readonly Door[]): BufferGeometry {
   const vertices: number[] = []
   const indices: number[] = []
+  function quad(left: number, right: number, top: number, z: number): void {
+    const i = vertices.length / 3
+    vertices.push(left, room.floorY, z, right, room.floorY, z, right, top, z, left, top, z)
+    indices.push(i, i + 1, i + 2, i, i + 2, i + 3)
+  }
   for (let slice = 0; slice < SLICE_COUNT; slice++) {
     const z = room.minZ + ((room.maxZ - room.minZ) * (slice + 0.5)) / SLICE_COUNT
-    const { minX: left, maxX: right } = room
-    const i = vertices.length / 3
-    vertices.push(
-      left,
-      room.floorY,
-      z,
-      right,
-      room.floorY,
-      z,
-      right,
-      room.ceilingY,
-      z,
-      left,
-      room.ceilingY,
-      z,
-    )
-    indices.push(i, i + 1, i + 2, i, i + 2, i + 3)
+    quad(room.minX, room.maxX, room.ceilingY, z)
+    // The receiving jet also spans the wall thickness, inside the clear opening.
+    for (const door of doors) {
+      if (z > Math.min(door.hingeZ, door.latchZ) && z < Math.max(door.hingeZ, door.latchZ)) {
+        const halfWall = DIMENSIONS.wallThickness / 2
+        quad(door.x - halfWall, door.x + halfWall, door.topY, z)
+      }
+    }
   }
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
@@ -78,8 +76,13 @@ function noiseTexture(): Data3DTexture {
 
 const vertexShader = `
   out vec3 point;
+  uniform float sliceDepth;
+  flat out float pathLength;
+  flat out float sideStep;
   void main() {
     point = position;
+    pathLength = sliceDepth / abs(modelViewMatrix[2].z);
+    sideStep = abs(modelViewMatrix[0].z) * pathLength;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `
@@ -87,72 +90,185 @@ const vertexShader = `
 const fragmentShader = `
   precision highp sampler3D;
   in vec3 point;
+  flat in float pathLength;
+  flat in float sideStep;
   out vec4 smokeColor;
   uniform sampler3D noiseVolume;
   uniform float time;
-  uniform float upperOpacity;
+  uniform float layerExtinction;
+  uniform float layerDensity;
   uniform float layerBase;
+  uniform vec4 ceilingFront; // entry x/z, ceiling radius, remaining vertical rise
+  uniform vec2 roomSides;
   uniform float localCeiling;
   uniform float isGable;
   uniform vec3 source;
   uniform float strength;
   uniform vec4 openings[OPENING_COUNT];
-  uniform vec2 flows[OPENING_COUNT];
+  uniform vec4 flows[OPENING_COUNT]; // inward direction, rate, submerged depth, donor density
+  uniform float flowTravel[OPENING_COUNT]; // distance travelled by this open-door current
   uniform vec3 stairEntry;
   uniform vec2 stairStrength;
+  uniform vec2 stairDensity;
+  uniform float stairDownAge;
   uniform float floorY;
   uniform vec3 shadowTint;
   uniform vec3 lightTint;
   uniform float ridge;
   uniform float roofSlope;
-  uniform float sliceDepth;
 
-  float doorwayJet(vec4 opening, vec2 flow) {
-    float run = (point.x - opening.x) * flow.x;
-    if (run < 0.0 || run > 1.5) return 0.0;
-    float center = opening.y - 0.13 + 0.27 * run;
-    vec2 offset = vec2((point.y - center) / (0.14 + 0.15 * run),
-                       (point.z - opening.z) / (opening.w * 0.42 + 0.13 * run));
-    return flow.y * exp(-dot(offset, offset) - 1.8 * run);
+  float ceilingAt(float x) {
+    return mix(localCeiling, ridge - roofSlope * abs(x), isGable);
   }
 
-  // The open eye between the switchback flights is visible through each slab.
-  // Incoming flow from the lower landing rises here before joining its layer.
-  float stairPlume(float height, float amount) {
-    if (amount < 0.002 || height < 0.0) return 0.0;
-    float side = min(height, 1.0);
-    vec2 curl = vec2(sin(3.8 * height - time * 1.5), cos(4.6 * height - time))
-              * 0.10 * side;
-    // The jet entrains air and fans out between the flights on its ascent.
-    vec2 width = vec2(0.22, 0.44) + vec2(0.25, 0.34) * side;
-    vec2 offset = (point.xz - stairEntry.xz - curl - vec2(0.0, 0.26 * side)) / width;
-    return amount * exp(-dot(offset,offset) - 0.22 * height);
+  float risingTip(vec2 entry) {
+    if (ceilingFront.w <= 0.0 || distance(entry, ceilingFront.xy) > 0.02) return 1.0;
+    float tipY = ceilingAt(entry.x) - ceilingFront.w;
+    return 1.0 - smoothstep(tipY, tipY + 0.05, point.y);
+  }
+
+  // Extinction and extinction-weighted soot fraction for a current mixing
+  // with room air. Entrainment softens both its opacity and its grey tone.
+  vec2 plumeOptics(float gas, float donorDensity, float rise) {
+    float concentration = donorDensity / (1.0 + 0.72 * rise);
+    return gas * concentration * vec2(1.0, concentration);
+  }
+
+  float cloudProfile(vec2 offset, vec2 width, vec2 eddies, float distanceTravelled) {
+    vec2 relative = offset / width + eddies * min(0.85, distanceTravelled);
+    return exp(-dot(relative, relative));
+  }
+
+  float reached(float distanceFromOpening, float travel) {
+    return 1.0 - smoothstep(travel - 0.08, travel + 0.02, distanceFromOpening);
+  }
+
+  vec2 doorwaySmoke(vec4 opening, vec4 flow, float travel, vec2 eddies) {
+    float run = max(0.0, (point.x - opening.x) * flow.x - HALF_WALL);
+    float depth = min(0.70 * flow.z, opening.y - floorY);
+    float lateral = point.z - opening.z;
+    float width = opening.w * 0.5;
+    // Keep the exiting gas inside the submerged part of the actual aperture.
+    float lip = (1.0 - smoothstep(width * 0.7, width, abs(lateral)))
+              * smoothstep(0.0, 0.04, point.y - opening.y + depth)
+              * (1.0 - smoothstep(-0.02, 0.0, point.y - opening.y));
+    float rate = mix(flow.y, sqrt(flow.y), 0.30);
+    vec2 mouth = plumeOptics(5.2 * rate * lip * exp(-5.0 * run), flow.w, 0.0);
+
+    // The spill plume leaves the wall with some horizontal momentum. Its
+    // widening cross section depends on rise through air and can reach a high
+    // attic ceiling without stretching the thin mouth over that whole height.
+    float aboveLip = point.y - (opening.y - 0.45 * depth);
+    float rise = max(0.0, aboveLip);
+    float axis = 0.15 + 0.20 * rate + 0.36 * rise;
+    vec2 spread = vec2(0.16 + 0.13 * rate, width * 0.8) + vec2(0.50, 0.42) * rise;
+    float cloud = cloudProfile(vec2(run - axis, lateral), spread, eddies, rise + run);
+    float release = smoothstep(0.0, 0.20, run)
+                  * smoothstep(-0.5 * depth - 0.03, 0.05, aboveLip);
+    vec2 plume = plumeOptics(4.8 * rate * release * cloud, flow.w, rise);
+
+    // A previous trickle can leave an old ceiling layer in place. The fresh
+    // current still has to travel out of the opening and rise to that layer.
+    float distanceFromOpening = length(vec3(run, max(0.0, point.y - opening.y),
+                                             max(0.0, abs(lateral) - width)));
+    return (mouth + plume) * reached(distanceFromOpening, travel) * risingTip(opening.xz);
+  }
+
+  vec2 risingStairSmoke(float height, float amount, float donorDensity, vec2 eddies) {
+    if (amount < 0.002 || height < 0.0) return vec2(0.0);
+    // The staircase opening constricts the current at each slab. Between
+    // slabs it keeps entraining air all the way up to the receiving layer.
+    vec2 spread = vec2(0.24, 0.43) + vec2(0.38, 0.40) * height;
+    vec2 offset = point.xz - stairEntry.xz - vec2(0.0, 0.14 * height);
+    float cloud = cloudProfile(offset, spread, eddies, height);
+    return plumeOptics(5.8 * amount * cloud, donorDensity, height);
+  }
+
+  vec2 descendingStairSmoke(float drop, vec2 eddies) {
+    if (stairStrength.y < 0.002) return vec2(0.0);
+    // A spill enters at the eye, then mixes along the underside of the
+    // accumulating layer. Only its rolling fringe dips into the clearer air.
+    float rate = sqrt(stairStrength.y);
+    float layerDepth = max(0.0, localCeiling - layerBase);
+    float reach = min(stairDownAge * 0.48, layerDepth + 0.22 + 0.45 * rate);
+    if (drop > reach + 0.12) return vec2(0.0);
+    vec2 offset = point.xz - stairEntry.xz;
+    vec2 width = vec2(0.17, 0.42) + min(drop, 1.2) * vec2(0.37, 0.28);
+    float cloud = cloudProfile(offset, width, eddies, drop);
+    float tip = reached(drop + 0.14 * length(offset) + 0.10 * eddies.y, reach);
+    return plumeOptics(4.6 * stairStrength.y * cloud * tip, stairDensity.y, drop);
   }
 
   void main() {
-    float top = mix(localCeiling, ridge - roofSlope * abs(point.x), isGable);
-    float height = point.y - floorY;
+    float top = ceilingAt(point.x);
     if (point.y > top) discard;
-    float risingGas = stairPlume(height, stairStrength.x) + stairPlume(top - point.y, stairStrength.y);
-    float openingGas = 0.0;
-    for (int i = 0; i < OPENING_COUNT; i++) {
-      if (flows[i].y > 0.002) openingGas += doorwayJet(openings[i], flows[i]);
-    }
-    if (point.y < layerBase - 0.23 && strength < 0.002 && openingGas + risingGas < 0.002) discard;
+    bool inside = point.x >= roomSides.x && point.x <= roomSides.y;
+    // Fractional side coverage antialiases the visible ends of the depth
+    // slices. An active doorway joins them to the samples in the wall reveal.
+    float edgeDistance = min(point.x - roomSides.x, roomSides.y - point.x);
+    float coverage = inside ? clamp(edgeDistance / max(0.00001, sideStep), 0.0, 1.0) : 1.0;
+    float distanceToEntry = distance(point.xz, ceilingFront.xy);
+    // Broad rolls travel away from the impingement point along the ceiling.
+    float billow = texture(noiseVolume, vec3(distanceToEntry * 0.055 - time * 0.017,
+        point.y * 0.051, point.z * 0.032 + 0.5)).r - 0.5;
     vec3 uv = point * 0.063 + vec3(0.32, -time * 0.014, 0.5);
     float broad = texture(noiseVolume, uv).r - 0.5;
-    float detail = texture(noiseVolume, uv * 2.18 + vec3(0.1, -time * 0.006, 0.3)).r;
-    float billow = texture(noiseVolume, point * vec3(0.039, 0.051, 0.012)
-        + vec3(time * 0.004, -time * 0.005, 0.5)).r - 0.5;
-    float textureDensity = 0.82 + 0.46 * broad + 0.20 * detail + 0.35 * billow;
-    float layer = upperOpacity * smoothstep(-0.075, 0.10,
-        point.y - layerBase + billow * 0.24 + broad * 0.15 + (detail - 0.5) * 0.045);
-    // Map optical opacity over the compartment depth into distributed samples.
-    float extinction = -1.75 * log(max(0.06, 1.0 - min(layer, 0.94))) / (sliceDepth * float(SAMPLES));
+    vec2 eddies = vec2(broad + 0.5 * billow, billow - 0.5 * broad);
+    vec2 currents = vec2(0.0);
+    bool nearRoof = isGable > 0.5 && top - point.y < 0.43;
+    float roofFeed = strength + stairStrength.x;
+    for (int i = 0; i < OPENING_COUNT; i++) {
+      if (flows[i].y > 0.002 && (inside || abs(point.x - openings[i].x) <= HALF_WALL)) {
+        vec4 opening = openings[i];
+        currents += doorwaySmoke(opening, flows[i], flowTravel[i], eddies);
+        if (abs(point.x - opening.x) < HALF_WALL + sideStep
+            && point.y < opening.y && abs(point.z - opening.z) < opening.w * 0.5) coverage = 1.0;
+        if (nearRoof) {
+          float doorCeiling = ceilingAt(opening.x);
+          float roofPath = max(0.0, doorCeiling - opening.y)
+                         + length(vec3(point.xz - opening.xz, top - doorCeiling));
+          roofFeed += flows[i].y * reached(roofPath, flowTravel[i]);
+        }
+      }
+    }
+    if (inside) {
+      currents += risingStairSmoke(point.y - floorY, stairStrength.x, stairDensity.x, eddies)
+                * risingTip(stairEntry.xz);
+      currents += descendingStairSmoke(top - point.y, eddies);
+    }
+    bool behindFront = ceilingFront.z > 0.0 && distanceToEntry < ceilingFront.z + 0.16;
+    bool atRoof = nearRoof && roofFeed > 0.002;
+    bool inLayer = inside && behindFront && (point.y > layerBase - 0.48 || atRoof);
+    if (!inLayer && strength < 0.002 && currents.x < 0.002) discard;
+    float detail = texture(noiseVolume, uv * 2.18 + vec3(0.1, -time * 0.006, 0.3)).r - 0.5;
+    float textureDensity = 1.0 + 0.46 * broad + 0.20 * detail + 0.35 * billow;
+    float layer = 0.0;
+    if (inLayer) {
+      float front = smoothstep(-0.12, 0.35, ceilingFront.z - distanceToEntry + 0.08 * billow);
+      // The advancing nose is shallower than the developed layer behind it.
+      float base = mix(top, layerBase, front);
+      float edge = 0.085 + 0.10 * clamp(top - base, 0.0, 1.0);
+      float vertical = smoothstep(-edge, edge, point.y - base
+          + billow * 0.32 + broad * 0.18 + detail * 0.04);
+      layer = layerExtinction * front * vertical;
+      if (atRoof) {
+        // Before a horizontal layer pools at the ridge, the incoming current
+        // follows the upward pitch on its own side of the roof.
+        float side = sign(ceilingFront.x);
+        float uphill = smoothstep(-0.18, 0.10, (ceilingFront.x - point.x) * side)
+                     * smoothstep(-0.12, 0.04, point.x * side);
+        float roofCloud = 1.0 - smoothstep(0.0, 0.35, top - point.y + eddies.x * 0.10);
+        layer = max(layer, min(1.0, roofFeed) * front * uphill * roofCloud * exp(-0.3 * distanceToEntry));
+      }
+    }
+    // Once mixed into the established layer, incoming gas no longer draws a
+    // second, darker plume over the ceiling or a post through the landing.
+    currents *= (1.0 + 0.75 * broad + 0.5 * billow) * (1.0 - smoothstep(0.02, 0.90, layer));
+    float extinction = layer + currents.x;
+    float soot = layer * layerDensity + currents.y;
 
     float h = point.y - source.y;
-    float plumeShade = 0.0;
-    if (strength > 0.001 && h > -0.05) {
+    if (inside && strength > 0.001 && h > -0.05) {
       float rise = max(h, 0.0);
       float width = 0.075 + 0.15 * sqrt(rise);
       vec2 curl = vec2(sin(rise * 6.0 - time * 1.9), cos(rise * 5.1 - time * 1.4))
@@ -160,15 +276,22 @@ const fragmentShader = `
       vec2 center = source.xz + curl;
       vec2 r = (point.xz - center) / width;
       float plume = exp(-dot(r,r) * 1.05) * smoothstep(-0.05, 0.08, h)
-                    * (1.0 - smoothstep(time * 1.35, time * 1.35 + 0.20, rise));
-      plumeShade = plume * strength;
-      extinction += 4.1 * plumeShade * (0.78 + broad * 0.58);
+                    * (1.0 - smoothstep(time * RISE_SPEED, time * RISE_SPEED + 0.10, rise));
+      float column = 4.1 * plume * strength * (0.86 + broad * 0.58);
+      extinction += column;
+      soot += column * layerDensity;
     }
-    extinction += openingGas * 3.6 + risingGas * 5.6;
-    float alpha = 1.0 - exp(-extinction * sliceDepth * textureDensity);
+    // Beer-Lambert transmittance composes over the visible path to each object.
+    float alpha = 1.0 - exp(-extinction * pathLength * coverage * textureDensity);
     if (alpha < 0.0012) discard;
-    vec3 color = mix(shadowTint, lightTint, clamp(0.36 + broad * 0.55 + detail * 0.18 + billow * 0.4 - plumeShade * 0.42
-                    + 0.11 * smoothstep(layerBase, max(layerBase + 0.02, top + 0.02), point.y), 0.0, 1.0));
+    float darkness = smoothstep(0.10, 0.76, soot / extinction + billow * 0.045);
+    // Coherent self-shading keeps the dense cloud moving even after furniture
+    // contrast has vanished. Its illumination must not open holes in the layer.
+    float roll = texture(noiseVolume, point * vec3(0.049, 0.060, 0.012)
+        + vec3(time * 0.006 + broad * 0.025, -time * 0.008 + billow * 0.03, 0.3)).r - 0.5;
+    vec3 shadow = shadowTint * exp2(5.2 * roll + 1.3 * billow);
+    vec3 light = lightTint * (0.94 + 0.22 * broad + 0.22 * billow);
+    vec3 color = mix(shadow, light, (1.0 - darkness) * (1.0 - darkness));
     smokeColor = vec4(linearToOutputTexel(vec4(color, 1.0)).rgb, alpha);
   }
 `
@@ -187,11 +310,18 @@ export class SmokeVolumes extends Group {
           Math.abs(door.hingeZ - door.latchZ),
         ),
     )
-    const flows = doors.map((door) => new Vector2(door.x < (room.maxX + room.minX) / 2 ? 1 : -1, 0))
+    const flows = doors.map(
+      (door) => new Vector4(door.x < (room.maxX + room.minX) / 2 ? 1 : -1, 0, 0, 0),
+    )
     const landing = FLOORS.find((floor) => floor.landing === room.id)
     const below = landing ? FLOORS.find((floor) => floor.level === landing.level - 1) : undefined
+    const above = landing ? FLOORS.find((floor) => floor.level === landing.level + 1) : undefined
     const material = new ShaderMaterial({
-      defines: { OPENING_COUNT: Math.max(1, doors.length), SAMPLES: SLICE_COUNT },
+      defines: {
+        OPENING_COUNT: Math.max(1, doors.length),
+        HALF_WALL: DIMENSIONS.wallThickness / 2,
+        RISE_SPEED: PLUME_RISE_SPEED,
+      },
       glslVersion: GLSL3,
       vertexShader,
       fragmentShader,
@@ -200,8 +330,11 @@ export class SmokeVolumes extends Group {
       uniforms: {
         noiseVolume: { value: this.noise },
         time: { value: 0 },
-        upperOpacity: { value: 0 },
+        layerExtinction: { value: 0 },
+        layerDensity: { value: 0 },
         layerBase: { value: room.ceilingY },
+        ceilingFront: { value: new Vector4(0, 0, -1, 0) },
+        roomSides: { value: new Vector2(room.minX, room.maxX) },
         localCeiling: { value: room.ceilingY },
         isGable: { value: room.floor === ROOF.floor ? 1 : 0 },
         ridge: { value: ROOF.ridgeY },
@@ -210,19 +343,22 @@ export class SmokeVolumes extends Group {
         source: { value: new Vector3() },
         strength: { value: 0 },
         openings: { value: portals.length ? portals : [new Vector4()] },
-        flows: { value: flows.length ? flows : [new Vector2()] },
+        flows: { value: flows.length ? flows : [new Vector4(0, 0, 0, 0)] },
+        flowTravel: { value: new Float32Array(Math.max(1, doors.length)) },
         floorY: { value: room.floorY },
         stairEntry: { value: new Vector3(DIMENSIONS.stairEyeX, room.floorY, DIMENSIONS.stairEyeZ) },
         stairStrength: { value: new Vector2() },
-        shadowTint: { value: new Color(0x35404b) },
-        lightTint: { value: new Color(0x8b949e) },
+        stairDensity: { value: new Vector2() },
+        stairDownAge: { value: 0 },
+        shadowTint: { value: new Color(0x212326) },
+        lightTint: { value: new Color(0xd4d5d3) },
       },
     })
-    const mesh = new Mesh(roomSlices(room), material)
+    const mesh = new Mesh(roomSlices(room, doors), material)
     mesh.visible = false
     mesh.name = `Rauch ${room.id}`
     this.add(mesh)
-    return { room, mesh, material, doors, below, landing }
+    return { room, mesh, material, doors, below, above, landing }
   })
 
   constructor(private readonly sourcePositions: ReadonlyMap<SourceId, Vector3>) {
@@ -231,7 +367,7 @@ export class SmokeVolumes extends Group {
 
   update(snapshot: SimulationSnapshot): void {
     const active = SOURCES.find((source) => source.id === snapshot.source)
-    for (const { room, mesh, material, doors, below, landing } of this.rooms) {
+    for (const { room, mesh, material, doors, below, above, landing } of this.rooms) {
       const local = snapshot.rooms[room.id]
       const u = material.uniforms
       u.strength.value = active?.room === room.id ? snapshot.sourceStrength : 0
@@ -241,22 +377,40 @@ export class SmokeVolumes extends Group {
         else u.source.value.fromArray(active.position)
       }
       u.time.value = snapshot.elapsed
-      u.upperOpacity.value = local.opacity
+      u.layerExtinction.value =
+        -Math.log(Math.max(1e-6, 1 - local.opacity)) / (room.maxZ - room.minZ)
+      u.layerDensity.value = local.density
       u.layerBase.value = local.layerBaseY
-      let hasFlow = false
+      const front = local.ceilingFront
+      if (front) u.ceilingFront.value.set(front.x, front.z, front.radius, front.riseRemaining)
+      else u.ceilingFront.value.set(0, 0, -1, 0)
+      let incomingRate = 0
       for (const [index, door] of doors.entries()) {
-        const signedFlow = snapshot.doorFlow[door.id] * (door.rooms[0] === room.id ? -1 : 1)
+        const first = door.rooms[0] === room.id
+        const signedFlow = snapshot.doorFlow[door.id] * (first ? -1 : 1)
         const incoming = snapshot.doors[door.id] ? Math.max(0, signedFlow) : 0
-        u.flows.value[index].y = incoming
-        if (incoming > 0.002) hasFlow = true
+        const flow = u.flows.value[index]
+        flow.y = incoming
+        u.flowTravel.value[index] = snapshot.doorFlowAge[door.id] * PLUME_RISE_SPEED
+        const upstream = first ? door.rooms[1] : door.rooms[0]
+        if (incoming > 0.002 && upstream !== 'outside') {
+          flow.z = Math.max(0, door.topY - snapshot.rooms[upstream].layerBaseY)
+          flow.w = snapshot.rooms[upstream].density
+          incomingRate += incoming
+        }
       }
       const rising = below ? Math.max(0, snapshot.stairFlow[below.landing]) : 0
       const sinking = landing ? Math.max(0, -snapshot.stairFlow[landing.landing]) : 0
       u.stairStrength.value.set(rising, sinking)
+      u.stairDownAge.value = landing ? snapshot.stairDownAge[landing.landing] : 0
+      u.stairDensity.value.set(
+        below ? snapshot.rooms[below.landing].density : 0,
+        above ? snapshot.rooms[above.landing].density : 0,
+      )
       mesh.visible =
         local.opacity > 0.002 ||
         u.strength.value > 0.002 ||
-        hasFlow ||
+        incomingRate > 0.002 ||
         rising > 0.002 ||
         sinking > 0.002
     }

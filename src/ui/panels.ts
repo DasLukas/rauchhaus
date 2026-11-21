@@ -12,7 +12,7 @@ const help = `
     <li><i class="key neutral">${icon('house')}</i><div><strong>Genauer hinschauen</strong><p>Tippe auf ein Stockwerk, um näher heranzugehen. In der Nahansicht kannst du das Haus mit dem Finger verschieben. Das Hauszeichen zeigt wieder alle Etagen.</p></div></li>
     <li><i class="key neutral">${icon('alarm')}</i><div><strong>Rauchwarnmelder</strong><p>Erreicht Rauch einen Melder, erscheint dort das Alarmzeichen.</p></div></li>
   </ul>
-  <details><summary>Für Erwachsene</summary><p>Das vereinfachte Modell zeigt, wie warmer Rauch aufsteigt, sich unter der Decke sammelt und durch Öffnungen weiterzieht. Geschlossene Türen bremsen ihn. Die Abläufe erlauben keine Aussage über sichere Aufenthalts- oder Fluchtzeiten.</p>
+  <details><summary>Für Erwachsene</summary><p>Warmer Rauch sammelt sich unter der Decke und zieht durch offene Türen weiter. Geschlossene Türen bremsen ihn. Für den Unterricht nimmt die Rauchmenge nach einer kurzen Anlaufphase zügig zu. Die Quelle raucht während des Versuchs weiter. Die Abläufe erlauben keine Aussage über sichere Aufenthalts- oder Fluchtzeiten.</p>
   <p>Das Haus lässt sich mit der Tabulatortaste erkunden. Eingabe oder Leertaste betätigen markierte Tasten. In der Gesamtansicht drehen die Pfeiltasten das Haus. In der Nahansicht verschieben sie den Ausschnitt. Mit 1 bis 4 wählst du die Etagen vom Erdgeschoss bis zum Dach.${HOUSE_VARIANT === 'gross' ? ' Mit 0 wählst du den Keller.' : ''} Pos1 zeigt das ganze Haus.</p><p><a href="https://github.com/DasLukas/rauchhaus" target="_blank" rel="noopener">Projekt, Quellen und Lizenzen</a></p></details>
   <button type="button" class="action" data-close>Verstanden</button>`
 

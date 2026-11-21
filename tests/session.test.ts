@@ -28,6 +28,25 @@ describe('free exploration', () => {
     expect(session.snapshot.rooms.kitchen.smokeMass).toBe(0)
     expect(session.tick(2).rooms.dining.smokeMass).toBeGreaterThan(0)
   })
+
+  it('pauses and restarts a long-running free experiment without replaying the paused time', () => {
+    const session = new LearningSession()
+    session.selectSource('s_tv')
+    session.tick(60)
+    session.togglePause()
+    const paused = session.snapshot
+    expect(paused.sourceStrength).toBe(1)
+    expect(session.tick(60)).toBe(paused)
+    session.togglePause()
+    const resumed = session.tick(10)
+    expect(resumed.elapsed).toBe(70)
+    expect(resumed.producedMass).toBeGreaterThan(paused.producedMass)
+    session.restart()
+    expect(session.snapshot.source).toBe('s_tv')
+    expect(session.snapshot.doors).toEqual(paused.doors)
+    expect(session.snapshot.producedMass).toBe(0)
+    expect(session.snapshot.elapsed).toBe(0)
+  })
 })
 
 describe('guided door comparison', () => {

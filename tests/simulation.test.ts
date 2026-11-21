@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   DETECTORS,
+  DIMENSIONS,
   DOORS,
+  FLOORS,
+  ROOF,
   ROOMS,
   SOURCES,
   SmokeSimulation,
@@ -27,6 +30,21 @@ function outsideLiving(snapshot: SimulationSnapshot): number {
 }
 
 describe('compartment transport', () => {
+  it('places each doorway in the shared wall between its two rooms', () => {
+    for (const door of DOORS) {
+      const rooms = ROOMS.filter((room) => door.rooms.includes(room.id)).sort(
+        (a, b) => a.minX - b.minX,
+      )
+      expect(rooms).toHaveLength(2)
+      const [left, right] = rooms
+      expect([left.floor, right.floor]).toEqual([door.floor, door.floor])
+      expect(left.maxX).toBeCloseTo(door.x - DIMENSIONS.wallThickness / 2)
+      expect(right.minX).toBeCloseTo(door.x + DIMENSIONS.wallThickness / 2)
+      expect(door.latchZ).toBeGreaterThan(left.minZ)
+      expect(door.hingeZ).toBeLessThan(left.maxZ)
+    }
+  })
+
   it('starts with clear rooms, open interior doors and shut apartment doors', () => {
     const sim = new SmokeSimulation()
     sim.advance(10)
@@ -34,14 +52,14 @@ describe('compartment transport', () => {
     expect(initial.elapsed).toBe(0)
     expect(initial.source).toBeNull()
     expect(mass(initial)).toBe(0)
-    expect(initial.doors).toEqual({
-      d0: false,
-      d1: false,
-      d2: false,
-      d3: false,
-      i0: true,
-      i2: true,
-    })
+    const open = DOORS.filter((door) => initial.doors[door.id]).map((door) => door.id)
+    expect(open.sort()).toEqual(['i0', 'i1', 'i2'])
+    for (const landing of FLOORS) {
+      const entrances = DOORS.filter((door) => door.rooms.includes(landing.landing))
+      expect(entrances).toHaveLength(2)
+      expect(entrances.every((door) => !initial.doors[door.id])).toBe(true)
+      expect(entrances.map((door) => Math.sign(door.x)).sort()).toEqual([-1, 1])
+    }
     for (const room of ROOMS) expect(initial.rooms[room.id].layerBaseY).toBe(room.ceilingY)
   })
 
@@ -50,7 +68,7 @@ describe('compartment transport', () => {
     sim.advance(2)
     const early = sim.snapshot()
     expect(early.rooms.living.smokeMass).toBeGreaterThan(0)
-    expect(early.rooms.living.layerBaseY).toBeGreaterThan(3.74)
+    expect(early.rooms.living.layerBaseY).toBeGreaterThan(4.3)
     expect(outsideLiving(early)).toBe(0)
     sim.advance(6)
     const later = sim.snapshot()
@@ -74,7 +92,10 @@ describe('compartment transport', () => {
     }
     expect(a.rooms.stair1.opacity).toBeGreaterThan(b.rooms.stair1.opacity + 0.25)
     expect(a.rooms.stair1.layerBaseY).toBeLessThan(b.rooms.stair1.layerBaseY)
-    expect(a.rooms.bedroom.smokeMass).toBe(0)
+    // The open interior door connects the second room in this apartment.
+    expect(a.rooms.bedroom.smokeMass).toBeGreaterThan(0)
+    expect(a.rooms.studio1.smokeMass).toBeLessThan(0.001)
+    expect(a.rooms.stairB.smokeMass).toBe(0)
   })
 
   it('preserves smoke crossing a door, then restricts subsequent entry after closure', () => {
@@ -113,6 +134,51 @@ describe('compartment transport', () => {
     expect(a.rooms.living.smokeMass).toBeLessThan(a.rooms.stair1.smokeMass)
   })
 
+  it('moves smoke from the washer into the basement and up to the ground floor', () => {
+    function washer(open: boolean) {
+      const sim = new SmokeSimulation()
+      sim.setDoor('dbr', open)
+      sim.start('s_washer')
+      sim.advance(26)
+      return sim.snapshot()
+    }
+    const open = washer(true)
+    const closed = washer(false)
+    expect(open.detectors.m_laundry).toBe(true)
+    expect(open.rooms.storage.smokeMass).toBe(0)
+    expect(open.rooms.stairB.smokeMass).toBeGreaterThan(open.rooms.stair0.smokeMass)
+    expect(open.rooms.stair0.smokeMass).toBeGreaterThan(open.rooms.stair1.smokeMass)
+    for (const id of ['stairB', 'stair0'] as const) {
+      expect(open.rooms[id].smokeMass).toBeGreaterThan(10 * closed.rooms[id].smokeMass)
+      expect(open.stairFlow[id]).toBeGreaterThan(0)
+    }
+    expect(mass(open)).toBeCloseTo(mass(closed), 9)
+  })
+
+  it.each([
+    ['s_washer', 'dbr', 'dbl', 'storage'],
+    ['s_tv', 'd1', 'd1r', 'studio1'],
+  ] as const)(
+    'reaches the opposite side through both doors from %s',
+    (source, near, far, opposite) => {
+      function compare(nearOpen: boolean, farOpen: boolean) {
+        const sim = new SmokeSimulation()
+        sim.setDoor(near, nearOpen)
+        sim.setDoor(far, farOpen)
+        sim.start(source)
+        sim.advance(45)
+        return sim.snapshot()
+      }
+      const open = compare(true, true)
+      const across = open.rooms[opposite].smokeMass
+      expect(across).toBeGreaterThan(0.1)
+      expect(across).toBeGreaterThan(10 * compare(true, false).rooms[opposite].smokeMass)
+      expect(across).toBeGreaterThan(10 * compare(false, true).rooms[opposite].smokeMass)
+      expect(open.doorFlow[near]).toBeGreaterThan(0)
+      expect(open.doorFlow[far]).toBeLessThan(0)
+    },
+  )
+
   it('detects smoke only when the local layer reaches the actual sensing height', () => {
     const sim = new SmokeSimulation()
     sim.start('s_attic')
@@ -120,7 +186,9 @@ describe('compartment transport', () => {
     expect(Object.values(sim.snapshot().detectors)).not.toContain(true)
     sim.advance(3)
     const snapshot = sim.snapshot()
-    expect(snapshot.detectors).toEqual({ m_living: false, m_bed: false, m_attic: true })
+    expect(
+      DETECTORS.filter((sensor) => snapshot.detectors[sensor.id]).map((sensor) => sensor.id),
+    ).toEqual(['m_attic'])
     const detector = DETECTORS.find((item) => item.id === 'm_attic')
     if (!detector) throw new Error('Missing detector in the attic')
     expect(snapshot.rooms.attic.layerBaseY).toBeLessThanOrEqual(detector.sensorY)
@@ -128,7 +196,7 @@ describe('compartment transport', () => {
   })
 
   it('fits the upper layer to the pitched roof, including its narrower stair landing', () => {
-    for (const room of ROOMS.filter((room) => room.floor === 3)) {
+    for (const room of ROOMS.filter((room) => room.floor === ROOF.floor)) {
       const capacity = volumeAbove(room, room.floorY)
       const boxVolume =
         (room.maxX - room.minX) * (room.maxZ - room.minZ) * (room.ceilingY - room.floorY)

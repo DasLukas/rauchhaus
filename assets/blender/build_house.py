@@ -15,17 +15,10 @@ from mathutils.bvhtree import BVHTree
 
 # Blender does not add the directory of a --python script to its import path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from house_rooms import (
-    ANCHORS,
-    HINGES,
-    add_structure,
-    attic,
-    garden,
-    kitchen_and_dining,
-    living_room,
-    upper_rooms,
-)
+from check_clearance import validate
+from house_rooms import furnish, garden
 from miniature_geometry import PARTS, point, unit
+from structure import ANCHORS, ANGLES, HINGES, add_structure
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "assets/blender/rauchhaus.blend"
@@ -48,16 +41,16 @@ def contact_shading():
     # Deterministic equal-area sphere samples avoid patterned corner shadows.
     directions = []
     golden_angle = pi * (3 - sqrt(5))
-    for i in range(96):
-        height = 1 - (i + 0.5) * 2 / 96
+    for i in range(52):
+        height = 1 - (i + 0.5) * 2 / 52
         radius = sqrt(1 - height * height)
         directions.append(Vector((radius * cos(i * golden_angle), height, radius * sin(i * golden_angle))))
     # A broad frontal softbox gives objects a subtle, directional penumbra
     # behind them. This baked term survives low-resolution tablet shadow maps.
     window = [
         Vector(unit((horizontal, elevation, 1)))
-        for elevation in (0.045, 0.22, 0.41, 0.63, 0.85)
-        for horizontal in (-0.75, -0.4, -0.12, 0.15)
+        for elevation in (0.10, 0.34, 0.59, 0.85)
+        for horizontal in (-0.65, -0.22, 0.16)
     ]
     cache = {}
     for entries in PARTS.values():
@@ -144,6 +137,10 @@ def empty(name, pos, coll):
 def make_scene(editable, shade):
     scene = bpy.context.scene
     material = vertex_material()
+    glass = material.copy()
+    glass.name = "Clear entrance glazing"
+    glass.node_tree.nodes.get("Principled BSDF").inputs["Alpha"].default_value = 0.20
+    glass.surface_render_method = "BLENDED"
     for title, entries in PARTS.items():
         moving = title.startswith("hinge_")
         coll = bpy.data.collections.new(title if not moving else "Door " + title[6:])
@@ -152,10 +149,16 @@ def make_scene(editable, shade):
         if moving:
             ident = title[6:]
             parent = empty(title, HINGES[ident], coll)
-            parent["openAngle"] = 1.09 if ident.startswith("i") else 1.35
+            parent["openAngle"] = ANGLES[ident]
         batches = [(entry[0], [entry]) for entry in entries] if editable else [(title + " surfaces", entries)]
         for name, batch in batches:
-            obj = create_mesh(name, batch, coll, material, shade)
+            obj = create_mesh(
+                name,
+                batch,
+                coll,
+                glass if title == "Entrance glazing" else material,
+                shade,
+            )
             if parent:
                 obj.parent = parent
                 obj.location -= parent.location
@@ -170,11 +173,11 @@ def studio():
     scene = bpy.context.scene
     cam_data = bpy.data.cameras.new("Front cutaway")
     cam_data.type = "ORTHO"
-    cam_data.ortho_scale = 10.65
+    cam_data.ortho_scale = 20.4
     cam = bpy.data.objects.new("Front cutaway", cam_data)
     scene.collection.objects.link(cam)
-    cam.location = point((-0.82, 5.32, 17))
-    target = Vector(point((0, 4.08, 0)))
+    cam.location = point((-3.2, 7.68, 22))
+    target = Vector(point((0, 4.23, 0)))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
     scene.camera = cam
 
@@ -189,8 +192,9 @@ def studio():
         obj.location = point(where)
         obj.rotation_euler = (target - obj.location).to_track_quat("-Z", "Y").to_euler()
 
-    area("Large warm key", (-5, 11, 8), 1250, (1, 0.87, 0.70), 7)
-    area("Soft sky fill", (5, 6, 5), 780, (0.76, 0.88, 1), 7)
+    area("Large warm key", (-7, 15, 11), 2100, (1, 0.87, 0.70), 7)
+    area("Soft light into the cut", (0, 3, 12), 1350, (1, 0.94, 0.82), 11)
+    area("Soft sky fill", (8, 7, 6), 1200, (0.76, 0.88, 1), 7)
     area("Rim light", (-1, 10, -5), 1120, (1, 0.9, 0.75), 5)
     world = bpy.data.worlds.new("Blue sky")
     world.use_nodes = True
@@ -219,11 +223,9 @@ def build():
     started = time.monotonic()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     add_structure()
-    kitchen_and_dining()
-    living_room()
-    upper_rooms()
-    attic()
+    furnish()
     garden()
+    validate()
     print("Sampling miniature contact shadows", flush=True)
     shade = contact_shading()
     make_scene(True, shade)

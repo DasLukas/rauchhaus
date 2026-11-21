@@ -16,7 +16,7 @@ export function mountLayout(host: HTMLElement) {
       <div id="markers" aria-label="Rauchquellen und Türen"></div>
       <div id="load-state" role="status"><span class="spinner"></span><span>Das Haus wird aufgebaut …</span></div>
       <div id="trial" role="region" aria-label="Geführter Türvergleich" hidden>
-        <div class="trial-copy"><strong id="trial-name"></strong><span>Beobachte den Flur rechts.</span></div>
+        <div class="trial-copy"><strong id="trial-name"></strong><span>Schau ins Treppenhaus in der Mitte.</span></div>
         <button id="trial-next" class="action" type="button"><span id="trial-action"></span>${icon('next')}</button>
         <button id="trial-end" class="compact close" type="button" aria-label="Lernimpuls beenden">${icon('close')}</button>
       </div>

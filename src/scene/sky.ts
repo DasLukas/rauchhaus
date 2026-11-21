@@ -77,9 +77,9 @@ export function addSkyClouds(): Group {
   const group = new Group()
   const material = new MeshBasicMaterial({ vertexColors: true, toneMapped: false })
   const positions = [
-    [-4.8, 6.8, -3.2, 1.12, 0.07],
-    [4.65, 6.23, -3.45, 1.05, -0.06],
-    [-6.28, 4.36, -3.8, 0.68, -0.1],
+    [-8.5, 9.1, -4.8, 1.64, 0.07],
+    [7.95, 9.45, -5.75, 1.48, -0.06],
+    [-10.55, 5.23, -5.3, 1.07, -0.1],
   ]
   for (const [x, y, z, scale, seed] of positions) {
     const cloud = new Mesh(cloudShape(seed), material)

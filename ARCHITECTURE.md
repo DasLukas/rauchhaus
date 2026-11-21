@@ -26,9 +26,11 @@ Each smoke detector compares its local sensor height to the interface and checks
 
 ## Asset contract and rendering
 
-The web asset uses glTF coordinates, with positive Y up, X to the right and positive Z toward the viewer. Ground-floor elevation is 0, with levels spaced by 2.1 model units. The common staircase occupies the right side. Each source, detector and door has one named `anchor_<id>` node. A `hinge_<doorId>` node owns the moving door mesh and its opening-angle metadata. The application positions controls from those nodes. Room and doorway extents must match the Blender structure when the house is edited.
+The web asset uses glTF coordinates, with positive Y up, X to the right and positive Z toward the viewer. Ground-floor elevation is 0. The basement, ground floor, two upper floors and attic are spaced 2.4 model units apart. A shared central stairwell connects all five landings. Each apartment has its own entrance on the landing. Each source, detector and door has one named `anchor_<id>` node. A `hinge_<doorId>` node owns the moving door mesh and its opening-angle metadata. The application positions controls from those nodes. The shared floor plan in `src/simulation/layout.json` supplies the room boundaries, floor elevations, openings and interaction positions to the Blender generator and the teaching model. Doors sit flush in straight partitions and swing a quarter turn into the receiving room. Furniture placement reserves the full swept area of each door leaf and handle. The exterior entrance and solar panels are architectural details.
 
 The GLB batches static geometry and paints vertex colors, including baked contact shading. Separate pivots keep door animation cheap. The renderer limits resolution and reduces it during sustained slow animation. Unchanged paused or empty scenes avoid repeated drawing. The smoke renderer shares a noise texture across rooms and skips empty compartments.
+
+The overview fits the house from basement to ridge. Tapping a storey focuses its controls and allows panning. The DOM retains each marker's projected anchor and spaces neighbouring targets across the same storey so the two entrance doors stay individually tappable. A short line connects displaced targets to their anchors.
 
 ## Build and deployment
 

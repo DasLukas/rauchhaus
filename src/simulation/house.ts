@@ -1,25 +1,60 @@
-/** Model coordinates match the exported glTF scene, with positive Y pointing up. */
+import layout from './layout.json' with { type: 'json' }
+
+/** Identifiers shared by the model, the learning scenarios and their tests. */
 export type RoomId =
-  | 'kitchen'
+  | 'storage'
+  | 'laundry'
+  | 'studio0'
   | 'dining'
+  | 'kitchen'
   | 'living'
   | 'bedroom'
+  | 'studio1'
+  | 'studio2'
   | 'playroom'
+  | 'sleep2'
   | 'attic'
+  | 'loft'
+  | 'stairB'
   | 'stair0'
   | 'stair1'
   | 'stair2'
   | 'stair3'
-export type DoorId = 'd0' | 'd1' | 'd2' | 'd3' | 'i0' | 'i2'
-export type SourceId = 's_stove' | 's_candle' | 's_tv' | 's_lamp' | 's_desk' | 's_attic'
-export type DetectorId = 'm_bed' | 'm_attic' | 'm_living'
+export type DoorId =
+  | 'dbl'
+  | 'dbr'
+  | 'd0l'
+  | 'd0'
+  | 'd1'
+  | 'd1r'
+  | 'd2l'
+  | 'd2'
+  | 'd3'
+  | 'd3r'
+  | 'i0'
+  | 'i1'
+  | 'i2'
+export type SourceId =
+  | 's_washer'
+  | 's_kettle'
+  | 's_stove'
+  | 's_candle'
+  | 's_lamp'
+  | 's_tv'
+  | 's_radio'
+  | 's_floorlamp'
+  | 's_desk'
+  | 's_bed2'
+  | 's_attic'
+  | 's_loft'
+export type DetectorId = 'm_living' | 'm_bed' | 'm_attic' | 'm_laundry'
 
 export interface Room {
   readonly id: RoomId
   readonly label: string
   readonly floor: number
   readonly floorY: number
-  /** Highest part of the room, including the gable on the top floor. */
+  /** Highest interior point of the room, including the attic gable. */
   readonly ceilingY: number
   readonly minX: number
   readonly maxX: number
@@ -30,8 +65,16 @@ export interface Room {
 export interface Door {
   readonly id: DoorId
   readonly label: string
+  readonly floor: number
+  /** Positive doorway flow goes from the first room to the second room. */
   readonly rooms: readonly [RoomId, RoomId]
   readonly initiallyOpen: boolean
+  readonly x: number
+  readonly hingeZ: number
+  readonly latchZ: number
+  readonly height: number
+  /** Signed angle about the Y axis measured from the closed position. */
+  readonly openAngle: number
   /** Absolute height of the lintel. */
   readonly topY: number
 }
@@ -40,115 +83,73 @@ export interface Source {
   readonly id: SourceId
   readonly label: string
   readonly room: RoomId
+  readonly position: readonly [number, number, number]
 }
 
 export interface Detector {
   readonly id: DetectorId
   readonly label: string
   readonly room: RoomId
-  /** Absolute height of the sensing element under the local ceiling. */
+  readonly position: readonly [number, number, number]
   readonly sensorY: number
 }
 
-/** Inside surface of the two gable roof panels in model coordinates. */
+export const DIMENSIONS = layout.dimensions
+export const ROOF = layout.roof
+export const FLOORS = layout.floors.map((f) => ({ ...f, landing: f.landing as RoomId }))
+
+/** Underside of the pitched roof at the specified horizontal coordinate. */
 export function roofHeightAt(x: number): number {
-  return 8.56 - 0.72 * Math.abs(x)
+  return ROOF.ridgeY - ROOF.slope * Math.abs(x)
 }
 
-function room(id: RoomId, label: string, floor: number, minX: number, maxX: number): Room {
-  const nearestToRidge = Math.max(minX, Math.min(0, maxX))
-  const floorY = 2.1 * floor
+/**
+ * The JSON stores wall centerlines for construction. The simulation occupies
+ * the clear volume between wall faces. The open cutaway is a viewing plane.
+ */
+export const ROOMS: readonly Room[] = layout.rooms.map((room) => {
+  const floorY = DIMENSIONS.levelHeight * room.floor
+  const halfWall = DIMENSIONS.wallThickness / 2
+  const minX = room.minX + halfWall
+  const maxX = room.maxX - halfWall
+  const ridge = Math.max(minX, Math.min(0, maxX))
   return {
-    id,
-    label,
-    floor,
-    floorY,
+    ...room,
+    id: room.id as RoomId,
     minX,
     maxX,
-    minZ: -0.96,
-    maxZ: 1.05,
-    ceilingY: floor === 3 ? roofHeightAt(nearestToRidge) : floorY + 1.99,
+    floorY,
+    minZ: DIMENSIONS.minZ + halfWall,
+    maxZ: DIMENSIONS.maxZ,
+    ceilingY: room.floor === ROOF.floor ? roofHeightAt(ridge) : floorY + DIMENSIONS.clearHeight,
   }
-}
+})
 
-/** Clear interior bounds; each stair landing is its own connected compartment. */
-export const ROOMS: readonly Room[] = [
-  room('kitchen', 'Küche', 0, -3, -0.993),
-  room('dining', 'Esszimmer', 0, -0.907, 1.4),
-  room('stair0', 'Treppenhaus im Erdgeschoss', 0, 1.5, 3),
-  room('living', 'Wohnzimmer', 1, -3, 1.4),
-  room('stair1', 'Treppenhaus im ersten Stock', 1, 1.5, 3),
-  room('bedroom', 'Schlafzimmer', 2, -3, -0.993),
-  room('playroom', 'Kinderzimmer', 2, -0.907, 1.4),
-  room('stair2', 'Treppenhaus im zweiten Stock', 2, 1.5, 3),
-  room('attic', 'Lesezimmer im Dachgeschoss', 3, -3, 1.4),
-  room('stair3', 'Treppenhaus im Dachgeschoss', 3, 1.5, 3),
-]
+export const DOORS: readonly Door[] = layout.doors.map((door) => ({
+  ...door,
+  id: door.id as DoorId,
+  rooms: door.rooms as [RoomId, RoomId],
+  topY: door.floor * DIMENSIONS.levelHeight + door.height,
+}))
 
-/** Positive doorway flow travels from the first listed room to the second. */
-export const DOORS: readonly Door[] = [
-  {
-    id: 'd0',
-    label: 'Wohnungstür im Erdgeschoss',
-    rooms: ['dining', 'stair0'],
-    initiallyOpen: false,
-    topY: 1.64,
-  },
-  {
-    id: 'd1',
-    label: 'Wohnungstür im ersten Stock',
-    rooms: ['living', 'stair1'],
-    initiallyOpen: false,
-    topY: 3.74,
-  },
-  {
-    id: 'd2',
-    label: 'Wohnungstür im zweiten Stock',
-    rooms: ['playroom', 'stair2'],
-    initiallyOpen: false,
-    topY: 5.84,
-  },
-  {
-    id: 'd3',
-    label: 'Wohnungstür im Dachgeschoss',
-    rooms: ['attic', 'stair3'],
-    initiallyOpen: false,
-    topY: 7.4,
-  },
-  {
-    id: 'i0',
-    label: 'Tür zwischen Küche und Esszimmer',
-    rooms: ['kitchen', 'dining'],
-    initiallyOpen: true,
-    topY: 1.64,
-  },
-  {
-    id: 'i2',
-    label: 'Tür zwischen Schlafzimmer und Kinderzimmer',
-    rooms: ['bedroom', 'playroom'],
-    initiallyOpen: true,
-    topY: 5.84,
-  },
-]
+export const SOURCES: readonly Source[] = layout.sources.map((source) => ({
+  ...source,
+  id: source.id as SourceId,
+  room: source.room as RoomId,
+  position: source.position as [number, number, number],
+}))
 
-export const SOURCES: readonly Source[] = [
-  { id: 's_stove', label: 'Herd', room: 'kitchen' },
-  { id: 's_candle', label: 'Kerze', room: 'dining' },
-  { id: 's_tv', label: 'Fernseher', room: 'living' },
-  { id: 's_lamp', label: 'Nachttischlampe', room: 'bedroom' },
-  { id: 's_desk', label: 'Schreibtischlampe', room: 'playroom' },
-  { id: 's_attic', label: 'Leselampe', room: 'attic' },
-]
-
-export const DETECTORS: readonly Detector[] = [
-  { id: 'm_bed', label: 'Rauchwarnmelder im Schlafzimmer', room: 'bedroom', sensorY: 6.09 },
-  { id: 'm_attic', label: 'Rauchwarnmelder im Dachgeschoss', room: 'attic', sensorY: 8.245 },
-  { id: 'm_living', label: 'Rauchwarnmelder im Wohnzimmer', room: 'living', sensorY: 3.99 },
-]
+export const DETECTORS: readonly Detector[] = layout.detectors.map((detector) => ({
+  ...detector,
+  id: detector.id as DetectorId,
+  room: detector.room as RoomId,
+  position: detector.position as [number, number, number],
+  sensorY: detector.position[1],
+}))
 
 /** Exact volume under the clipped gable, above a horizontal layer boundary. */
 function atticVolumeAbove(bounds: Room, height: number): number {
-  const reach = Math.max(0, (roofHeightAt(0) - height) / 0.72)
+  const reach = Math.max(0, (roofHeightAt(0) - height) / ROOF.slope)
   function section(near: number, far: number): number {
     const end = Math.min(reach, far)
     if (end <= near) return 0
@@ -166,7 +167,7 @@ export function floorArea(bounds: Room): number {
 /** Returns the volume between a horizontal plane and the room's ceiling. */
 export function volumeAbove(bounds: Room, y: number): number {
   const plane = Math.max(bounds.floorY, Math.min(bounds.ceilingY, y))
-  return bounds.floor === 3
+  return bounds.floor === ROOF.floor
     ? atticVolumeAbove(bounds, plane)
     : (bounds.ceilingY - plane) * floorArea(bounds)
 }
@@ -174,13 +175,13 @@ export function volumeAbove(bounds: Room, y: number): number {
 /** Returns the absolute height delimiting the specified upper-layer volume. */
 export function layerBase(bounds: Room, volume: number): number {
   if (volume <= 0) return bounds.ceilingY
-  if (bounds.floor !== 3) {
+  if (bounds.floor !== ROOF.floor) {
     return Math.max(bounds.floorY, bounds.ceilingY - volume / floorArea(bounds))
   }
   if (volume >= volumeAbove(bounds, bounds.floorY)) return bounds.floorY
   let low = bounds.floorY
   let high = bounds.ceilingY
-  for (let iteration = 0; iteration < 15; iteration++) {
+  for (let iteration = 0; iteration < 19; iteration++) {
     const mid = (low + high) / 2
     if (volumeAbove(bounds, mid) > volume) low = mid
     else high = mid

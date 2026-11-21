@@ -8,6 +8,7 @@ import {
   MathUtils,
   Mesh,
   NeutralToneMapping,
+  type Object3D,
   PCFShadowMap,
   Raycaster,
   Scene,
@@ -16,19 +17,18 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
-  type Object3D,
 } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import {
   DETECTORS,
   DOORS,
-  ROOMS,
-  SOURCES,
   type DoorId,
+  ROOMS,
   type SimulationSnapshot,
+  SOURCES,
   type SourceId,
 } from '../simulation'
-import { HouseCamera } from './camera'
+import { HouseCamera, pickedFloor } from './camera'
 import { addSkyClouds } from './sky'
 import { SmokeVolumes } from './smoke'
 
@@ -54,7 +54,7 @@ export interface SceneCallbacks {
 export interface HouseScene {
   /** Relative zoom multiplier, e.g. 1.2 to zoom in by one step. */
   zoomBy(factor: number): void
-  /** Focus a zero-based storey without altering the simulation. */
+  /** Focus a physical level (-1 for basement, 0 for ground) without changing the experiment. */
   focusFloor(floor: number): void
   /** Restore the original cutaway view and yaw. */
   resetView(): void
@@ -72,16 +72,16 @@ function lighting(scene: Scene): void {
   bounce.target.position.set(0, 3.5, 0)
   scene.add(bounce, bounce.target)
   const sun = new DirectionalLight(0xfff2da, 2.03)
-  sun.position.set(-5, 11, 9)
-  sun.target.position.set(0, 3.4, 0)
+  sun.position.set(-9, 17, 13)
+  sun.target.position.set(0, 4.2, 0)
   sun.castShadow = true
   sun.shadow.mapSize.set(1024, 1024)
-  sun.shadow.camera.left = -7
-  sun.shadow.camera.right = 7
-  sun.shadow.camera.top = 6.5
-  sun.shadow.camera.bottom = -6.5
+  sun.shadow.camera.left = -11
+  sun.shadow.camera.right = 11
+  sun.shadow.camera.top = 10
+  sun.shadow.camera.bottom = -10
   sun.shadow.camera.near = 1
-  sun.shadow.camera.far = 26
+  sun.shadow.camera.far = 44
   sun.shadow.intensity = 0.55
   sun.shadow.normalBias = 0.014
   sun.shadow.bias = -0.00023
@@ -206,7 +206,9 @@ export async function createHouseScene(
     const hinges = DOORS.map((door) => {
       const object = model.getObjectByName(`hinge_${door.id}`)
       if (!object) throw new Error(`Missing door hinge for ${door.id}`)
-      const angle = Number(object.userData.openAngle ?? 1.35)
+      const angle = Number(object.userData.openAngle)
+      if (Math.abs(Math.abs(angle) - Math.PI / 2) > 0.002 || !Number.isFinite(angle))
+        throw new Error(`Unexpected door angle for ${door.id}`)
       return { id: door.id, object, angle, rest: object.quaternion.clone() }
     })
     smoke = new SmokeVolumes(positions)
@@ -258,9 +260,9 @@ export async function createHouseScene(
       reproject = forceRender = true
     }
 
-    function focusFloor(floor: number): void {
+    function focusFloor(floor: number, x = 0): void {
       if (!Number.isFinite(floor)) return
-      camera.focus(floor)
+      camera.focus(floor, x)
       callbacks.onFloorChange?.(camera.floor)
       reproject = true
     }
@@ -277,7 +279,9 @@ export async function createHouseScene(
         if (event.altKey || event.ctrlKey || event.metaKey) return
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
           camera.drag(width * (event.key === 'ArrowLeft' ? 0.068 : -0.068), 0)
-        } else if (/^[1-4]$/.test(event.key)) {
+        } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          camera.drag(0, height * (event.key === 'ArrowUp' ? 0.14 : -0.14))
+        } else if (/^[0-4]$/.test(event.key)) {
           focusFloor(Number(event.key) - 1)
         } else if (event.key === 'Home') {
           resetView()
@@ -325,9 +329,8 @@ export async function createHouseScene(
           return
         }
       }
-      if (Math.abs(hit.point.x) <= 3.12 && hit.point.y >= 0 && hit.point.y <= 8.66) {
-        focusFloor(Math.floor(hit.point.y / 2.1))
-      }
+      const floor = pickedFloor(hit.point)
+      if (floor !== undefined) focusFloor(floor, hit.point.x)
     }
 
     function fingerDistance(): number {

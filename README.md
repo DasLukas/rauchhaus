@@ -1,10 +1,12 @@
 # Das Rauchhaus
 
-[Open the German interactive smoke house](https://daslukas.github.io/rauchhaus/)
+[Open the published version from main](https://daslukas.github.io/rauchhaus/)
 
 A one-page, touch-first 3D teaching tool for primary-school children aged 6–10. Choose an orange smoke source or tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed. Classroom use needs a WebGL 2 browser and a connection to load the site. The application runs entirely on the device after loading.
 
-[![The living-room smoke experiment in the interactive house](docs/rauchhaus.png)](https://daslukas.github.io/rauchhaus/)
+![Central stairwell with apartments on both sides and a cutaway basement](docs/rauchhaus.png)
+
+This branch has eight apartments around one continuous staircase. Each full storey pairs a one-room home with a two-room home, alternating sides. A glazed entrance, mailboxes, handrails and half-landings mark the common circulation space. The basement contains a bicycle store and a shared laundry. Start the washing-machine experiment and try opening or closing the laundry door. Photovoltaic panels are visible on the roof.
 
 ## Develop locally
 
@@ -15,7 +17,7 @@ npm ci
 npm run dev
 ```
 
-Open the address printed by Vite. On a tablet, use the published site or serve the local development instance on a trusted network with `npm run dev -- --host 0.0.0.0`. To preview exactly what will be deployed, run `npm run build` followed by `npm run preview`.
+Open the address printed by Vite. To view this branch on a tablet, serve the local development instance on a trusted network with `npm run dev -- --host 0.0.0.0`. To preview exactly what will be deployed, run `npm run build` followed by `npm run preview`.
 
 ## Verification
 
@@ -26,7 +28,7 @@ Open the address printed by Vite. On a tablet, use the published site or serve t
 | `npm run check:model` | Editable Blender source and self-contained WebGL export, including all control anchors, moving doors and mesh budgets |
 | `npm run build` | TypeScript types and production bundle in `dist/` |
 | `npm run check` | All four checks above |
-| `npm run test:browser` | Starts a production preview and exercises the teaching flow in installed Google Chrome. Run the build first. |
+| `npm run test:browser` | Compares rendered smoke on the shared landings for both the television and washing-machine experiments, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
 
 The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
 
@@ -39,7 +41,7 @@ blender --background --python assets/blender/build_house.py
 npm run check:model
 ```
 
-The generator replaces the versioned `.blend` and `public/models/rauchhaus.glb`. Save hand-modeled changes separately before regenerating. Coordinate changes to door and room geometry with the [architecture and model contract](ARCHITECTURE.md).
+Before exporting, Blender checks each complete door and handle against nearby geometry at one-degree intervals. It also checks the stair treads, landings, headroom and open stairwell between floors. The generator replaces the versioned `.blend` and `public/models/rauchhaus.glb`. Save hand-modeled changes separately before regenerating. See the [architecture and model contract](ARCHITECTURE.md) for the shared layout and coordinates.
 
 ## Development and publishing
 

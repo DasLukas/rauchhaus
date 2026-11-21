@@ -10,16 +10,20 @@ import {
   RedFormat,
   RepeatWrapping,
   ShaderMaterial,
+  Vector2,
   Vector3,
   Vector4,
 } from 'three'
 import {
+  DIMENSIONS,
   DOORS,
+  FLOORS,
+  ROOF,
   ROOMS,
-  SOURCES,
-  roofHeightAt,
   type Room,
+  roofHeightAt,
   type SimulationSnapshot,
+  SOURCES,
   type SourceId,
 } from '../simulation'
 
@@ -33,12 +37,7 @@ function roomSlices(room: Room): BufferGeometry {
   const indices: number[] = []
   for (let slice = 0; slice < SLICE_COUNT; slice++) {
     const z = room.minZ + ((room.maxZ - room.minZ) * (slice + 0.5)) / SLICE_COUNT
-    // Each doorway sits in a shallow diagonal partition in the Blender model.
-    const apartment = 0.23 - 0.53 * Math.min(1, Math.max(0, (z + 0.42) / 0.97))
-    const interior = 0.37 - 0.74 * Math.min(1, Math.max(0, (z + 0.27) / 0.37))
-    const offset = (edge: number) => (Math.abs(edge) === 3 ? 0 : edge < 0 ? interior : apartment)
-    const left = room.minX + offset(room.minX)
-    const right = room.maxX + offset(room.maxX)
+    const { minX: left, maxX: right } = room
     const i = vertices.length / 3
     vertices.push(
       left,
@@ -98,32 +97,49 @@ const fragmentShader = `
   uniform float isGable;
   uniform vec3 source;
   uniform float strength;
-  uniform vec4 jetA;
-  uniform vec4 jetB;
+  uniform vec4 openings[OPENING_COUNT];
+  uniform vec2 flows[OPENING_COUNT];
+  uniform vec3 stairEntry;
+  uniform vec2 stairStrength;
+  uniform float floorY;
   uniform vec3 shadowTint;
   uniform vec3 lightTint;
   uniform float ridge;
   uniform float roofSlope;
   uniform float sliceDepth;
 
-  float jetDensity(vec4 jet) {
-    // x = partition, y = lintel, z = inward travel direction, w = strength.
-    float wallOffset = jet.x > 0.0 ? 0.23 - 0.53 * clamp((point.z + 0.42) / 0.97, 0.0, 1.0)
-                               : 0.37 - 0.74 * clamp((point.z + 0.27) / 0.37, 0.0, 1.0);
-    float wallX = jet.x + wallOffset;
-    float run = (point.x - wallX) * jet.z;
-    if (jet.w < 0.003 || run < 0.0 || run > 1.0) return 0.0;
-    float center = jet.y - 0.11 + 0.24 * run;
-    vec2 offset = vec2((point.y - center) / (0.12 + 0.18 * run),
-                       (point.z - (jet.x > 0.0 ? 0.065 : -0.085)) / ((jet.x > 0.0 ? 0.36 : 0.18) + 0.16 * run));
-    return jet.w * exp(-dot(offset, offset) - 2.2 * run);
+  float doorwayJet(vec4 opening, vec2 flow) {
+    float run = (point.x - opening.x) * flow.x;
+    if (run < 0.0 || run > 1.5) return 0.0;
+    float center = opening.y - 0.13 + 0.27 * run;
+    vec2 offset = vec2((point.y - center) / (0.14 + 0.15 * run),
+                       (point.z - opening.z) / (opening.w * 0.42 + 0.13 * run));
+    return flow.y * exp(-dot(offset, offset) - 1.8 * run);
+  }
+
+  // The open eye between the switchback flights is visible through each slab.
+  // Incoming flow from the lower landing rises here before joining its layer.
+  float stairPlume(float height, float amount) {
+    if (amount < 0.002 || height < 0.0) return 0.0;
+    float side = min(height, 1.0);
+    vec2 curl = vec2(sin(3.8 * height - time * 1.5), cos(4.6 * height - time))
+              * 0.10 * side;
+    // The jet entrains air and fans out between the flights on its ascent.
+    vec2 width = vec2(0.22, 0.44) + vec2(0.25, 0.34) * side;
+    vec2 offset = (point.xz - stairEntry.xz - curl - vec2(0.0, 0.26 * side)) / width;
+    return amount * exp(-dot(offset,offset) - 0.22 * height);
   }
 
   void main() {
     float top = mix(localCeiling, ridge - roofSlope * abs(point.x), isGable);
-    if (point.y > top || (point.y < layerBase - 0.18 && strength < 0.002
-       && jetA.w < 0.003 && jetB.w < 0.003)) discard;
-
+    float height = point.y - floorY;
+    if (point.y > top) discard;
+    float risingGas = stairPlume(height, stairStrength.x) + stairPlume(top - point.y, stairStrength.y);
+    float openingGas = 0.0;
+    for (int i = 0; i < OPENING_COUNT; i++) {
+      if (flows[i].y > 0.002) openingGas += doorwayJet(openings[i], flows[i]);
+    }
+    if (point.y < layerBase - 0.23 && strength < 0.002 && openingGas + risingGas < 0.002) discard;
     vec3 uv = point * 0.063 + vec3(0.32, -time * 0.014, 0.5);
     float broad = texture(noiseVolume, uv).r - 0.5;
     float detail = texture(noiseVolume, uv * 2.18 + vec3(0.1, -time * 0.006, 0.3)).r;
@@ -133,7 +149,7 @@ const fragmentShader = `
     float layer = upperOpacity * smoothstep(-0.075, 0.10,
         point.y - layerBase + billow * 0.24 + broad * 0.15 + (detail - 0.5) * 0.045);
     // Map optical opacity over the compartment depth into distributed samples.
-    float extinction = -log(max(0.06, 1.0 - min(layer, 0.94))) / 1.80;
+    float extinction = -1.75 * log(max(0.06, 1.0 - min(layer, 0.94))) / (sliceDepth * float(SAMPLES));
 
     float h = point.y - source.y;
     float plumeShade = 0.0;
@@ -149,7 +165,7 @@ const fragmentShader = `
       plumeShade = plume * strength;
       extinction += 4.1 * plumeShade * (0.78 + broad * 0.58);
     }
-    extinction += (jetDensity(jetA) + jetDensity(jetB)) * 1.5;
+    extinction += openingGas * 3.6 + risingGas * 5.6;
     float alpha = 1.0 - exp(-extinction * sliceDepth * textureDensity);
     if (alpha < 0.0012) discard;
     vec3 color = mix(shadowTint, lightTint, clamp(0.36 + broad * 0.55 + detail * 0.18 + billow * 0.4 - plumeShade * 0.42
@@ -162,7 +178,21 @@ const fragmentShader = `
 export class SmokeVolumes extends Group {
   private readonly noise = noiseTexture()
   private readonly rooms = ROOMS.map((room) => {
+    const doors = DOORS.filter((door) => door.rooms.includes(room.id))
+    const portals = doors.map(
+      (door) =>
+        new Vector4(
+          door.x,
+          door.topY,
+          (door.hingeZ + door.latchZ) * 0.5,
+          Math.abs(door.hingeZ - door.latchZ),
+        ),
+    )
+    const flows = doors.map((door) => new Vector2(door.x < (room.maxX + room.minX) / 2 ? 1 : -1, 0))
+    const landing = FLOORS.find((floor) => floor.landing === room.id)
+    const below = landing ? FLOORS.find((floor) => floor.level === landing.level - 1) : undefined
     const material = new ShaderMaterial({
+      defines: { OPENING_COUNT: Math.max(1, doors.length), SAMPLES: SLICE_COUNT },
       glslVersion: GLSL3,
       vertexShader,
       fragmentShader,
@@ -174,23 +204,26 @@ export class SmokeVolumes extends Group {
         upperOpacity: { value: 0 },
         layerBase: { value: room.ceilingY },
         localCeiling: { value: room.ceilingY },
-        isGable: { value: room.floor === 3 ? 1 : 0 },
+        isGable: { value: room.floor === ROOF.floor ? 1 : 0 },
         ridge: { value: roofHeightAt(0) },
         roofSlope: { value: roofHeightAt(0) - roofHeightAt(1) },
         sliceDepth: { value: (room.maxZ - room.minZ) / SLICE_COUNT },
         source: { value: new Vector3() },
         strength: { value: 0 },
-        jetA: { value: new Vector4() },
-        jetB: { value: new Vector4() },
-        shadowTint: { value: new Color(0x56616f) },
-        lightTint: { value: new Color(0xa5adb7) },
+        openings: { value: portals.length ? portals : [new Vector4()] },
+        flows: { value: flows.length ? flows : [new Vector2()] },
+        floorY: { value: room.floorY },
+        stairEntry: { value: new Vector3(DIMENSIONS.stairEyeX, room.floorY, DIMENSIONS.stairEyeZ) },
+        stairStrength: { value: new Vector2() },
+        shadowTint: { value: new Color(0x35404b) },
+        lightTint: { value: new Color(0x8b949e) },
       },
     })
     const mesh = new Mesh(roomSlices(room), material)
     mesh.visible = false
     mesh.name = `Rauch ${room.id}`
     this.add(mesh)
-    return { room, mesh, material, doors: DOORS.filter((door) => door.rooms.includes(room.id)) }
+    return { room, mesh, material, doors, below, landing }
   })
 
   constructor(private readonly sourcePositions: ReadonlyMap<SourceId, Vector3>) {
@@ -199,7 +232,7 @@ export class SmokeVolumes extends Group {
 
   update(snapshot: SimulationSnapshot): void {
     const active = SOURCES.find((source) => source.id === snapshot.source)
-    for (const { room, mesh, material, doors } of this.rooms) {
+    for (const { room, mesh, material, doors, below, landing } of this.rooms) {
       const local = snapshot.rooms[room.id]
       const u = material.uniforms
       u.strength.value = active?.room === room.id ? snapshot.sourceStrength : 0
@@ -207,22 +240,22 @@ export class SmokeVolumes extends Group {
       u.time.value = snapshot.elapsed
       u.upperOpacity.value = local.opacity
       u.layerBase.value = local.layerBaseY
+      let hasFlow = false
       for (const [index, door] of doors.entries()) {
-        const jet = index === 0 ? u.jetA.value : u.jetB.value
-        const incomingDirection = door.rooms[0] === room.id ? -1 : 1
-        const flow = snapshot.doors[door.id] ? snapshot.doorFlow[door.id] * incomingDirection : 0
-        jet.set(
-          incomingDirection > 0 ? room.minX : room.maxX,
-          door.topY,
-          incomingDirection,
-          Math.max(0, Math.min(1, flow)),
-        )
+        const signedFlow = snapshot.doorFlow[door.id] * (door.rooms[0] === room.id ? -1 : 1)
+        const incoming = snapshot.doors[door.id] ? Math.max(0, signedFlow) : 0
+        u.flows.value[index].y = incoming
+        if (incoming > 0.002) hasFlow = true
       }
+      const rising = below ? Math.max(0, snapshot.stairFlow[below.landing]) : 0
+      const sinking = landing ? Math.max(0, -snapshot.stairFlow[landing.landing]) : 0
+      u.stairStrength.value.set(rising, sinking)
       mesh.visible =
         local.opacity > 0.002 ||
         u.strength.value > 0.002 ||
-        u.jetA.value.w > 0.003 ||
-        u.jetB.value.w > 0.003
+        hasFlow ||
+        rising > 0.002 ||
+        sinking > 0.002
     }
   }
 

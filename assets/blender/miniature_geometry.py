@@ -6,6 +6,18 @@ from math import ceil, cos, pi, sin
 from mathutils import Vector
 
 COLORS = {
+    "limestone": "DFD4C2",
+    "warmgrey": "AFA898",
+    "slate": "526873",
+    "chalk": "FAECD2",
+    "window": "A9E8EF",
+    "basement": "B7C7C5",
+    "solar": "253E69",
+    "pvgrid": "829AB9",
+    "sagebox": "A1C3B1",
+    "soil": "B37858",
+    "stone": "CFAC8E",
+    "indigo": "637FB3",
     "birch": "F2C58D",
     "rim": "FFE0AD",
     "honey": "D89957",
@@ -106,7 +118,11 @@ def box(name, x, y, z, w, h, d, color, radius=0.035, yaw=0, roll=0):
                 first = len(vs)
                 for du, dv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
                     raw = [0.0, 0.0, 0.0]
-                    raw[axis], raw[u], raw[v] = sign * half[axis], du * half[u], dv * half[v]
+                    raw[axis], raw[u], raw[v] = (
+                        sign * half[axis],
+                        du * half[u],
+                        dv * half[v],
+                    )
                     normal = [0.0, 0.0, 0.0]
                     normal[axis] = sign
                     vs.append(tuple(raw))
@@ -129,7 +145,13 @@ def box(name, x, y, z, w, h, d, color, radius=0.035, yaw=0, roll=0):
         "Partition return",
         "Door header",
     }
-    slab = name in {"Base plate", "Apartment ceiling", "Landing", "Half landing", "Coral roof"}
+    slab = name in {
+        "Base plate",
+        "Apartment ceiling",
+        "Landing",
+        "Half landing",
+        "Coral roof",
+    }
     furnishings = group not in {"House structure", "Garden"} and not group.startswith("hinge_")
 
     def light_samples(values, pitch):
@@ -148,8 +170,11 @@ def box(name, x, y, z, w, h, d, color, radius=0.035, yaw=0, roll=0):
                 or (slab and axis == 1)
                 or (furnishings and sign == 1 and axis in (1, 2) and min(half[u], half[v]) > 0.11)
             ):
-                pitch = 0.135 if furnishings else 0.145
-                across, along = light_samples(across, pitch), light_samples(along, pitch)
+                pitch = 0.24 if furnishings else 0.27
+                across, along = (
+                    light_samples(across, pitch),
+                    light_samples(along, pitch),
+                )
             for a in across:
                 for b in along:
                     raw = [0.0, 0.0, 0.0]
@@ -265,10 +290,10 @@ def prism(name, outline, z1, z2, color):
     # Front faces use counter-clockwise XY coordinates.
     vs, ns, fs = [], [], []
     for z, normal in ((z1, (0, 0, -1)), (z2, (0, 0, 1))):
-        if name == "Gable back" and z == z2:
+        if name == "Attic back" and z == z2:
             # Barycentric subdivision keeps the gable silhouette exact.
             left, right, ridge = (Vector(p) for p in outline)
-            resolution = ceil((right - left).length / 0.145)
+            resolution = ceil((right - left).length / 0.24)
             rows = []
             for row in range(resolution + 1):
                 points = []
@@ -282,7 +307,13 @@ def prism(name, outline, z1, z2, color):
                 for col in range(resolution - row):
                     fs.append((rows[row][col], rows[row][col + 1], rows[row + 1][col]))
                     if col + 1 < len(rows[row + 1]):
-                        fs.append((rows[row][col + 1], rows[row + 1][col + 1], rows[row + 1][col]))
+                        fs.append(
+                            (
+                                rows[row][col + 1],
+                                rows[row + 1][col + 1],
+                                rows[row + 1][col],
+                            )
+                        )
             continue
         base = len(vs)
         vs.extend((x, y, z) for x, y in outline)
@@ -305,7 +336,12 @@ def oval(name, x, y, z, rx, rz, thickness, color):
         x,
         y,
         z,
-        [(-thickness / 2, rx * 0.98), (-thickness * 0.26, rx), (thickness * 0.26, rx), (thickness / 2, rx * 0.98)],
+        [
+            (-thickness / 2, rx * 0.98),
+            (-thickness * 0.26, rx),
+            (thickness * 0.26, rx),
+            (thickness / 2, rx * 0.98),
+        ],
         color,
         40,
         rz / rx,

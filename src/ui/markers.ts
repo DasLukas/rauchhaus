@@ -1,4 +1,4 @@
-import { DETECTORS, DOORS, SOURCES, type SimulationSnapshot } from '../simulation'
+import { DETECTORS, DOORS, ROOMS, SOURCES, type SimulationSnapshot } from '../simulation'
 import { icon } from './icons'
 
 interface Position {
@@ -14,8 +14,10 @@ interface Entry {
   glyph: HTMLElement
   tooltip: HTMLElement
   kind: MarkerKind
+  floor: number
   label: string
   on: boolean
+  offset?: number
   position?: Position
 }
 
@@ -23,7 +25,11 @@ interface Entry {
 export class Markers {
   private readonly entries = new Map<string, Entry>()
   private lesson = false
-  constructor(root: HTMLElement, activate: (id: string) => void) {
+  private width = 0
+  constructor(
+    private readonly root: HTMLElement,
+    activate: (id: string) => void,
+  ) {
     const groups = [
       [SOURCES, 'source'],
       [DOORS, 'door'],
@@ -65,12 +71,24 @@ export class Markers {
         tooltip.setAttribute('aria-hidden', 'true')
         view.append(glyph, tooltip)
         root.append(view)
-        this.entries.set(item.id, { view, glyph, tooltip, kind, label: item.label, on: false })
+        const roomId = 'room' in item ? item.room : item.rooms[0]
+        const room = ROOMS.find((room) => room.id === roomId)
+        if (!room) throw new Error(`Missing room for ${item.id}`)
+        this.entries.set(item.id, {
+          view,
+          glyph,
+          tooltip,
+          kind,
+          floor: room.floor,
+          label: item.label,
+          on: false,
+        })
       }
     }
   }
 
   project(positions: readonly Position[]) {
+    this.width = this.root.clientWidth
     for (const pos of positions) {
       const entry = this.entries.get(pos.id)
       if (!entry) continue
@@ -79,6 +97,7 @@ export class Markers {
       entry.view.style.top = `${pos.y.toFixed(1)}px`
       this.visibility(entry)
     }
+    this.spaceTargets()
   }
 
   update(snapshot: SimulationSnapshot, lesson: boolean) {
@@ -102,6 +121,54 @@ export class Markers {
       e.view.setAttribute('aria-label', label)
       e.view.classList.toggle('active', e.on)
       this.visibility(e)
+    }
+    this.spaceTargets()
+  }
+
+  /** Keep same-storey tap targets separate on narrow screens. Leave a short
+   * leader to the physical anchor if a marker has to move sideways. */
+  private spaceTargets() {
+    const width = this.width
+    if (width < 48) return
+    const floors = new Map<number, { entry: Entry; x: number }[]>()
+    for (const entry of this.entries.values()) {
+      if (entry.kind === 'detector' || !entry.position || entry.view.hidden) continue
+      const row = floors.get(entry.floor) ?? []
+      row.push({ entry, x: entry.position.x })
+      floors.set(entry.floor, row)
+    }
+    for (const row of floors.values()) {
+      row.sort((a, b) => a.x - b.x)
+      const spacing = Math.min(50, (width - 48) / Math.max(1, row.length - 1))
+      // In these coordinates equally spaced neighbours share one origin.
+      // Merge adjacent overlapping groups and centre them on their anchors.
+      const groups: { origin: number; size: number }[] = []
+      for (const [index, item] of row.entries()) {
+        const group = { origin: item.x - index * spacing, size: 1 }
+        let previous = groups.at(-1)
+        while (previous && previous.origin > group.origin) {
+          group.origin =
+            (previous.origin * previous.size + group.origin * group.size) /
+            (previous.size + group.size)
+          group.size += previous.size
+          groups.pop()
+          previous = groups.at(-1)
+        }
+        groups.push(group)
+      }
+      let index = 0
+      for (const group of groups) {
+        const origin = Math.max(24, Math.min(width - 24 - spacing * (row.length - 1), group.origin))
+        for (let j = 0; j < group.size; j++, index++) {
+          const { entry, x } = row[index]
+          const offset = Math.round((origin + spacing * index - x) * 10) / 10
+          if (entry.offset === offset) continue
+          entry.offset = offset
+          entry.view.style.marginLeft = `${offset.toFixed(1)}px`
+          entry.view.style.setProperty('--leader-width', `${Math.abs(offset).toFixed(1)}px`)
+          entry.view.style.setProperty('--leader-direction', offset > 0 ? '-1' : '1')
+        }
+      }
     }
   }
 

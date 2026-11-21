@@ -1,6 +1,7 @@
 import {
   DETECTORS,
   DOORS,
+  FLOORS,
   ROOMS,
   SOURCES,
   floorArea,
@@ -37,6 +38,8 @@ export interface SimulationSnapshot {
   readonly detectors: Readonly<Record<DetectorId, boolean>>
   /** Normalized signed flow, positive in the order defined in DOORS. */
   readonly doorFlow: Readonly<Record<DoorId, number>>
+  /** Signed upward flow leaving each landing for the storey above; zero in rooms. */
+  readonly stairFlow: Readonly<Record<RoomId, number>>
 }
 
 function table<K extends string, T extends { readonly id: K }, V>(
@@ -122,6 +125,7 @@ export class SmokeSimulation {
   private readonly cells = table(ROOMS, cell)
   private readonly doors = table(DOORS, (door) => door.initiallyOpen)
   private readonly flows = table(DOORS, () => 0)
+  private readonly stairFlows = table(ROOMS, () => 0)
   private readonly openings: Opening[]
   private source: SourceId | null = null
   private sourceCell: Cell | null = null
@@ -137,12 +141,9 @@ export class SmokeSimulation {
       topY: door.topY,
       transfer: 0,
     }))
-    const flights = [
-      ['stair0', 'stair1'],
-      ['stair1', 'stair2'],
-      ['stair2', 'stair3'],
-    ] as const
-    for (const [lower, upper] of flights) {
+    for (let i = 1; i < FLOORS.length; i++) {
+      const lower = FLOORS[i - 1].landing
+      const upper = FLOORS[i].landing
       this.openings.push({
         first: this.cells[lower],
         second: this.cells[upper],
@@ -157,6 +158,7 @@ export class SmokeSimulation {
   reset(): void {
     for (const bounds of ROOMS) {
       Object.assign(this.cells[bounds.id], cell(bounds))
+      this.stairFlows[bounds.id] = 0
     }
     for (const door of DOORS) this.flows[door.id] = 0
     this.source = null
@@ -231,6 +233,7 @@ export class SmokeSimulation {
       const receiver = forward ? opening.second : opening.first
       if (donor.volume <= 0 || donor.outflow <= 0) {
         if (opening.door !== null) this.flows[opening.door] = 0
+        else this.stairFlows[opening.first.bounds.id] = 0
         continue
       }
       // Competing openings share the available volume; all fluxes read the
@@ -245,9 +248,9 @@ export class SmokeSimulation {
       receiver.volumeChange += volume * (opening.door === null ? 1.25 : 1.12)
       receiver.massChange += tracer
       receiver.heatChange += heat
-      if (opening.door !== null) {
-        this.flows[opening.door] = (forward ? 1 : -1) * Math.min(1, volume / TICK)
-      }
+      const signedFlow = (forward ? 1 : -1) * Math.min(1, volume / TICK)
+      if (opening.door !== null) this.flows[opening.door] = signedFlow
+      else this.stairFlows[opening.first.bounds.id] = signedFlow
     }
     for (const room of ROOMS) {
       const zone = this.cells[room.id]
@@ -281,6 +284,7 @@ export class SmokeSimulation {
       detectors: Object.freeze(detectors),
       doors: Object.freeze({ ...this.doors }),
       doorFlow: Object.freeze({ ...this.flows }),
+      stairFlow: Object.freeze({ ...this.stairFlows }),
     })
     return this.cached
   }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { gunzipSync, zstdDecompressSync } from 'node:zlib'
 import { Box3, Matrix4, Quaternion, Vector3 } from 'three'
-import { DETECTORS, DOORS, ROOMS, SOURCES, roofHeightAt } from '../src/simulation/house.ts'
+import { DETECTORS, DOORS, ROOMS, SOURCES, ROOF, roofHeightAt } from '../src/simulation/house.ts'
 
 const readAsset = (path) => readFileSync(new URL(path, import.meta.url))
 const source = readAsset('../assets/blender/rauchhaus.blend')
@@ -112,7 +112,7 @@ for (const target of [...SOURCES, ...DETECTORS]) {
   const room = ROOMS.find((room) => room.id === target.room)
   assert(room, `Unknown compartment for ${target.id}`)
   const { point: p } = named(`anchor_${target.id}`)
-  const ceiling = room.floor === 3 ? roofHeightAt(p.x) : room.ceilingY
+  const ceiling = room.floor === ROOF.floor ? roofHeightAt(p.x) : room.ceilingY
   assert(
     p.x >= room.minX &&
       p.x <= room.maxX &&
@@ -121,6 +121,10 @@ for (const target of [...SOURCES, ...DETECTORS]) {
       p.y >= room.floorY &&
       p.y <= ceiling,
     `Source or sensor outside its room: ${target.id}`,
+  )
+  assert(
+    p.distanceTo(new Vector3(...target.position)) < 0.02,
+    `Exported anchor and shared floor plan differ: ${target.id}`,
   )
   if ('sensorY' in target) {
     assert(
@@ -135,8 +139,28 @@ for (const door of DOORS) {
   const room = ROOMS.find((room) => room.id === door.rooms[0])
   assert(room && Math.abs(hinge.point.y - room.floorY) < 0.1, `Misplaced hinge: ${door.id}`)
   assert(marker.y > room.floorY && marker.y < door.topY, `Marker outside door height: ${door.id}`)
-  const angle = Math.abs(hinge.node.extras?.openAngle)
-  assert(angle > 0.4 && angle <= Math.PI, `Missing usable open angle: ${door.id}`)
+  const angle = hinge.node.extras?.openAngle
+  assert(
+    Math.abs(Math.abs(angle) - Math.PI / 2) < 1e-5 && Math.abs(angle - door.openAngle) < 1e-5,
+    `Door must swing 90 degrees into its room: ${door.id}`,
+  )
+  assert(
+    hinge.point.distanceTo(new Vector3(door.x, room.floorY, door.hingeZ)) < 0.02,
+    `Door pivot differs from its definition: ${door.id}`,
+  )
+  const span = hinge.bounds.getSize(new Vector3())
+  assert(
+    span.x < 0.3 &&
+      Math.abs(hinge.bounds.min.z - door.latchZ) < 0.1 &&
+      Math.abs(hinge.bounds.max.z - door.hingeZ) < 0.1 &&
+      Math.abs(hinge.bounds.max.y - door.topY) < 0.1,
+    `Closed leaf must extend along the wall, from hinge to latch: ${door.id}`,
+  )
+  const openLatchX = hinge.point.x + (door.latchZ - door.hingeZ) * Math.sin(angle)
+  assert(
+    openLatchX > room.minX && openLatchX < room.maxX,
+    `Door opens into the wrong room: ${door.id}`,
+  )
   assert(
     !hinge.bounds.isEmpty() && hinge.bounds.distanceToPoint(marker) < 0.3,
     `Door has no movable surface at its marker: ${door.id}`,

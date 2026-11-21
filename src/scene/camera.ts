@@ -1,22 +1,46 @@
 import { MathUtils, OrthographicCamera, Vector3 } from 'three'
+import { FLOORS, ROOMS } from '../simulation'
 
-const FRONT_YAW = -0.09
-const ELEVATION = 0.102
+const FRONT_YAW = -0.15
+const ELEVATION = 0.16
 const clamp = MathUtils.clamp
+const levels = FLOORS.map((floor) => floor.level).sort((a, b) => a - b)
+const floorBases = new Map(ROOMS.map((room) => [room.floor, room.floorY]))
+const minY = Math.min(...ROOMS.map((room) => room.floorY))
+const maxY = Math.max(...ROOMS.map((room) => room.ceilingY))
+const minX = Math.min(...ROOMS.map((room) => room.minX))
+const maxX = Math.max(...ROOMS.map((room) => room.maxX))
+const modelWidth = maxX - minX
+const modelHeight = maxY - minY
 
-/** Keeps the cutaway readable while allowing small changes of viewpoint. */
+/** Resolve physical taps against the same storey elevations that bound the smoke. */
+export function pickedFloor(world: Vector3): number | undefined {
+  if (
+    world.x < minX - 0.15 ||
+    world.x > maxX + 0.15 ||
+    world.y < minY - 0.1 ||
+    world.y > maxY + 0.2
+  )
+    return
+  for (let i = levels.length - 1; i >= 0; i--) {
+    if (world.y >= (floorBases.get(levels[i]) ?? 0) - 0.03) return levels[i]
+  }
+}
+
+/** Frames the whole cutaway and allows room-scale exploration using a single finger. */
 export class HouseCamera {
-  readonly camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 65)
+  readonly camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 100)
   floor: number | null = null
-  zoom = 1
+  private zoom = 1
   private width = 1
   private height = 1
   private yaw = FRONT_YAW
   private currentYaw = FRONT_YAW
-  private span = 9.6
-  private centerY = 4.15
+  private span = modelHeight + 1.3
+  private centerY = (maxY + minY) / 2
   private centerX = 0
-  private pan = 0
+  private targetX = 0
+  private targetY = this.centerY
   private projectionDirty = true
   private readonly target = new Vector3()
 
@@ -29,42 +53,66 @@ export class HouseCamera {
 
   zoomBy(factor: number): void {
     if (!Number.isFinite(factor) || factor <= 0) return
-    this.zoom = clamp(this.zoom * factor, 0.85, 2.7)
-    if (this.zoom <= 1) this.pan = 0
-  }
-
-  drag(dx: number, dy: number): void {
-    this.yaw = clamp(this.yaw - (dx / this.width) * 0.82, -0.255, 0.255)
-    if (this.zoom > 1 || this.floor !== null) {
-      this.pan = clamp(this.pan + (dy * this.span) / this.height, -3.75, 3.75)
+    this.zoom = clamp(this.zoom * factor, this.floor === null ? 0.9 : 0.72, 3.2)
+    if (!this.isDetail) {
+      this.targetX = 0
+      this.targetY = (maxY + minY) / 2
     }
   }
 
-  focus(floor: number): void {
-    this.floor = clamp(Math.round(floor), 0, 3)
-    this.pan = 0
+  private get isDetail() {
+    return this.floor !== null || this.zoom > 1.01
+  }
+
+  drag(dx: number, dy: number): void {
+    if (this.isDetail) {
+      const perPixel = this.span / this.height
+      this.targetX = clamp(this.targetX - dx * perPixel, minX, maxX)
+      const base = this.floor === null ? undefined : floorBases.get(this.floor)
+      // A selected floor keeps its controls in reach as a child explores it.
+      this.targetY = clamp(
+        this.targetY + dy * perPixel,
+        base === undefined ? minY : base + 0.35,
+        base === undefined ? maxY : (floorBases.get((this.floor ?? 0) + 1) ?? maxY) - 0.35,
+      )
+    } else {
+      this.yaw = clamp(this.yaw - (dx / this.width) * 0.96, -0.32, 0.32)
+    }
+  }
+
+  focus(floor: number, x = 0): void {
+    const floorY = floorBases.get(floor)
+    if (floorY === undefined) return
+    this.floor = floor
+    this.targetY = floorY + 1.22
+    this.targetX = clamp(x, minX, maxX)
     this.zoom = 1
   }
 
   reset(): void {
     this.floor = null
-    this.pan = 0
+    this.targetY = (minY + maxY) / 2
+    this.targetX = 0
     this.yaw = FRONT_YAW
     this.zoom = 1
   }
 
   update(dt: number, snap: boolean): boolean {
     const aspect = this.width / this.height
-    const floor = this.floor
-    // On portrait displays the side of the garden may extend outside the view.
-    // Keep every room visible and reserve as many pixels as possible for doors.
-    const overviewWidth = aspect >= 1.15 ? 10.75 : 7.1
+    // Keep the full house and its doors on a portrait screen. In landscape
+    // the additional room at the edges also shows the garden and terrain.
+    const overviewWidth = modelWidth + (aspect >= 1.22 ? 4.8 : this.width >= 650 ? 4.1 : 1.65)
+    const focusWidth = clamp(this.width / 89, 5.3, modelWidth + 1.7)
     const fit =
-      floor === null ? Math.max(9.4, overviewWidth / aspect) : Math.max(3.45, 6.85 / aspect)
+      this.floor === null
+        ? Math.max(modelHeight + 1.7, overviewWidth / aspect)
+        : Math.max(4.1, focusWidth / aspect)
     const span = fit / this.zoom
-    const baseY = floor === null ? 4.16 : floor * 2.1 + (floor === 3 ? 1.04 : 0.96)
-    const y = clamp(baseY + this.pan, 0.9, 7.65)
-    const x = floor === null ? 0 : -0.05
+    const halfWidth = (span * aspect) / 2
+    const panLimitX = Math.max(0, modelWidth / 2 + 0.6 - halfWidth)
+    const x = clamp(this.targetX, -panLimitX, panLimitX)
+    this.targetX = x
+    const y = this.isDetail ? clamp(this.targetY, minY + 0.8, maxY - 0.6) : (minY + maxY) / 2
     const changed =
       this.projectionDirty ||
       Math.abs(this.currentYaw - this.yaw) > 0.00008 ||
@@ -85,7 +133,7 @@ export class HouseCamera {
     camera.bottom = -camera.top
     this.target.set(this.centerX, this.centerY, 0)
     camera.position
-      .set(24 * Math.sin(this.currentYaw), 24 * Math.tan(ELEVATION), 24 * Math.cos(this.currentYaw))
+      .set(34 * Math.sin(this.currentYaw), 34 * Math.tan(ELEVATION), 34 * Math.cos(this.currentYaw))
       .add(this.target)
     camera.lookAt(this.target)
     camera.updateMatrixWorld()

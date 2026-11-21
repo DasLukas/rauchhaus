@@ -7,7 +7,8 @@ import {
 } from '../simulation'
 
 export type LessonStage = 'open' | 'closed' | 'compare'
-export const OBSERVATION_SECONDS = 26
+// Allow the layer to become visible one landing above the television.
+export const OBSERVATION_SECONDS = 40
 
 /** Owns one free experiment and an optional pair of matched door trials. */
 export class LearningSession {

@@ -1,6 +1,6 @@
 import './style.css'
 import { createHouseScene, type HouseScene } from './scene'
-import { DETECTORS, DOORS, SOURCES } from './simulation'
+import { DETECTORS, DOORS, FLOORS, SOURCES } from './simulation'
 import { element, mountLayout, setButton } from './ui/layout'
 import { Markers } from './ui/markers'
 import { showPanel, type PanelKind } from './ui/panels'
@@ -137,6 +137,10 @@ async function start() {
       return state
     },
     onProject: (positions) => markers.project(positions),
+    onFloorChange(level) {
+      const floor = FLOORS.find((floor) => floor.level === level)
+      announce(floor ? `Du erkundest jetzt das ${floor.label}.` : 'Das ganze Haus ist sichtbar.')
+    },
     onActivate: activate,
     onError: showError,
   })

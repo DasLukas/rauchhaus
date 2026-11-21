@@ -203,6 +203,20 @@ nav,
   pointer-events: auto;
   z-index: 1;
 }
+.marker:is(.source, .door)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  height: 2px;
+  width: var(--leader-width, 0px);
+  transform: scaleX(var(--leader-direction, 1));
+  transform-origin: left center;
+  background: white;
+  box-shadow: 0 1px 2px #26494e80;
+  pointer-events: none;
+}
 .marker:focus-visible,
 .marker:hover {
   z-index: 3;

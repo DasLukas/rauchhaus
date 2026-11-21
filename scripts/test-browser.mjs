@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 import { preview } from 'vite'
+import layout from '../src/simulation/layout.json' with { type: 'json' }
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
 const targetUrl = process.env.RAUCHHAUS_TEST_URL
@@ -12,22 +13,34 @@ const profile = await mkdtemp(join(tmpdir(), 'rauchhaus-chrome-'))
 let server
 let context
 
-// Sample the landing one floor above the television. That region contains no
-// moving door in either trial. The image is decoded offscreen by the browser.
-async function landingColor(page) {
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  )
-  const tv = await page.locator('[data-marker=s_tv]').boundingBox()
-  const door = await page.locator('[data-marker=d1]').boundingBox()
-  assert.ok(tv && door)
-  const scale = door.x - tv.x
-  const clip = {
-    x: Math.round(door.x + door.width / 2 + 0.32 * scale),
-    y: Math.round(door.y + door.height / 2 - 0.85 * scale),
-    width: 16,
-    height: 14,
-  }
+// Projected jamb markers provide a scale and location for sampling the shared
+// stairwell. The two compared images use the same room, camera and elapsed time.
+async function landingColor(page, level, clockPaused = false) {
+  if (!clockPaused)
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    )
+  const landing = layout.floors.find((floor) => floor.level === level).landing
+  const entrances = layout.doors.filter((door) => door.rooms.includes(landing))
+  const below = layout.floors.find((floor) => floor.level === level - 1).landing
+  const lowerDoor = layout.doors.find((door) => door.rooms.includes(below))
+  const ids = [...entrances.map((door) => door.id), lowerDoor.id]
+  const clip = await page.evaluate((ids) => {
+    const overlay = document.querySelector('#markers').getBoundingClientRect()
+    const [left, right, lower] = ids.map((id) => {
+      // Guided exploration hides unrelated controls, but keeps their projections current.
+      const marker = document.querySelector(`[data-marker="${id}"]`)
+      return { x: parseFloat(marker.style.left), y: parseFloat(marker.style.top) }
+    })
+    const span = Math.abs(right.x - left.x)
+    const height = lower.y - left.y
+    return {
+      x: Math.round(overlay.left + Math.min(left.x, right.x) + span * 0.24),
+      y: Math.round(overlay.top + left.y - height * 0.44),
+      width: Math.max(8, Math.round(span * 0.52)),
+      height: Math.max(6, Math.round(height * 0.31)),
+    }
+  }, ids)
   const image = await page.screenshot({ clip })
   return page.evaluate(async (data) => {
     const buffer = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
@@ -45,6 +58,43 @@ async function landingColor(page) {
     }
     return total.map((channel) => channel / (rgba.length / 4))
   }, image.toString('base64'))
+}
+
+/** Compare two ordinary free-play laundry runs with the same browser-frame schedule. */
+async function verifyLaundry(context, url, errors) {
+  const page = await context.newPage()
+  try {
+    page.on('pageerror', (error) => errors.push(error.message))
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+    await page.setViewportSize({ width: 1000, height: 760 })
+    await page.clock.install()
+    await page.goto(url)
+    const washer = page.locator('[data-marker=s_washer]')
+    const door = page.locator('[data-marker=dbr]')
+    await washer.waitFor()
+    const freezeAt = await page.evaluate(() => Date.now() + 500)
+    await page.clock.pauseAt(new Date(freezeAt))
+    const colors = []
+    for (const state of ['geschlossen', 'offen']) {
+      if (state === 'offen') await door.click()
+      await washer.click()
+      // One animation callback per interval. The application advances its normal
+      // fixed-step solver through 32 model seconds and renders both outcomes.
+      for (let frame = 0; frame < 256; frame++) await page.clock.fastForward(125)
+      assert.equal(await page.locator('[data-marker=m_laundry]').isVisible(), true)
+      colors.push(await landingColor(page, 0, true))
+      if (evidence) await page.screenshot({ path: join(evidence, `keller-${state}.png`) })
+    }
+    const difference = Math.hypot(...colors[1].map((value, i) => value - colors[0][i]))
+    assert.ok(
+      difference > 9,
+      `Laundry door should visibly affect the central ground-floor landing (RGB distance ${difference.toFixed(1)})`,
+    )
+  } finally {
+    await page.close()
+  }
 }
 
 try {
@@ -73,7 +123,10 @@ try {
   const btn = (name) => page.getByRole('button', { name, exact: true })
   await marker('s_tv').waitFor()
   await page.locator('#load-state').waitFor({ state: 'hidden' })
-  assert.equal(await page.locator('.marker:visible').count(), 12)
+  assert.equal(
+    await page.locator('.marker:visible').count(),
+    layout.sources.length + layout.doors.length,
+  )
   assert.equal(await btn('Pause').isDisabled(), true)
   const capture = async (name) => {
     if (evidence) await page.screenshot({ path: join(evidence, `${name}.png`) })
@@ -106,19 +159,19 @@ try {
   await page.getByText('1 von 2 · Tür offen').waitFor()
   await btn('Ergebnis ansehen').click()
   await btn('Türvergleich starten').waitFor()
-  const openLanding = await landingColor(page)
+  const openLanding = await landingColor(page, 2)
   await capture('vergleich-offen')
   await btn('Türvergleich starten').click()
   await page.getByText('2 von 2 · Tür geschlossen').waitFor()
   await btn('Ergebnis ansehen').click()
   await btn('Vergleich abschließen').waitFor()
-  const closedLanding = await landingColor(page)
+  const closedLanding = await landingColor(page, 2)
+  await capture('vergleich-geschlossen')
   const colorDifference = Math.hypot(...openLanding.map((v, i) => v - closedLanding[i]))
   assert.ok(
     colorDifference > 9,
     `Upper landing should visibly change between trials (RGB distance ${colorDifference.toFixed(1)})`,
   )
-  await capture('vergleich-geschlossen')
   await btn('Vergleich abschließen').click()
   await page.getByText('Beobachtung vergleichen').click()
   await page.getByText('Eine geschlossene Tür bremst den Rauch.', { exact: true }).waitFor()
@@ -127,11 +180,34 @@ try {
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'true')
   await btn('Vergrößern').click()
   await btn('Ganzes Haus zeigen').click()
+  const house = page.locator('#viewport canvas')
+  await house.press('0')
+  await marker('s_tv').waitFor({ state: 'hidden' })
+  assert.equal(await marker('s_washer').isVisible(), true)
+  await capture('keller-detail')
+  await house.press('4')
+  await marker('s_attic').waitFor()
+  assert.equal(await marker('s_washer').isVisible(), false)
+  await house.press('Home')
+  await marker('s_washer').waitFor()
   for (const [width, height] of [
+    [1180, 820],
     [820, 1180],
     [390, 844],
   ]) {
     await page.setViewportSize({ width, height })
+    // Each landing has two separately selectable apartment or basement doors.
+    for (const f of layout.floors) {
+      const pair = layout.doors.filter((door) => door.rooms.includes(f.landing))
+      assert.equal(pair.length, 2)
+      for (const side of pair) {
+        const control = marker(side.id)
+        const before = await control.getAttribute('aria-pressed')
+        await control.click()
+        assert.notEqual(await control.getAttribute('aria-pressed'), before)
+        await control.click()
+      }
+    }
     await marker('s_stove').click()
     assert.equal(await marker('s_stove').getAttribute('aria-pressed'), 'true')
     assert.equal(
@@ -144,9 +220,12 @@ try {
     }
     await capture(`ansicht-${width}`)
   }
+  const url = page.url()
+  await page.close()
+  await verifyLaundry(context, url, errors)
   assert.deepEqual(errors, [])
   console.log(
-    'Passed: model load, smoke alarm, pause, door, restart, help, matched trials, zoom, portrait and narrow touch targets.',
+    'Passed: model load, smoke alarm, matched TV and laundry trials, opposed entrance doors, zoom and portrait touch controls.',
   )
 } finally {
   try {

@@ -91,8 +91,8 @@ describe('guided door comparison', () => {
     'restores the free experiment including its paused state (%s)',
     (paused) => {
       const session = new LearningSession()
-      session.selectSource('s_lamp')
-      session.toggleDoor('i2')
+      session.selectSource('s_washer')
+      session.toggleDoor('dbr')
       session.tick(6.41)
       if (paused) session.togglePause()
       const free = session.snapshot

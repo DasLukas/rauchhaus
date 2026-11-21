@@ -30,7 +30,7 @@ Open the address printed by Vite. To view this branch on a tablet, serve the loc
 | `npm run check` | All four checks above |
 | `npm run test:browser` | Compares rendered smoke on the shared landings for both the television and washing-machine experiments, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
 
-The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
+The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. It exercises the actual washing-machine control and detector in the app. A rendering fixture advances two laundry scenarios to 32 model seconds and compares the same ground-floor landing in both images. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
 
 ## Editing the house
 

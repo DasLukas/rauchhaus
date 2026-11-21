@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import { preview } from 'vite'
+import { build, preview } from 'vite'
 import layout from '../src/simulation/layout.json' with { type: 'json' }
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
@@ -15,11 +16,10 @@ let context
 
 // Projected jamb markers provide a scale and location for sampling the shared
 // stairwell. The two compared images use the same room, camera and elapsed time.
-async function landingColor(page, level, clockPaused = false) {
-  if (!clockPaused)
-    await page.evaluate(
-      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-    )
+async function landingColor(page, level) {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  )
   const landing = layout.floors.find((floor) => floor.level === level).landing
   const entrances = layout.doors.filter((door) => door.rooms.includes(landing))
   const below = layout.floors.find((floor) => floor.level === level - 1).landing
@@ -60,38 +60,63 @@ async function landingColor(page, level, clockPaused = false) {
   }, image.toString('base64'))
 }
 
-/** Compare two ordinary free-play laundry runs with the same browser-frame schedule. */
+/** Render both 32-second simulation snapshots against the GLB at the tested site. */
 async function verifyLaundry(page) {
-  const fullSize = { width: 1000, height: 760 }
-  await page.setViewportSize(fullSize)
+  const bundle = await build({
+    configFile: false,
+    base: './',
+    logLevel: 'error',
+    build: {
+      write: false,
+      lib: {
+        entry: fileURLToPath(new URL('./laundry-render.mjs', import.meta.url)),
+        name: 'LaundryTest',
+        formats: ['iife'],
+      },
+    },
+  })
+  // Replace only the document in this browser. Relative model requests still
+  // reach the production preview (or supplied Pages URL) at its original base.
+  await page.route(
+    page.url(),
+    (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+          body: `<!doctype html><link rel="icon" href="./haus.svg">
+        <style>
+          body { margin: 0; background: #9ee5f5 }
+          #viewport, #markers { position: absolute; inset: 0 }
+          #markers { visibility: hidden }
+        </style>
+        <div id="viewport"></div><div id="markers"></div>`,
+      }),
+    { times: 1 },
+  )
+  await page.setViewportSize({ width: 1000, height: 760 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.clock.install()
   await page.reload()
-  const washer = page.locator('[data-marker=s_washer]')
-  const door = page.locator('[data-marker=dbr]')
-  await washer.waitFor()
-  const freezeAt = await page.evaluate(() => Date.now() + 500)
-  await page.clock.pauseAt(new Date(freezeAt))
+  const output = Array.isArray(bundle) ? bundle[0].output : bundle.output
+  const entry = output.find((file) => file.type === 'chunk' && file.isEntry)
+  assert.ok(entry, 'Could not build the laundry rendering fixture')
+  await page.addScriptTag({ content: entry.code })
+  const selectDoor = await page.evaluateHandle(() => window.LaundryTest.mount())
   const colors = []
-  for (const state of ['geschlossen', 'offen']) {
-    if (state === 'offen') await door.click()
-    await washer.click()
-    // Run the intermediate frames in a small viewport so software-rendered CI
-    // spends its time on the two full-resolution comparison images.
-    await page.setViewportSize({ width: 390, height: 330 })
-    for (let frame = 0; frame < 200; frame++) await page.clock.fastForward(160)
-    await page.setViewportSize(fullSize)
-    await page.clock.fastForward(64)
-    assert.equal(await page.locator('[data-marker=m_laundry]').isVisible(), true)
-    colors.push(await landingColor(page, 0, true))
-    if (evidence) await page.screenshot({ path: join(evidence, `keller-${state}.png`) })
-    console.log(`Rendered laundry comparison with the door ${state === 'offen' ? 'open' : 'closed'}.`)
+  for (const open of [false, true]) {
+    assert.equal(await selectDoor.evaluate((select, open) => select(open), open), true)
+    colors.push(await landingColor(page, 0))
+    if (evidence) {
+      await page.screenshot({
+        path: join(evidence, `keller-${open ? 'offen' : 'geschlossen'}.png`),
+      })
+    }
   }
+  await selectDoor.dispose()
   const difference = Math.hypot(...colors[1].map((value, i) => value - colors[0][i]))
   assert.ok(
     difference > 9,
     `Laundry door should visibly affect the central ground-floor landing (RGB distance ${difference.toFixed(1)})`,
   )
+  console.log(`Rendered laundry comparison (ground-floor RGB distance ${difference.toFixed(1)}).`)
 }
 
 try {
@@ -176,6 +201,9 @@ try {
   await btn('Weiter entdecken').click()
   await page.locator('#app:not(.learning)').waitFor()
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'true')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.reload()
+  await marker('s_washer').waitFor()
   await btn('Vergrößern').click()
   await btn('Ganzes Haus zeigen').click()
   const house = page.locator('#viewport canvas')
@@ -194,31 +222,46 @@ try {
     [390, 844],
   ]) {
     await page.setViewportSize({ width, height })
-    // Each landing has two separately selectable apartment or basement doors.
-    for (const f of layout.floors) {
-      const pair = layout.doors.filter((door) => door.rooms.includes(f.landing))
-      assert.equal(pair.length, 2)
-      for (const side of pair) {
-        const control = marker(side.id)
-        const before = await control.getAttribute('aria-pressed')
-        await control.click()
-        assert.notEqual(await control.getAttribute('aria-pressed'), before)
-        await control.click()
-      }
-    }
-    await marker('s_stove').click()
-    assert.equal(await marker('s_stove').getAttribute('aria-pressed'), 'true')
-    assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-      true,
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
     )
-    for (const button of await page.locator('.marker:visible,.toolbar button').all()) {
-      const box = await button.boundingBox()
-      assert.ok(box && box.width >= 48 && box.height >= 48, 'Touch target below 48 CSS pixels')
+    const targets = await page.evaluate(() => {
+      const markers = Array.from(
+        document.querySelectorAll('#markers button:not([hidden]),.toolbar button'),
+      )
+      return {
+        fits: document.documentElement.scrollWidth <= innerWidth,
+        blocked: markers.flatMap((button) => {
+          const box = button.getBoundingClientRect()
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+          return box.width >= 48 && box.height >= 48 && button.contains(hit)
+            ? []
+            : [button.getAttribute('aria-label')]
+        }),
+        doors: markers.filter((node) => node.classList.contains('door')).length,
+      }
+    })
+    assert.equal(targets.fits, true)
+    assert.equal(targets.doors, layout.doors.length)
+    assert.deepEqual(
+      targets.blocked,
+      [],
+      'Each 48-pixel target must receive a tap at its own centre',
+    )
+    // Exercise an opposing pair with real pointer clicks in each orientation.
+    for (const id of ['dbl', 'dbr']) {
+      const door = marker(id)
+      const before = await door.getAttribute('aria-pressed')
+      await door.click()
+      assert.notEqual(await door.getAttribute('aria-pressed'), before)
     }
     await capture(`ansicht-${width}`)
     console.log(`Verified independent door controls at ${width} × ${height}.`)
   }
+  await marker('s_washer').click()
+  assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'true')
+  await marker('m_laundry').waitFor()
+  await btn('Pause').click()
   await verifyLaundry(page)
   assert.deepEqual(errors, [])
   console.log(

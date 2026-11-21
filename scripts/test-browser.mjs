@@ -61,40 +61,37 @@ async function landingColor(page, level, clockPaused = false) {
 }
 
 /** Compare two ordinary free-play laundry runs with the same browser-frame schedule. */
-async function verifyLaundry(context, url, errors) {
-  const page = await context.newPage()
-  try {
-    page.on('pageerror', (error) => errors.push(error.message))
-    page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(message.text())
-    })
-    await page.setViewportSize({ width: 1000, height: 760 })
-    await page.clock.install()
-    await page.goto(url)
-    const washer = page.locator('[data-marker=s_washer]')
-    const door = page.locator('[data-marker=dbr]')
-    await washer.waitFor()
-    const freezeAt = await page.evaluate(() => Date.now() + 500)
-    await page.clock.pauseAt(new Date(freezeAt))
-    const colors = []
-    for (const state of ['geschlossen', 'offen']) {
-      if (state === 'offen') await door.click()
-      await washer.click()
-      // One animation callback per interval. The application advances its normal
-      // fixed-step solver through 32 model seconds and renders both outcomes.
-      for (let frame = 0; frame < 256; frame++) await page.clock.fastForward(125)
-      assert.equal(await page.locator('[data-marker=m_laundry]').isVisible(), true)
-      colors.push(await landingColor(page, 0, true))
-      if (evidence) await page.screenshot({ path: join(evidence, `keller-${state}.png`) })
-    }
-    const difference = Math.hypot(...colors[1].map((value, i) => value - colors[0][i]))
-    assert.ok(
-      difference > 9,
-      `Laundry door should visibly affect the central ground-floor landing (RGB distance ${difference.toFixed(1)})`,
-    )
-  } finally {
-    await page.close()
+async function verifyLaundry(page) {
+  const fullSize = { width: 1000, height: 760 }
+  await page.setViewportSize(fullSize)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.clock.install()
+  await page.reload()
+  const washer = page.locator('[data-marker=s_washer]')
+  const door = page.locator('[data-marker=dbr]')
+  await washer.waitFor()
+  const freezeAt = await page.evaluate(() => Date.now() + 500)
+  await page.clock.pauseAt(new Date(freezeAt))
+  const colors = []
+  for (const state of ['geschlossen', 'offen']) {
+    if (state === 'offen') await door.click()
+    await washer.click()
+    // Run the intermediate frames in a small viewport so software-rendered CI
+    // spends its time on the two full-resolution comparison images.
+    await page.setViewportSize({ width: 390, height: 330 })
+    for (let frame = 0; frame < 200; frame++) await page.clock.fastForward(160)
+    await page.setViewportSize(fullSize)
+    await page.clock.fastForward(64)
+    assert.equal(await page.locator('[data-marker=m_laundry]').isVisible(), true)
+    colors.push(await landingColor(page, 0, true))
+    if (evidence) await page.screenshot({ path: join(evidence, `keller-${state}.png`) })
+    console.log(`Rendered laundry comparison with the door ${state === 'offen' ? 'open' : 'closed'}.`)
   }
+  const difference = Math.hypot(...colors[1].map((value, i) => value - colors[0][i]))
+  assert.ok(
+    difference > 9,
+    `Laundry door should visibly affect the central ground-floor landing (RGB distance ${difference.toFixed(1)})`,
+  )
 }
 
 try {
@@ -172,6 +169,7 @@ try {
     colorDifference > 9,
     `Upper landing should visibly change between trials (RGB distance ${colorDifference.toFixed(1)})`,
   )
+  console.log('Passed the rendered television door comparison.')
   await btn('Vergleich abschließen').click()
   await page.getByText('Beobachtung vergleichen').click()
   await page.getByText('Eine geschlossene Tür bremst den Rauch.', { exact: true }).waitFor()
@@ -219,10 +217,9 @@ try {
       assert.ok(box && box.width >= 48 && box.height >= 48, 'Touch target below 48 CSS pixels')
     }
     await capture(`ansicht-${width}`)
+    console.log(`Verified independent door controls at ${width} × ${height}.`)
   }
-  const url = page.url()
-  await page.close()
-  await verifyLaundry(context, url, errors)
+  await verifyLaundry(page)
   assert.deepEqual(errors, [])
   console.log(
     'Passed: model load, smoke alarm, matched TV and laundry trials, opposed entrance doors, zoom and portrait touch controls.',

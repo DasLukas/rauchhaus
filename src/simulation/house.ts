@@ -49,7 +49,7 @@ export type SourceId =
   | 's_bed2'
   | 's_attic'
   | 's_loft'
-export type DetectorId = 'm_living' | 'm_bed' | 'm_attic' | 'm_laundry'
+export type DetectorId = `m_${Exclude<RoomId, 'bedroom' | 'stairB' | 'stair0' | 'stair1' | 'stair2'> | 'bed'}`
 
 export interface Room {
   readonly id: RoomId

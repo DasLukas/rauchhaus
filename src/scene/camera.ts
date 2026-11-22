@@ -108,7 +108,7 @@ export class HouseCamera {
     const focusWidth = clamp(this.width / 89, 5.3, modelWidth + 1.7)
     const fit =
       this.floor === null
-        ? Math.max(modelHeight + 1.7, overviewWidth / aspect)
+        ? Math.max((modelHeight + 1.7) * this.height / Math.max(1, this.height - 96), overviewWidth / aspect)
         : Math.max(4.1, focusWidth / aspect)
     const span = fit / this.zoom
     const halfWidth = (span * aspect) / 2

@@ -1,5 +1,6 @@
 import { DETECTORS, DOORS, ROOMS, CLASSROOM_SOURCES, type SimulationSnapshot } from '../simulation'
 import { icon } from './icons'
+import type { Lesson } from './session'
 
 interface Position {
   id: string
@@ -24,7 +25,7 @@ interface Entry {
 /** Accessible HTML controls follow anchors projected from the moving 3D camera. */
 export class Markers {
   private readonly entries = new Map<string, Entry>()
-  private lesson = false
+  private lesson: Lesson | null = null
   private width = 0
   constructor(
     private readonly root: HTMLElement,
@@ -63,9 +64,7 @@ export class Markers {
         view.dataset.marker = item.id
         const glyph = document.createElement('i')
         glyph.className = 'marker-disk'
-        glyph.innerHTML = icon(
-          ({ source: 'smoke', door: 'door', detector: 'alarm' } as const)[kind],
-        )
+        if (kind !== 'detector') glyph.innerHTML = icon(kind === 'source' ? 'smoke' : 'door')
         const tooltip = document.createElement('span')
         tooltip.className = 'tooltip'
         tooltip.setAttribute('aria-hidden', 'true')
@@ -100,7 +99,7 @@ export class Markers {
     this.spaceTargets()
   }
 
-  update(snapshot: SimulationSnapshot, lesson: boolean) {
+  update(snapshot: SimulationSnapshot, lesson: Lesson | null, fireEnabled = false) {
     this.lesson = lesson
     for (const [id, e] of this.entries) {
       let label = e.label
@@ -111,11 +110,12 @@ export class Markers {
         e.view.setAttribute('aria-pressed', String(e.on))
       } else if (e.kind === 'source') {
         e.on = snapshot.source === id
-        label += e.on ? ' · Versuch aktiv' : ' · Rauchversuch starten'
+        const startLabel = fireEnabled ? ' · Feuerversuch starten' : ' · Rauchversuch starten'
+        label += e.on ? ' · Versuch aktiv' : startLabel
         e.view.setAttribute('aria-pressed', String(e.on))
       } else {
         e.on = snapshot.detectors[id as keyof typeof snapshot.detectors]
-        label += ' · Rauch erkannt'
+        label += e.on ? ' · Rauch erkannt' : ' · bereit'
       }
       e.tooltip.textContent = label
       e.view.setAttribute('aria-label', label)
@@ -175,9 +175,9 @@ export class Markers {
   private visibility(e: Entry) {
     e.view.hidden =
       !e.position?.visible ||
-      (e.kind === 'detector' && !e.on) ||
-      (this.lesson &&
+      (this.lesson === 'fire' && e.kind !== 'detector') ||
+      (this.lesson === 'doors' &&
         ((e.kind === 'door' && e.view.dataset.marker !== 'd1') || (e.kind === 'source' && !e.on)))
-    if (e.view instanceof HTMLButtonElement) e.view.disabled = this.lesson
+    if (e.view instanceof HTMLButtonElement) e.view.disabled = this.lesson !== null
   }
 }

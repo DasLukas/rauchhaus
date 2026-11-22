@@ -19,6 +19,7 @@ import {
   DOORS,
   type Door,
   FLOORS,
+  HOUSE_VARIANT,
   PLUME_RISE_SPEED,
   ROOF,
   ROOMS,
@@ -27,6 +28,9 @@ import {
   SOURCES,
   type SourceId,
 } from '../simulation'
+import { sampleGasFlame } from '../simulation/gas-flame'
+import { fireShader } from './fire'
+import { fuelSurfaces } from './fuels'
 
 const SLICE_COUNT = 19
 
@@ -116,6 +120,9 @@ const fragmentShader = `
   uniform vec3 lightTint;
   uniform float ridge;
   uniform float roofSlope;
+  #ifdef SHOW_FIRE
+  ${fireShader}
+  #endif
 
   float ceilingAt(float x) {
     return mix(localCeiling, ridge - roofSlope * abs(x), isGable);
@@ -239,17 +246,21 @@ const fragmentShader = `
     bool behindFront = ceilingFront.z > 0.0 && distanceToEntry < ceilingFront.z + 0.16;
     bool atRoof = nearRoof && roofFeed > 0.002;
     bool inLayer = inside && behindFront && (point.y > layerBase - 0.48 || atRoof);
+    #ifndef SHOW_FIRE
     if (!inLayer && strength < 0.002 && currents.x < 0.002) discard;
+    #endif
     float detail = texture(noiseVolume, uv * 2.18 + vec3(0.1, -time * 0.006, 0.3)).r - 0.5;
     float textureDensity = 1.0 + 0.46 * broad + 0.20 * detail + 0.35 * billow;
     float layer = 0.0;
+    float smokeEdge = top;
+    float front = 0.0;
     if (inLayer) {
-      float front = smoothstep(-0.12, 0.35, ceilingFront.z - distanceToEntry + 0.08 * billow);
+      front = smoothstep(-0.12, 0.35, ceilingFront.z - distanceToEntry + 0.08 * billow);
       // The advancing nose is shallower than the developed layer behind it.
       float base = mix(top, layerBase, front);
       float edge = 0.085 + 0.10 * clamp(top - base, 0.0, 1.0);
-      float vertical = smoothstep(-edge, edge, point.y - base
-          + billow * 0.32 + broad * 0.18 + detail * 0.04);
+      smokeEdge = base - billow * 0.32 - broad * 0.18 - detail * 0.04;
+      float vertical = smoothstep(-edge, edge, point.y - smokeEdge);
       layer = layerExtinction * front * vertical;
       if (atRoof) {
         // Before a horizontal layer pools at the ridge, the incoming current
@@ -261,6 +272,10 @@ const fragmentShader = `
         layer = max(layer, min(1.0, roofFeed) * front * uphill * roofCloud * exp(-0.3 * distanceToEntry));
       }
     }
+    #ifdef SHOW_FIRE
+    vec2 fire = inside ? fireAt(top, smokeEdge, front) : vec2(0.0);
+    if (!inLayer && strength < 0.002 && currents.x < 0.002 && fire.x <= 0.0) discard;
+    #endif
     // Once mixed into the established layer, incoming gas no longer draws a
     // second, darker plume over the ceiling or a post through the landing.
     currents *= (1.0 + 0.75 * broad + 0.5 * billow) * (1.0 - smoothstep(0.02, 0.90, layer));
@@ -282,16 +297,33 @@ const fragmentShader = `
       soot += column * layerDensity;
     }
     // Beer-Lambert transmittance composes over the visible path to each object.
-    float alpha = 1.0 - exp(-extinction * pathLength * coverage * textureDensity);
+    float smokeDepth = extinction * textureDensity;
+    float totalDepth = smokeDepth;
+    #ifdef SHOW_FIRE
+    totalDepth += fire.x;
+    #endif
+    float alpha = 1.0 - exp(-totalDepth * pathLength * coverage);
     if (alpha < 0.0012) discard;
-    float darkness = smoothstep(0.10, 0.76, soot / extinction + billow * 0.045);
+    float darkness = smoothstep(0.10, 0.76, soot / max(0.00001, extinction) + billow * 0.045);
     // Coherent self-shading keeps the dense cloud moving even after furniture
     // contrast has vanished. Its illumination must not open holes in the layer.
     float roll = texture(noiseVolume, point * vec3(0.049, 0.060, 0.012)
         + vec3(time * 0.006 + broad * 0.025, -time * 0.008 + billow * 0.03, 0.3)).r - 0.5;
     vec3 shadow = shadowTint * exp2(5.2 * roll + 1.3 * billow);
     vec3 light = lightTint * (0.94 + 0.22 * broad + 0.22 * billow);
+    #ifdef SHOW_FIRE
+    // A growing soot-bearing layer absorbs the model's bright studio fill.
+    // Preserve its interface against the pale interior paint on the projector.
+    light *= mix(1.0, 0.20, smoothstep(0.05, 0.21, layerDensity));
+    #endif
     vec3 color = mix(shadow, light, (1.0 - darkness) * (1.0 - darkness));
+    #ifdef SHOW_FIRE
+    // Extinction-weighted emission shares the slice with the smoke. Smoke in
+    // front and opaque depth-tested geometry still occlude the burning surface.
+    float hot = clamp(fire.y / max(0.00001, fire.x), 0.0, 1.0);
+    vec3 flameColor = mix(vec3(1.0, 0.06, 0.002), vec3(1.0, 0.88, 0.24), smoothstep(0.10, 0.95, hot));
+    color = (color * smokeDepth + flameColor * fire.x) / totalDepth;
+    #endif
     smokeColor = vec4(linearToOutputTexel(vec4(color, 1.0)).rgb, alpha);
   }
 `
@@ -316,6 +348,10 @@ export class SmokeVolumes extends Group {
     const landing = FLOORS.find((floor) => floor.landing === room.id)
     const below = landing ? FLOORS.find((floor) => floor.level === landing.level - 1) : undefined
     const above = landing ? FLOORS.find((floor) => floor.level === landing.level + 1) : undefined
+    const patches = fuelSurfaces(HOUSE_VARIANT, room.id).map(
+      ([x, height, z, width]) => new Vector4(x, room.floorY + height, z, width),
+    )
+    if (!patches.length) patches.push(new Vector4(0, 0, 0, 0))
     const material = new ShaderMaterial({
       defines: {
         OPENING_COUNT: Math.max(1, doors.length),
@@ -342,6 +378,10 @@ export class SmokeVolumes extends Group {
         sliceDepth: { value: (room.maxZ - room.minZ) / SLICE_COUNT },
         source: { value: new Vector3() },
         strength: { value: 0 },
+        fireAmounts: { value: new Vector3() },
+        gasBurst: { value: new Vector4() },
+        fuelSurfaces: { value: patches },
+        flameTime: { value: 0 },
         openings: { value: portals.length ? portals : [new Vector4()] },
         flows: { value: flows.length ? flows : [new Vector4(0, 0, 0, 0)] },
         flowTravel: { value: new Float32Array(Math.max(1, doors.length)) },
@@ -365,13 +405,32 @@ export class SmokeVolumes extends Group {
     super()
   }
 
-  update(snapshot: SimulationSnapshot): void {
+  update(snapshot: SimulationSnapshot, reducedMotion = false): void {
     const active = SOURCES.find((source) => source.id === snapshot.source)
     for (const { room, mesh, material, doors, below, above, landing } of this.rooms) {
       const local = snapshot.rooms[room.id]
       const u = material.uniforms
       u.strength.value = active?.room === room.id ? snapshot.sourceStrength : 0
-      if (active && u.strength.value > 0) {
+      const fire = active?.room === room.id ? snapshot.fire : null
+      // Compile fire sampling only for the source room when a fire is active.
+      if (Boolean(fire) !== ('SHOW_FIRE' in material.defines)) {
+        if (fire) {
+          material.defines.SHOW_FIRE = 1
+          material.defines.FUEL_COUNT = u.fuelSurfaces.value.length
+        } else {
+          delete material.defines.SHOW_FIRE
+          delete material.defines.FUEL_COUNT
+        }
+        material.needsUpdate = true
+      }
+      if (fire && active) {
+        u.fireAmounts.value.set(fire.sourceIntensity, fire.rollover, fire.involvement)
+        u.flameTime.value = reducedMotion ? 0 : snapshot.elapsed
+        const burst = sampleGasFlame(snapshot.elapsed, active.id)
+        const z = room.minZ + (room.maxZ - room.minZ) * (0.60 + 0.32 * burst.z)
+        u.gasBurst.value.set(burst.x, z, burst.strength, reducedMotion ? 0.5 : burst.progress)
+      }
+      if (active && (u.strength.value > 0 || fire)) {
         const anchor = this.sourcePositions.get(active.id)
         if (anchor) u.source.value.copy(anchor)
         else u.source.value.fromArray(active.position)
@@ -408,6 +467,7 @@ export class SmokeVolumes extends Group {
         above ? snapshot.rooms[above.landing].density : 0,
       )
       mesh.visible =
+        Boolean(fire) ||
         local.opacity > 0.002 ||
         u.strength.value > 0.002 ||
         incomingRate > 0.002 ||

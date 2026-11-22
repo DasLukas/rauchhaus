@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { gunzipSync, zstdDecompressSync } from 'node:zlib'
 import { Box3, Matrix4, Quaternion, Vector3 } from 'three'
+import { fuelSurfaces } from '../src/scene/fuels.ts'
 import { getHouse, roofHeightAt } from '../src/simulation/house.ts'
 
 const readAsset = (path) => readFileSync(new URL(path, import.meta.url))
@@ -10,6 +11,7 @@ function checkModel(variant) {
     doors: DOORS,
     rooms: ROOMS,
     sources: SOURCES,
+    classroomSources,
     detectors: DETECTORS,
     roof: ROOF,
     modelFilename,
@@ -97,6 +99,19 @@ function checkModel(variant) {
   }
 
   for (const root of scene.nodes) inspect(root, new Matrix4())
+  for (const roomId of new Set(classroomSources.map((source) => source.room))) {
+    const room = ROOMS.find((room) => room.id === roomId)
+    const surfaces = fuelSurfaces(variant, roomId)
+    assert.ok(surfaces.length, `Missing combustible furnishings in ${variant}/${roomId}`)
+    for (const [x, height, z, width] of surfaces) {
+      const ceiling = room.roof ? roofHeightAt(x, room.roof) : room.ceilingY
+      assert.ok(
+        x >= room.minX && x <= room.maxX && z >= room.minZ && z <= room.maxZ &&
+        height >= 0 && room.floorY + height < ceiling && width > 0 && Number.isFinite(width),
+        `Invalid burning surface in ${variant}/${roomId} at ${x}, ${height}, ${z}`,
+      )
+    }
+  }
   assert(
     triangles > 0 && triangles <= 250_000,
     'The mobile scene exceeds its 250,000-triangle budget',
@@ -108,6 +123,9 @@ function checkModel(variant) {
     assert(entry, `Missing reachable model node: ${name}`)
     return entry
   }
+  const expectedRooms = ROOMS.filter((room) => !room.id.startsWith('stair') || room.floor === ROOF.floor)
+  assert.deepEqual(DETECTORS.map((d) => d.room).sort(), expectedRooms.map((room) => room.id).sort(),
+    'Each room and the top landing must have exactly one detector')
   const anchors = [...DOORS, ...SOURCES, ...DETECTORS]
   assert.equal(
     [...names.keys()].filter((name) => name.startsWith('anchor_')).length,

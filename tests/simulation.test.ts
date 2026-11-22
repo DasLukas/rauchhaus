@@ -33,6 +33,118 @@ function outsideLiving(snapshot: SimulationSnapshot): number {
   return mass(snapshot) - snapshot.rooms.living.smokeMass
 }
 
+describe.each(['klein', 'gross'] as const)('optional compartment fire in %s', (variant) => {
+  const house = getHouse(variant)
+
+  it('shows a local flame, ceiling flames and finally secondary flames within one demonstration', () => {
+    const sim = new SmokeSimulation(house)
+    sim.setFireEnabled(true)
+    expect(sim.snapshot().fire).toBeNull()
+    sim.setDoor('d1', true)
+    sim.start('s_tv')
+    const first = sim.snapshot().fire
+    expect(first).toMatchObject({ phase: 'local', rollover: 0, involvement: 0 })
+    expect(first?.sourceIntensity).toBeGreaterThan(0)
+    sim.advance(20)
+    const ceiling = sim.snapshot().fire
+    expect(ceiling).toMatchObject({ phase: 'rollover', involvement: 0 })
+    expect(ceiling?.rollover).toBeGreaterThan(0.45)
+    sim.advance(10)
+    expect(sim.snapshot().fire?.involvement).toBe(0)
+    sim.advance(10)
+    const developed = sim.snapshot()
+    expect(developed.fire?.phase).toBe('flashover')
+    expect(developed.fire?.involvement).toBeGreaterThan(0.65)
+    expect(mass(developed) + developed.escapedMass).toBeCloseTo(developed.producedMass, 8)
+    expect(ceiling?.involvement).toBe(0)
+
+    // Skipping to the lesson observation must produce the same result.
+    sim.start('s_tv')
+    sim.advance(40)
+    expect(sim.snapshot()).toEqual(developed)
+  })
+
+  it('leaves visible space between the source and the smoke layer at the observation stops', () => {
+    const room = house.rooms.find((item) => item.id === 'living')
+    const tv = house.sources.find((item) => item.id === 's_tv')
+    if (!room || !tv) throw new Error('Missing TV demonstration in the living room')
+    const sim = new SmokeSimulation(house)
+    sim.setFireEnabled(true)
+    sim.setDoor('d1', true)
+    sim.start(tv.id)
+    while (sim.snapshot().elapsed < 30 && (sim.snapshot().fire?.rollover ?? 0) < 0.45)
+      sim.advance(0.1)
+    const first = sim.snapshot()
+    expect(first.fire?.phase).toBe('rollover')
+    expect(room.ceilingY - first.rooms.living.layerBaseY).toBeGreaterThan(0.35)
+    expect(room.ceilingY - first.rooms.living.layerBaseY).toBeLessThan(0.7)
+    expect(first.rooms.living.layerBaseY).toBeGreaterThan(tv.position[1] + 0.4)
+    while (sim.snapshot().elapsed < 45 && (sim.snapshot().fire?.involvement ?? 0) < 0.65)
+      sim.advance(0.1)
+    const second = sim.snapshot()
+    expect(second.fire?.involvement).toBeGreaterThanOrEqual(0.65)
+    expect(second.rooms.living.layerBaseY).toBeGreaterThan(tv.position[1])
+    expect(second.rooms.living.opacity).toBeLessThan(0.8)
+  })
+
+  it('limits burning when the source room has exhausted its local air', () => {
+    const sim = new SmokeSimulation(house)
+    for (const door of house.doors) sim.setDoor(door.id, false)
+    sim.setFireEnabled(true)
+    sim.start('s_tv')
+    sim.advance(7)
+    const early = sim.snapshot().fire?.sourceIntensity
+    sim.advance(53)
+    const limited = sim.snapshot()
+    expect(limited.fire?.sourceIntensity).toBeLessThan((early ?? 0) / 2)
+    expect(limited.fire?.involvement).toBe(0)
+    expect(limited.rooms.living.smokeMass).toBeGreaterThan(0)
+    expect(mass(limited) + limited.escapedMass).toBeCloseTo(limited.producedMass, 8)
+  })
+
+  it('can show ceiling flames without progressing to a fully involved room', () => {
+    const sim = new SmokeSimulation(house)
+    sim.setFireEnabled(true)
+    sim.setDoor('d1', true)
+    sim.start('s_tv')
+    while (sim.snapshot().elapsed < 25 && (sim.snapshot().fire?.rollover ?? 0) < 0.45)
+      sim.advance(0.25)
+    expect(sim.snapshot().fire?.phase).toBe('rollover')
+    for (const door of house.doors) sim.setDoor(door.id, false)
+    sim.advance(40)
+    expect(sim.snapshot().fire).toMatchObject({ phase: 'local', rollover: 0, involvement: 0 })
+  })
+
+  it('can switch combustion during a smoky run and starts fresh when the source changes', () => {
+    const sim = new SmokeSimulation(house)
+    sim.start('s_tv')
+    sim.advance(50)
+    const smoky = sim.snapshot()
+    expect(smoky.fire).toBeNull()
+    sim.setFireEnabled(true)
+    const lit = sim.snapshot()
+    expect(lit).toEqual({ ...smoky, fire: lit.fire, sourceStrength: lit.sourceStrength })
+    expect(lit.fire).toMatchObject({ phase: 'local', involvement: 0, rollover: 0 })
+    sim.setFireEnabled(true)
+    expect(sim.snapshot()).toBe(lit)
+    sim.advance(2)
+    const warmed = sim.snapshot()
+    expect(warmed.producedMass).toBeGreaterThanOrEqual(lit.producedMass)
+    sim.setFireEnabled(false)
+    expect(sim.snapshot().fire).toBeNull()
+    expect(sim.snapshot().rooms).toEqual(warmed.rooms)
+    expect(sim.snapshot().elapsed).toBe(warmed.elapsed)
+    sim.setFireEnabled(true)
+    sim.advance(3)
+    sim.start('s_desk')
+    expect(sim.snapshot().fire).toEqual(lit.fire)
+    sim.reset()
+    expect(sim.snapshot().fire).toBeNull()
+    sim.start('s_tv')
+    expect(sim.snapshot().fire).toEqual(lit.fire)
+  })
+})
+
 describe('selectable houses', () => {
   it('uses the small house by default and recognizes the explicit large-house route', () => {
     expect(houseVariantForSearch('')).toBe('klein')
@@ -63,6 +175,17 @@ describe('selectable houses', () => {
       expect(floors.sort((a, b) => a - b)).toEqual(house.floors.map((f) => f.level))
     },
   )
+
+  it.each(['klein', 'gross'] as const)('detects smoke at the top of the shared staircase in %s', (variant) => {
+    const sim = new SmokeSimulation(getHouse(variant))
+    sim.setDoor('d1', true)
+    sim.start('s_tv')
+    sim.advance(4)
+    expect(sim.snapshot().detectors.m_stair3).toBe(false)
+    sim.advance(60)
+    expect(sim.snapshot().detectors.m_stair3).toBe(true)
+    expect(sim.snapshot().detectors.m_living).toBe(true)
+  })
 
   const small = getHouse('klein')
   it('connects the right-hand stairwell to one apartment per floor and omits the basement', () => {

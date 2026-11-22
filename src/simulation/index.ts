@@ -1,3 +1,4 @@
+import { CompartmentFire, type FireState } from './fire'
 import {
   type DetectorId,
   type DoorId,
@@ -11,6 +12,7 @@ import {
   volumeAbove,
 } from './house'
 
+export type { FireState } from './fire'
 export * from './house'
 
 /** Plume rise in model-space units per demonstration second. */
@@ -41,6 +43,8 @@ export interface SimulationSnapshot {
   /** Time on the demonstration clock, unrelated to real evacuation times. */
   readonly elapsed: number
   readonly source: SourceId | null
+  /** Present only while a source is selected and the fire demonstration is enabled. */
+  readonly fire: FireState | null
   /** Normalized plume strength while the selected source is active. */
   readonly sourceStrength: number
   /** Net tracer created in the upper layer since the experiment started. */
@@ -135,17 +139,21 @@ function emission(time: number): number {
 }
 
 /** Feed the upper layer from the plume and return its newly formed tracer. */
-function feedSource(zone: Cell, age: number): number {
+function feedSource(zone: Cell, age: number, fire: CompartmentFire | null): number {
   const growth = Math.max(0, Math.min(1, (age - 7) / 9))
-  const gas = 0.85 * TICK * emission(age) * (1 + growth)
+  // The smoke-only source ramps up for its door-comparison experiment. With
+  // combustion, flame growth and secondary ignition drive the emission rate.
+  const release = fire ? fire.plumeStrength : 1 + growth
+  const gas = 0.85 * TICK * emission(age) * release
   if (gas <= 0) return 0
-  const soot = 0.16 + 0.7 * Math.max(0, Math.min(1, age / 20))
+  const soot = fire?.sootYield ?? 0.16 + 0.7 * Math.max(0, Math.min(1, age / 20))
   const added = Math.min(gas, zone.capacity - zone.volume)
   const nextVolume = zone.volume + added
   // Once all clear air is in the upper layer, the plume recirculates gas.
-  // Its net production is the remaining difference from the source mixture.
+  // Recirculation enriches the layer up to the source mixture's concentration.
+  // A newly enabled or better ventilated flame cannot remove existing tracer.
   const mixed = -Math.expm1(-(gas - added) / nextVolume)
-  const addedMass = soot * added + mixed * (soot * zone.volume - zone.mass)
+  const addedMass = soot * added + mixed * Math.max(0, soot * zone.volume - zone.mass)
   zone.mass += addedMass
   zone.heat += 0.94 * added + mixed * (0.94 * zone.volume - zone.heat)
   zone.volume = nextVolume
@@ -263,6 +271,9 @@ export class SmokeSimulation {
   private readonly openings: Opening[]
   private source: SourceId | null = null
   private sourceCell: Cell | null = null
+  private sourceDoors: Opening[] = []
+  private fireEnabled = false
+  private fire: CompartmentFire | null = null
   private plumeRiseTime = 0
   private ticks = 0
   private remainder = 0
@@ -323,6 +334,8 @@ export class SmokeSimulation {
     this.escapedMass = 0
     this.source = null
     this.sourceCell = null
+    this.sourceDoors = []
+    this.fire = null
     this.plumeRiseTime = 0
     this.ticks = 0
     this.remainder = 0
@@ -336,9 +349,22 @@ export class SmokeSimulation {
     this.reset()
     this.source = id
     this.sourceCell = this.cells[source.room]
+    this.sourceDoors = this.openings.filter(
+      (opening) =>
+        opening.door && (opening.first === this.sourceCell || opening.second === this.sourceCell),
+    )
+    this.fire = this.fireEnabled ? new CompartmentFire() : null
     const [x, y, z] = source.position
     this.plumeRiseTime = (ceilingY(this.sourceCell.bounds, x) - y) / PLUME_RISE_SPEED
     this.sourceCell.front = { x, z, radius: 0, riseRemaining: 0 }
+  }
+
+  /** Toggle visible combustion at the current source, preserving smoke, doors and teaching time. */
+  setFireEnabled(enabled: boolean): void {
+    if (this.fireEnabled === enabled) return
+    this.fireEnabled = enabled
+    this.fire = enabled && this.sourceCell ? new CompartmentFire() : null
+    this.cached = null
   }
 
   /** Applies a new door position immediately, preserving all smoke already present. */
@@ -387,7 +413,17 @@ export class SmokeSimulation {
   private step(source: Cell): void {
     this.ticks++
     const sourceAge = this.ticks * TICK - this.plumeRiseTime
-    this.producedMass += feedSource(source, sourceAge)
+    if (this.fire) {
+      let ventilation = 0
+      for (const opening of this.sourceDoors) {
+        if (!opening.door || !this.doors[opening.door]) continue
+        const neighbour = opening.first === source ? opening.second : opening.first
+        const freshAir = neighbour ? clearAirFraction(neighbour, 0.6) : 1
+        ventilation += opening.width * freshAir
+      }
+      this.fire.advance(TICK, Math.min(1, ventilation), source.volume / source.area, warmth(source))
+    }
+    this.producedMass += feedSource(source, sourceAge, this.fire)
 
     for (const room of this.house.rooms) {
       const zone = this.cells[room.id]
@@ -519,9 +555,12 @@ export class SmokeSimulation {
     this.cached = Object.freeze({
       elapsed,
       source: this.source,
+      fire: this.fire?.snapshot() ?? null,
       producedMass: this.producedMass,
       escapedMass: this.escapedMass,
-      sourceStrength: this.source ? emission(elapsed) : 0,
+      sourceStrength: this.source
+        ? emission(elapsed) * Math.min(1, this.fire?.plumeStrength ?? 1)
+        : 0,
       rooms: Object.freeze(rooms),
       detectors: Object.freeze(detectors),
       doors: Object.freeze({ ...this.doors }),

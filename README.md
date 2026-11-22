@@ -4,6 +4,12 @@
 
 A one-page, touch-first 3D teaching tool for primary-school children aged 6–10. Each level has one selectable smoke source. Its orange marker sits beside the object on the wall. Choose an orange smoke source or tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed. Classroom use needs a WebGL 2 browser and a connection to load the site. The application runs entirely on the device after loading.
 
+White ceiling detectors in each room and at the top of the stairwell flash red together when reached by smoke. The speaker button enables a shared alarm beep. Sound starts muted. **Neu starten** restores the initial doors and camera, ends any lesson and clears all smoke and alarms.
+
+For a fire demonstration, open **Einstellungen**, enable **Feuer** and select a source in the house. Switching fire on or off resets the experiment and camera just like **Neu starten**. Both houses use the same teaching setup. The fire preset gives each selectable source room an open connection, so a fresh free experiment can progress from local flames through rollover to flashover. Doors the class has adjusted keep their position when switching sources. **Neu starten** restores the current mode’s starting doors. Switching houses carries over the fire setting. Opening or reloading a house normally starts with fire off.
+
+For a guided example, open **Lernimpuls** and select **Raumdurchzündung**. The class can observe the television fire together and discuss two frozen views of the room. Both stops fit into about 30–40 seconds of model playback, plus discussion time. **Beobachtung zeigen** advances directly to the next stop.
+
 ![The small house with the staircase and outside entrance on the right](docs/rauchhaus-klein.png)
 
 **Kleines Haus** is the default. Four apartments share a staircase on the right across the ground floor, two upper storeys and the attic. A glazed entrance through the right exterior wall leads directly onto the ground-floor landing. Its own door control opens the entrance.
@@ -30,11 +36,11 @@ Open the address printed by Vite. To view this branch on a tablet, serve the loc
 | Command | Verifies |
 | --- | --- |
 | `npm run lint` | Static analysis |
-| `npm test` | Room filling, long-run smoke balance, detector responses, door changes, time-step invariance and the matched learning trials |
+| `npm test` | Room filling, smoke balance, detectors, door changes, time-step invariance, fire development and guided activities |
 | `npm run check:model` | Editable Blender source and self-contained WebGL export, including all control anchors, moving doors and mesh budgets |
 | `npm run build` | TypeScript types and production bundle in `dist/` |
 | `npm run check` | All four checks above |
-| `npm run test:browser` | Compares smoke at the bedroom doorway and on the shared landings, measures furniture contrast in dense smoke, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
+| `npm run test:browser` | Compares rendered smoke and flame observations, runs both guided activities, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
 
 The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. It exercises the actual washing-machine control and detector in the app. A rendering fixture advances the television, laundry and desk-lamp experiments to repeatable observation points. The desk-lamp tests follow smoke through the attic door and, with that door closed, down to the lower landings. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
 
@@ -58,9 +64,11 @@ Use short-lived branches and pull requests against `main`. GitHub Actions instal
 
 ## Teaching basis
 
+The optional fire lesson starts with a flame at the television. At the first stop, pupils can locate a tongue of flame in the upper smoke layer. During playback, individual pockets flare up, move a short distance and die away. Flames spreading through this layer are called rollover. At the second, they can identify newly burning surfaces away from the television, including the sofa, rug and potted plant in the small house. Thermal radiation can heat exposed combustible surfaces across a room. With sufficient oxygen, these surfaces can ignite in rapid succession as the fire transitions to full room involvement (flashover). The two observations illustrate one possible course of a fire. The demonstration clock compresses the development for discussion. The irregular timing and placement illustrate the sporadic flames described in the [New Zealand Fire Service training glossary, p. 159](https://www.fireandemergency.nz/assets/Documents/Files/Policy-Documents-part-2-QFC-1-07-Fire-Science-and-Ventilation-study-guide-Part-2.pdf). See the [Hessian State Fire Service School, sections 7.1 and 7.2](https://hlfs.hessen.de/sites/hlfs.hessen.de/files/2023-11/b-iii_lernu_einsatzlehre-explosion_01.00.00.pdf), the [NIST definition of flashover](https://www.nist.gov/glossary-term/24071) and [NIST’s introduction to ventilation and fire growth](https://www.nist.gov/el/fire-research-division-73300/firegov-fire-service/fire-dynamics).
+
 Warm smoke rises to the ceiling. As the upper layer deepens, its lower edge reaches the top of an open door. Smoke then passes beneath the lintel, rises on the receiving side and spreads along the next ceiling. Closing the door reduces further transfer while smoke already in the room persists. The demonstration uses a light-to-dark grey palette to show increasing smoke loading. Its clock and colours are teaching choices. Real fire development, escape times and safe occupancy cannot be inferred from the animation.
 
-To see a room fill, choose the desk lamp in the small house. Open the bedroom, landing and attic doors on the smoke path. The early plume is easy to follow. The teaching target is about 60% of the playroom volume occupied by the upper layer at 25 model seconds and about 80% at 40–45 seconds. The attic fills later. A source stays active throughout free exploration. Pause freezes the experiment, and restarting or selecting another source starts with clear rooms. Each guided television trial pauses at 40 model seconds for comparison.
+To see a room fill, choose the desk lamp in the small house. Open the bedroom, landing and attic doors on the smoke path. The early plume is easy to follow. The teaching target is about 60% of the playroom volume occupied by the upper layer at 25 model seconds and about 80% at 40–45 seconds. The attic fills later. A source stays active throughout free exploration. Pause freezes the experiment. Selecting another source clears the smoke and keeps the current door positions. Each guided television trial pauses at 40 model seconds for comparison.
 
 To follow smoke downstairs, repeat the desk-lamp experiment with its apartment door open and the attic apartment door closed. Watch the upper landings first. As smoke accumulates, the layer reaches the stair opening and spreads under the ceiling of the first-floor landing. The ground-floor landing follows later. The lower apartment doors can stay closed throughout.
 

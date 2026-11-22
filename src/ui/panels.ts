@@ -1,6 +1,7 @@
 import { HOUSE_VARIANT } from '../simulation'
 import { icon } from './icons'
 import { element } from './layout'
+import type { Lesson } from './session'
 
 const closeButton = `<button class="close compact" data-close type="button" aria-label="Schließen">${icon('close')}</button>`
 
@@ -10,7 +11,7 @@ const help = `
     <li><i class="key source">${icon('smoke')}</i><div><strong>Rauch beobachten</strong><p>Tippe auf ein oranges Rauchzeichen. Schau, was zuerst an der Decke passiert.</p></div></li>
     <li><i class="key door">${icon('door')}</i><div><strong>Türen ausprobieren</strong><p>Tippe auf eine Tür oder ihr türkises Zeichen. Mit jedem Tipp öffnet oder schließt sie sich.</p></div></li>
     <li><i class="key neutral">${icon('house')}</i><div><strong>Genauer hinschauen</strong><p>Tippe auf ein Stockwerk, um näher heranzugehen. In der Nahansicht kannst du das Haus mit dem Finger verschieben. Das Hauszeichen zeigt wieder alle Etagen.</p></div></li>
-    <li><i class="key neutral">${icon('alarm')}</i><div><strong>Rauchwarnmelder</strong><p>Erreicht Rauch einen Melder, erscheint dort das Alarmzeichen.</p></div></li>
+    <li><i class="key neutral">${icon('alarm')}</i><div><strong>Rauchwarnmelder</strong><p>Erreicht Rauch einen weißen Deckenmelder, blinkt seine Leuchte rot. Über den Lautsprecher unten kannst du den gemeinsamen Alarmton einschalten.</p></div></li>
   </ul>
   <details><summary>Für Erwachsene</summary><p>Warmer Rauch sammelt sich unter der Decke und zieht durch offene Türen weiter. Geschlossene Türen bremsen ihn. Für den Unterricht nimmt die Rauchmenge nach einer kurzen Anlaufphase zügig zu. Die Quelle raucht während des Versuchs weiter. Die Abläufe erlauben keine Aussage über sichere Aufenthalts- oder Fluchtzeiten.</p>
   <p>Das Haus lässt sich mit der Tabulatortaste erkunden. Eingabe oder Leertaste betätigen markierte Tasten. In der Gesamtansicht drehen die Pfeiltasten das Haus. In der Nahansicht verschieben sie den Ausschnitt. Mit 1 bis 4 wählst du die Etagen vom Erdgeschoss bis zum Dach.${HOUSE_VARIANT === 'gross' ? ' Mit 0 wählst du den Keller.' : ''} Pos1 zeigt das ganze Haus.</p><p><a href="https://github.com/DasLukas/rauchhaus" target="_blank" rel="noopener">Projekt, Quellen und Lizenzen</a></p></details>
@@ -18,37 +19,108 @@ const help = `
 
 const intro = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('bulb')}</span>${closeButton}</header>
-  <h2 id="sheet-title">Was passiert im Treppenhaus?</h2>
+  <h2 id="sheet-title">Wie breitet sich Rauch im Haus aus?</h2>
   <p>Im ersten Stock entsteht am Fernseher Rauch. Was glaubst du: Wohin zieht er, wenn die Wohnungstür offen ist?</p>
   <p>Schau ins Treppenhaus ${HOUSE_VARIANT === 'klein' ? 'rechts neben der Wohnung' : 'zwischen den Wohnungen'}. Danach probierst du denselben Versuch mit geschlossener Tür.</p>
-  <button type="button" class="action" data-start>Versuch starten ${icon('next')}</button>`
+  <button type="button" class="action" data-start="doors">Versuch starten ${icon('next')}</button>`
 
 const result = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Was war anders?</h2>
   <p>Erzähl, was du im Treppenhaus bei offener und bei geschlossener Wohnungstür gesehen hast.</p>
-  <details class="discovery"><summary>Beobachtung vergleichen</summary><p><strong>Eine geschlossene Tür bremst den Rauch.</strong> Durch die offene Tür zog mehr Rauch ins Treppenhaus. Schließt du die Tür später, bleibt der Rauch dort sichtbar.</p></details>
+  <button type="button" class="action" data-panel="smokeFindings">Ergebnis ansehen ${icon('next')}</button>`
+
+const smokeFindings = `
+  <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
+  <h2 id="sheet-title">Eine geschlossene Tür bremst den Rauch.</h2>
+  <p>Durch die offene Tür zog mehr Rauch ins Treppenhaus. Auch wenn du die Tür später schließt, bleibt der Rauch, der schon im Treppenhaus ist.</p>
+  <p><strong>Das kannst du dir merken</strong><br>Wenn du bei einem Brand einen Raum verlässt, zieh die Tür hinter dir zu. So breitet sich der Rauch langsamer aus. Geh dafür nie zurück.</p>
+  <p>Rauchmelder erkennen Rauch früh und piepen laut. So können sie dich auch im Schlaf warnen.</p>
   <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`
 
-export type PanelKind = 'help' | 'intro' | 'result'
+const settings = `
+  <header class="sheet-heading"><h2 id="sheet-title">Einstellungen</h2>${closeButton}</header>
+  <label class="setting-row" for="fire-enabled">
+    <strong>Feuer</strong>
+    <input id="fire-enabled" type="checkbox" role="switch" aria-describedby="fire-description">
+  </label>
+  <p id="fire-description">An der gewählten Rauchquelle werden Flammen sichtbar. Im Feuerversuch hat jeder Raum mit einer Rauchquelle anfangs eine offene Tür. Beim Ein- oder Ausschalten startet das Haus neu.</p>
+  <p>Unter „Lernimpuls“ kannst du die Raumdurchzündung beobachten.</p>
+  <button type="button" class="action" data-close>Fertig</button>`
 
-/** Shows a native modal; the caller controls experiment time while it is open. */
-export function showPanel(kind: PanelKind, onClose: (start: boolean) => void) {
+const lessons = `
+  <header class="sheet-heading"><h2 id="sheet-title">Lernimpuls wählen</h2>${closeButton}</header>
+  <div class="lesson-choices">
+    <button class="pill" type="button" data-panel="intro" aria-labelledby="intro-label" aria-describedby="intro-description">
+      ${icon('door')}<span><strong id="intro-label">Rauchausbreitung</strong><small id="intro-description">Vergleiche, wie viel Rauch bei offener und geschlossener Tür ins Treppenhaus zieht.</small></span>
+    </button>
+    <button class="pill" type="button" data-panel="fireIntro" aria-labelledby="fireIntro-label" aria-describedby="fireIntro-description">
+      ${icon('flame')}<span><strong id="fireIntro-label">Raumdurchzündung</strong><small id="fireIntro-description">Beobachte, wie erst Flammen im Rauch aufflackern und dann die Möbel Feuer fangen.</small></span>
+    </button>
+  </div>`
+
+const fireIntro = `
+  <header class="sheet-heading"><span class="lesson-icon">${icon('bulb')}</span>${closeButton}</header>
+  <h2 id="sheet-title">Wie wird aus einem kleinen Feuer ein Zimmerbrand?</h2>
+  <p>Am Fernseher im ersten Stock entsteht ein Feuer. Wo werden die nächsten Flammen sichtbar? Schau zuerst zum Fernseher und dann in den Raum darüber.</p>
+  <p>Der Versuch läuft im Zeitraffer und hält an zwei Stellen an. Mit „Beobachtung zeigen“ springst du zur nächsten Stelle.</p>
+  <button type="button" class="action" data-start="fire">Feuerversuch starten ${icon('next')}</button>`
+
+const fireResult = `
+  <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
+  <h2 id="sheet-title">Wo hast du neue Flammen gesehen?</h2>
+  <p>Was brannte, als du die Flammen unter der Decke gesehen hast? Was hat sich danach bei den Möbeln verändert?</p>
+  <button type="button" class="action" data-panel="fireFindings">Ergebnis ansehen ${icon('next')}</button>`
+
+const fireFindings = `
+  <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
+  <h2 id="sheet-title">Wie sich das Feuer im Zimmer ausgebreitet hat</h2>
+    <p>Über dem Fernseher sammelten sich heiße Brandgase. Wo sie sich mit Luft mischten, flammte kurz eine Feuerzunge auf und erlosch wieder. Breiten sich die Flammen durch die heiße Gasschicht unter der Decke aus, heißt das <strong>Rollover</strong>.</p>
+    <p>Die heißen Gase und die Flammen strahlten Wärme durch das Zimmer. Fast gleichzeitig fingen Möbel, Stoffe und sogar die Blätter der Pflanze im Modell Feuer. Diesen Übergang zum Vollbrand nennt man <strong>Raumdurchzündung</strong> oder <strong>Flashover</strong>.</p>
+    <p>Jeder Brand kann anders verlaufen. Die Zeit im Modell ist für die Vorführung verkürzt.</p>
+  <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`
+
+const panels = { help, settings, lessons, intro, result, smokeFindings, fireIntro, fireResult, fireFindings }
+export type PanelKind = keyof typeof panels
+
+interface PanelActions {
+  fireEnabled: boolean
+  onFireChange(enabled: boolean): void
+  onClose(lesson: Lesson | null): void
+}
+
+/** Show a native modal and report a selected lesson or an immediate setting change. */
+export function showPanel(kind: PanelKind, actions: PanelActions) {
   const dialog = element<HTMLDialogElement>('sheet')
   const body = element('sheet-body')
   if (dialog.open) return
-  body.innerHTML = { help, intro, result }[kind]
-  let start = false
-  for (const button of body.querySelectorAll<HTMLButtonElement>('[data-close]')) {
-    button.onclick = () => dialog.close()
-  }
-  const begin = body.querySelector<HTMLButtonElement>('[data-start]')
-  if (begin)
-    begin.onclick = () => {
-      start = true
+  let selected: Lesson | null = null
+  function render(panel: PanelKind) {
+    body.innerHTML = panels[panel]
+    for (const button of body.querySelectorAll<HTMLButtonElement>('[data-close]')) {
+      button.onclick = () => dialog.close()
+    }
+    for (const button of body.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
+      button.onclick = () => {
+        render(button.dataset.panel as PanelKind)
+        const heading = element('sheet-title')
+        heading.tabIndex = -1
+        heading.focus()
+      }
+    }
+    const begin = body.querySelector<HTMLButtonElement>('[data-start]')
+    if (begin) begin.onclick = () => {
+      selected = begin.dataset.start as Lesson
       dialog.close()
     }
-  dialog.onclose = () => onClose(start)
+    const toggle = body.querySelector<HTMLInputElement>('#fire-enabled')
+    if (toggle) {
+      toggle.checked = actions.fireEnabled
+      toggle.onchange = () => actions.onFireChange(toggle.checked)
+    }
+  }
+  render(kind)
+  dialog.onclose = () => actions.onClose(selected)
   dialog.onclick = (event) => {
     if (event.target === dialog) {
       const box = dialog.getBoundingClientRect()

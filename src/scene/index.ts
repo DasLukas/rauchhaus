@@ -56,8 +56,8 @@ export interface SceneCallbacks {
 export interface HouseScene {
   /** Relative zoom multiplier, e.g. 1.2 to zoom in by one step. */
   zoomBy(factor: number): void
-  /** Focus a physical level (-1 for basement, 0 for ground) without changing the experiment. */
-  focusFloor(floor: number): void
+  /** Focus a physical level, optionally centering a source at its model-space X position. */
+  focusFloor(floor: number, x?: number): void
   /** Restore the original cutaway view and yaw. */
   resetView(): void
   /** Stop animation, detach event handlers and release graphics resources. */
@@ -454,7 +454,7 @@ export async function createHouseScene(
           }
         }
         const smokeChanged = snapshot !== previous
-        if (smokeChanged || forceRender) smoke?.update(snapshot)
+        if (smokeChanged || forceRender) smoke?.update(snapshot, reducedMotion.matches)
         if (changed || smokeChanged) {
           renderer.render(scene, camera.camera)
           // Lower the pixel budget only during sustained slow animated frames.

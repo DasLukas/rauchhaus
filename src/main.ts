@@ -1,6 +1,8 @@
 import './style.css'
 import { createHouseScene, type HouseScene } from './scene'
-import { DETECTORS, DOORS, FLOORS, CLASSROOM_SOURCES } from './simulation'
+import { CLASSROOM_SOURCES, DETECTORS, DOORS, FLOORS, HOUSE_VARIANT, ROOMS } from './simulation'
+import { AlarmSound } from './ui/alarm'
+import { icon } from './ui/icons'
 import { element, mountLayout, setButton } from './ui/layout'
 import { Markers } from './ui/markers'
 import { showPanel, type PanelKind } from './ui/panels'
@@ -9,11 +11,22 @@ import { LearningSession } from './ui/session'
 const app = element('app')
 mountLayout(app)
 const session = new LearningSession()
+const houseLink = element<HTMLAnchorElement>('switch-house')
+const arrival = new URL(location.href)
+if (arrival.searchParams.has('feuer')) {
+  setFireEnabled(arrival.searchParams.get('feuer') === '1')
+  arrival.searchParams.delete('feuer')
+  history.replaceState(history.state, '', arrival)
+}
 const markers = new Markers(element('markers'), activate)
+const alarm = new AlarmSound()
+const sound = element<HTMLButtonElement>('sound')
+const markerLayer = element('markers')
 const trial = element('trial')
 const pause = element<HTMLButtonElement>('pause')
 const restart = element<HTMLButtonElement>('restart')
 const lesson = element<HTMLButtonElement>('lesson')
+const settings = element<HTMLButtonElement>('settings')
 const loading = element('load-state')
 let scene: HouseScene | undefined
 let modal = false
@@ -24,17 +37,52 @@ function announce(message: string) {
   element('announcer').textContent = message
 }
 
+/** Carry the current choice to the other house for that navigation only. */
+function setFireEnabled(enabled: boolean) {
+  session.setFireEnabled(enabled)
+  const destination = new URL(houseLink.href)
+  if (enabled) destination.searchParams.set('feuer', '1')
+  else destination.searchParams.delete('feuer')
+  houseLink.href = destination.href
+}
+
+const fireSteps = {
+  rollover: {
+    name: '1 von 2 · Unter der Decke',
+    prompt: 'Wo flammt der Rauch kurz auf?',
+    observation: 'Eine Flammenzunge im heißen Rauch.',
+    next: 'Weiter beobachten',
+  },
+  flashover: {
+    name: '2 von 2 · Im ganzen Zimmer',
+    prompt: 'Schau auf die Möbel und die Pflanze.',
+    observation: 'Jetzt brennt es im ganzen Zimmer (Flashover).',
+    next: 'Beobachtung besprechen',
+  },
+}
+
 function refresh() {
   const state = session.snapshot
-  markers.update(state, Boolean(session.stage))
+  markers.update(state, session.lesson, session.fireEnabled)
   setButton(pause, session.paused ? 'play' : 'pause', session.paused ? 'Weiter' : 'Pause')
   pause.disabled = !ready || !state.source || session.trialFinished
-  restart.disabled = !ready || !state.source || session.stage === 'compare'
+  restart.disabled = !ready
+  sound.setAttribute('aria-pressed', String(alarm.enabled))
+  sound.innerHTML = icon(alarm.enabled ? 'sound' : 'muted')
+  sound.title = alarm.enabled ? 'Alarmton ausschalten' : 'Alarmton einschalten'
+  updateAlarm()
+  settings.disabled = !ready
   lesson.disabled = !ready
   lesson.setAttribute('aria-expanded', String(Boolean(session.stage)))
   app.classList.toggle('learning', Boolean(session.stage))
-  trial.hidden = !session.stage || session.stage === 'compare'
-  if (!trial.hidden) {
+  trial.hidden = !session.stage || session.stage === 'compare' || session.stage === 'fire-result'
+  if (session.fireObservation) {
+    const step = fireSteps[session.fireObservation]
+    const done = session.trialFinished
+    element('trial-name').textContent = step.name
+    element('trial-hint').textContent = done ? step.observation : step.prompt
+    element('trial-action').textContent = done ? step.next : 'Beobachtung zeigen'
+  } else if (!trial.hidden) {
     const first = session.stage === 'open'
     const finished = session.trialFinished
     const action = finished
@@ -43,8 +91,17 @@ function refresh() {
         : 'Vergleich abschließen'
       : 'Ergebnis ansehen'
     element('trial-name').textContent = first ? '1 von 2 · Tür offen' : '2 von 2 · Tür geschlossen'
+    element('trial-hint').textContent = `Schau ins Treppenhaus ${HOUSE_VARIANT === 'klein' ? 'rechts' : 'in der Mitte'}.`
     element('trial-action').textContent = action
   }
+}
+
+function updateAlarm() {
+  const state = session.snapshot
+  const active = ready && Object.values(state.detectors).some(Boolean)
+  const pulse = active && state.elapsed % 1.2 < 0.3
+  markerLayer.classList.toggle('pulse', session.paused ? active : pulse)
+  alarm.update(pulse && !session.paused && !modal && !document.hidden)
 }
 
 function endLesson() {
@@ -58,14 +115,29 @@ function endLesson() {
 function openPanel(kind: PanelKind) {
   if (modal) return
   modal = true
-  showPanel(kind, (start) => {
-    modal = false
-    if (start) {
-      scene?.resetView()
-      session.beginLesson()
-      announce('Erster Versuch mit offener Wohnungstür.')
-    } else if (kind === 'result') endLesson()
-    refresh()
+  updateAlarm()
+  showPanel(kind, {
+    fireEnabled: session.fireEnabled,
+    onFireChange(enabled) {
+      setFireEnabled(enabled)
+      resetViewAfterRestart()
+    },
+    onClose(selected) {
+      modal = false
+      if (selected) {
+        session.beginLesson(selected)
+        if (selected === 'fire') {
+          const room = ROOMS.find((room) => room.id === 'living')
+          if (room) scene?.focusFloor(room.floor, (room.minX + room.maxX) / 2)
+          announce('Beobachte das Feuer am Fernseher und die Decke darüber.')
+        } else {
+          scene?.resetView()
+          announce('Erster Versuch mit offener Wohnungstür.')
+        }
+      } else if (kind === 'result' || kind === 'fireResult') endLesson()
+      refresh()
+      if (selected) element('trial-next').focus({ preventScroll: true })
+    },
   })
 }
 
@@ -78,7 +150,7 @@ function activate(id: string) {
     announce(door.label + (session.snapshot.doors[door.id] ? ' offen.' : ' geschlossen.'))
   } else if (source) {
     session.selectSource(source.id)
-    announce(`Rauchversuch gestartet. ${source.label}.`)
+    announce(`${session.fireEnabled ? 'Feuerversuch' : 'Rauchversuch'} gestartet. ${source.label}.`)
   }
   refresh()
 }
@@ -86,26 +158,39 @@ function activate(id: string) {
 element('trial-next').onclick = () => {
   if (!session.trialFinished) {
     session.finishTrial()
-    announce('Beobachtung beendet.')
+    announce(session.fireObservation ? fireObservationAnnouncement() : 'Beobachtung beendet.')
   } else {
     session.nextTrial()
     if (session.stage === 'compare') openPanel('result')
+    else if (session.stage === 'fire-result') openPanel('fireResult')
+    else if (session.fireObservation) announce(fireSteps.flashover.prompt)
     else announce('Zweiter Versuch mit geschlossener Wohnungstür.')
   }
   refresh()
 }
 element('trial-end').onclick = endLesson
 element('help').onclick = () => openPanel('help')
-lesson.onclick = () => (session.stage ? endLesson() : openPanel('intro'))
+settings.onclick = () => openPanel('settings')
+lesson.onclick = () => (session.stage ? endLesson() : openPanel(session.fireEnabled ? 'lessons' : 'intro'))
 pause.onclick = () => {
   session.togglePause()
   refresh()
 }
 restart.onclick = () => {
   session.restart()
-  announce('Der Versuch beginnt von vorn.')
+  resetViewAfterRestart()
+}
+
+function resetViewAfterRestart() {
+  scene?.resetView()
+  announce('Haus zurückgesetzt. Alle Räume sind rauchfrei.')
   refresh()
 }
+sound.onclick = () => {
+  alarm.toggle()
+  refresh()
+}
+document.addEventListener('visibilitychange', updateAlarm)
 element('out').onclick = () => scene?.zoomBy(1 / 1.25)
 element('in').onclick = () => scene?.zoomBy(1.25)
 element('home').onclick = () => scene?.resetView()
@@ -120,6 +205,12 @@ function showError() {
   loading.querySelector('button')?.addEventListener('click', () => location.reload())
 }
 
+function fireObservationAnnouncement() {
+  return session.fireObservation === 'rollover'
+    ? 'Im heißen Rauch unter der Decke ist eine Flammenzunge aufgeflammt. Der Versuch pausiert.'
+    : 'Raumdurchzündung. Im Zimmer brennen jetzt auch die Möbel und die Pflanze. Der Versuch pausiert.'
+}
+
 async function start() {
   refresh()
   scene = await createHouseScene(element('viewport'), {
@@ -130,10 +221,14 @@ async function start() {
       const signature = alarms.map((d) => d.id).join(',')
       if (signature !== detectorState) {
         detectorState = signature
-        markers.update(state, Boolean(session.stage))
+        markers.update(state, session.lesson, session.fireEnabled)
         if (alarms.length) announce(`Rauch erkannt. ${alarms.map((d) => d.label).join(', ')}.`)
       }
-      if (!wasDone && session.trialFinished) refresh()
+      updateAlarm()
+      if (!wasDone && session.trialFinished) {
+        refresh()
+        if (session.fireObservation) announce(fireObservationAnnouncement())
+      }
       return state
     },
     onProject: (positions) => markers.project(positions),
@@ -149,4 +244,8 @@ async function start() {
   refresh()
 }
 void start().catch(showError)
-if (import.meta.hot) import.meta.hot.dispose(() => scene?.dispose())
+if (import.meta.hot) import.meta.hot.dispose(() => {
+  document.removeEventListener('visibilitychange', updateAlarm)
+  alarm.dispose()
+  scene?.dispose()
+})

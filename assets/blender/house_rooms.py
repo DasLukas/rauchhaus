@@ -516,27 +516,17 @@ def detectors():
     select_collection("House structure")
     for det in LAYOUT["detectors"]:
         x, y, z = det["position"]
-        lathe(
-            "Smoke alarm",
-            x,
-            y + 0.027,
-            z,
-            [(0, 0.093), (0.026, 0.12), (0.065, 0.122), (0.075, 0.104)],
-            "porcelain",
-            18,
-        )
-        orb(
-            "Alarm test button",
-            x,
-            y + 0.023,
-            z,
-            0.039,
-            0.009,
-            0.039,
-            "silver",
-            segments=10,
-            rings=4,
-        )
+        # The anchor is the indicator on the front face of the vented housing.
+        center_z = z - 0.19
+        lathe("Smoke alarm housing", x, y, center_z,
+              [(-0.055, 0.145), (-0.038, 0.185), (0.045, 0.20), (0.095, 0.21),
+               (0.15, 0.20)], "porcelain", 24)
+        for angle in (-1.1, -0.72, -0.38, 0.38, 0.72, 1.1):
+            box("Alarm intake slot", x + 0.19 * sin(angle), y + 0.013,
+                center_z + 0.19 * cos(angle), 0.043, 0.024, 0.015,
+                "slate", 0.005, yaw=angle)
+        orb("Alarm indicator lens", x, y, z, 0.029, 0.026, 0.014,
+            "terracotta", segments=10, rings=4)
 
 
 def garden():

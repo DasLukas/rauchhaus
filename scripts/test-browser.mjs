@@ -41,10 +41,23 @@ try {
     if (msg.type() === 'error' || /shader error|VALIDATE_STATUS|GL_INVALID/i.test(msg.text()))
       errors.push(msg.text())
   })
+  await page.addInitScript(() => {
+    window.alarmPulses = []
+    const start = OscillatorNode.prototype.start
+    OscillatorNode.prototype.start = function (...args) {
+      window.alarmPulses.push({
+        time: this.context.currentTime,
+        frequency: this.frequency.value,
+        lights: document.querySelectorAll('#markers.pulse .detector.active').length,
+      })
+      return start.apply(this, args)
+    }
+  })
   await page.goto(targetUrl || `http://127.0.0.1:${port}/`)
   assert.match(await page.title(), /Das Rauchhaus/)
   const marker = (id) => page.locator(`[data-marker="${id}"]`)
   const btn = (name) => page.getByRole('button', { name, exact: true })
+  const fireSwitch = page.getByRole('switch', { name: 'Feuer', exact: true })
   const capture = async (name) => {
     if (evidence) await page.screenshot({ path: join(evidence, `${name}.png`) })
   }
@@ -69,19 +82,73 @@ try {
     )
     console.log('Passed the rendered television door comparison.')
     await btn('Vergleich abschließen').click()
-    await page.getByText('Beobachtung vergleichen').click()
+    await page.getByRole('heading', { name: 'Was war anders?' }).waitFor()
+    assert.equal(await btn('Weiter entdecken').count(), 0)
+    assert.equal(await page.getByText('Das kannst du dir merken').count(), 0)
+    await btn('Ergebnis ansehen').click()
     await page.getByText('Eine geschlossene Tür bremst den Rauch.', { exact: true }).waitFor()
     await btn('Weiter entdecken').click()
     await page.locator('#app:not(.learning)').waitFor()
   }
 
+  async function checkFireLesson(house) {
+    const settings = btn('Einstellungen')
+    await settings.click()
+    assert.equal(await fireSwitch.isChecked(), false)
+    await fireSwitch.focus()
+    await page.keyboard.press('Space')
+    assert.equal(await fireSwitch.isChecked(), true)
+    await capture(`feuer-${house}-einstellungen`)
+    await page.keyboard.press('Escape')
+    assert.equal(await btn('Pause').isDisabled(), true)
+    await marker('s_tv').click()
+    await btn('Pause').click()
+    await btn('Lernimpuls').click()
+    await btn('Raumdurchzündung').click()
+    const autoplay = house === 'klein'
+    if (autoplay) await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await btn('Feuerversuch starten').click()
+    await page.getByText('1 von 2 · Unter der Decke', { exact: true }).waitFor()
+    assert.equal(await page.locator('#markers button:visible').count(), 0)
+    if (!autoplay) await btn('Beobachtung zeigen').click()
+    await btn('Weiter beobachten').waitFor({ timeout: 90000 })
+    await capture(`feuer-${house}-rauchdurchzuendung`)
+    await btn('Weiter beobachten').click()
+    if (!autoplay) await btn('Beobachtung zeigen').click()
+    await btn('Beobachtung besprechen').waitFor({ timeout: 90000 })
+    await capture(`feuer-${house}-raumdurchzuendung`)
+    await btn('Beobachtung besprechen').click()
+    await page.getByRole('heading', { name: 'Wo hast du neue Flammen gesehen?' }).waitFor()
+    assert.equal(await btn('Weiter entdecken').count(), 0)
+    assert.equal(await page.getByText('Rollover', { exact: true }).count(), 0)
+    await btn('Ergebnis ansehen').click()
+    await page.getByText('Rollover', { exact: true }).waitFor()
+    await page.getByText('Flashover', { exact: true }).waitFor()
+    await btn('Weiter entdecken').click()
+    await page.locator('#app:not(.learning)').waitFor()
+    assert.equal(await marker('s_tv').getAttribute('aria-pressed'), 'true')
+    assert.equal(await btn('Weiter').isEnabled(), true)
+    await btn('Neu starten').click()
+    await settings.click()
+    assert.equal(await fireSwitch.isChecked(), true)
+    await fireSwitch.uncheck()
+    await page.keyboard.press('Escape')
+    await btn('Lernimpuls').click()
+    await btn('Versuch starten').waitFor()
+    assert.equal(await btn('Raumdurchzündung').count(), 0)
+    await page.keyboard.press('Escape')
+    if (autoplay) await page.emulateMedia({ reducedMotion: 'reduce' })
+  }
+
   await marker('entry').waitFor()
   assert.deepEqual([...modelRequests], ['rauchhaus-klein.glb'])
-  assert.equal(await page.locator('.house-picker [aria-current]').textContent(), 'Kleines Haus')
+  assert.equal(await page.locator('.house-picker [aria-current]').getAttribute('aria-label'), 'Kleines Haus')
   assert.equal(
-    await page.locator('.marker:visible').count(),
+    await page.locator('button.marker:visible').count(),
     smallHouse.floors.length + smallHouse.doors.length + Number(Boolean(smallHouse.exteriorDoor)),
   )
+  assert.equal(await page.locator('.detector:visible').count(), smallHouse.detectors.length)
+  assert.equal(await btn('Alarmton').getAttribute('aria-pressed'), 'false')
   await capture('haus-klein')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await marker('entry').click()
@@ -102,26 +169,59 @@ try {
   assert.equal(await marker('entry').getAttribute('aria-pressed'), 'true')
   await checkLesson(smallHouse, 'vergleich-klein')
   assert.equal(await marker('entry').getAttribute('aria-pressed'), 'true')
+  await checkFireLesson('klein')
+  await btn('Einstellungen').click()
+  await fireSwitch.check()
+  await btn('Fertig').click()
   await page.setViewportSize({ width: 820, height: 1180 })
   await page.getByRole('link', { name: 'Großes Haus' }).click()
   await marker('s_washer').waitFor()
   assert.equal(modelRequests.has('rauchhaus.glb'), true)
+  await btn('Einstellungen').click()
+  assert.equal(await fireSwitch.isChecked(), true)
+  assert.equal(new URL(page.url()).searchParams.has('feuer'), false)
+  await btn('Fertig').click()
   await page.getByRole('link', { name: 'Kleines Haus' }).click()
   await marker('entry').waitFor()
+  await btn('Einstellungen').click()
+  assert.equal(await fireSwitch.isChecked(), true)
+  assert.equal(new URL(page.url()).searchParams.has('feuer'), false)
+  await page.reload()
+  await btn('Einstellungen').click()
+  assert.equal(await fireSwitch.isChecked(), false)
+  await fireSwitch.check()
+  await fireSwitch.uncheck()
+  await btn('Fertig').click()
   assert.equal(await marker('entry').getAttribute('aria-pressed'), 'false')
   await capture('haus-klein-hochformat')
   await page.getByRole('link', { name: 'Großes Haus' }).click()
   await marker('s_washer').waitFor()
+  await btn('Einstellungen').click()
+  assert.equal(await fireSwitch.isChecked(), false)
+  await btn('Fertig').click()
   await page.setViewportSize({ width: 1448, height: 1086 })
-  assert.equal(await page.locator('.house-picker [aria-current]').textContent(), 'Großes Haus')
+  assert.equal(await page.locator('.house-picker [aria-current]').getAttribute('aria-label'), 'Großes Haus')
   assert.equal(
-    await page.locator('.marker:visible').count(),
+    await page.locator('button.marker:visible').count(),
     largeHouse.floors.length + largeHouse.doors.length,
   )
   assert.equal(await btn('Pause').isDisabled(), true)
   await capture('haus')
   await marker('s_tv').click()
-  await marker('m_living').waitFor()
+  await page.locator('[data-marker="m_living"].active').waitFor()
+  await page.locator('[data-marker="m_bed"].active').waitFor({ timeout: 60000 })
+  assert.equal(await page.evaluate(() => window.alarmPulses.length), 0)
+  await btn('Alarmton').click()
+  assert.equal(await btn('Alarmton').getAttribute('aria-pressed'), 'true')
+  await page.waitForFunction(() => window.alarmPulses.length >= 3)
+  const pulses = await page.evaluate(() => window.alarmPulses)
+  assert.ok(pulses.every((pulse) => pulse.lights >= 2 && pulse.frequency === 2900))
+  assert.ok(pulses.slice(1).every((pulse, i) => pulse.time - pulses[i].time > 0.5))
+  await btn('Alarmton').click()
+  const mutedCount = await page.evaluate(() => window.alarmPulses.length)
+  await page.locator('#markers:not(.pulse)').waitFor()
+  await page.locator('#markers.pulse').waitFor()
+  assert.equal(await page.evaluate(() => window.alarmPulses.length), mutedCount)
   await btn('Pause').click()
   assert.equal(await marker('s_tv').getAttribute('aria-pressed'), 'true')
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'false')
@@ -138,11 +238,15 @@ try {
   await marker('d1').click()
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'true')
   await btn('Neu starten').click()
+  assert.equal(await btn('Pause').isDisabled(), true)
+  assert.equal(await page.locator('.marker.active.source,.marker.active.detector').count(), 0)
+  assert.equal(await marker('d1').getAttribute('aria-pressed'), 'false')
   await btn('Hilfe').click()
   await page.getByRole('heading', { name: 'So geht’s' }).waitFor()
   await page.keyboard.press('Escape')
   await checkLesson(largeHouse, 'vergleich')
-  assert.equal(await marker('d1').getAttribute('aria-pressed'), 'true')
+  assert.equal(await marker('d1').getAttribute('aria-pressed'), 'false')
+  await checkFireLesson('gross')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.reload()
   await marker('s_washer').waitFor()
@@ -161,6 +265,7 @@ try {
   for (const [width, height] of [
     [1180, 820],
     [820, 1180],
+    [644, 766],
     [390, 844],
   ]) {
     await page.setViewportSize({ width, height })
@@ -169,7 +274,7 @@ try {
     )
     const targets = await page.evaluate(() => {
       const markers = Array.from(
-        document.querySelectorAll('#markers button:not([hidden]),.toolbar button,.house-picker a'),
+        document.querySelectorAll('#markers button:not([hidden]),.toolbar button,.house-picker a,.learning-tools button'),
       )
       return {
         fits: document.documentElement.scrollWidth <= innerWidth,
@@ -202,8 +307,30 @@ try {
   }
   await marker('s_washer').click()
   assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'true')
-  await marker('m_laundry').waitFor()
+  await page.locator('[data-marker="m_laundry"].active').waitFor()
   await btn('Pause').click()
+  await btn('Einstellungen').click()
+  await fireSwitch.check()
+  await capture('feuer-mobil-einstellungen')
+  await btn('Fertig').click()
+  await btn('Lernimpuls').click()
+  await btn('Raumdurchzündung').click()
+  await btn('Feuerversuch starten').click()
+  await btn('Beobachtung zeigen').click()
+  await btn('Weiter beobachten').waitFor()
+  await capture('feuer-mobil-lernimpuls')
+  await btn('Einstellungen').click()
+  await fireSwitch.uncheck()
+  await btn('Fertig').click()
+  assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'false')
+  assert.equal(await btn('Pause').isDisabled(), true)
+  assert.equal(await page.locator('#trial').isVisible(), false)
+  await btn('Einstellungen').click()
+  await fireSwitch.check()
+  await page.reload()
+  await btn('Einstellungen').click()
+  assert.equal(await fireSwitch.isChecked(), false)
+  await btn('Fertig').click()
   await verifySmoke(page)
   assert.deepEqual(errors, [])
   console.log(

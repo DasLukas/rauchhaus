@@ -302,53 +302,6 @@ def window(x, y, w, h, trim="rim"):
     box("Window sill", x, y - h * 0.50, z + 0.103, w + 0.16, 0.055, 0.22, trim, 0.014)
 
 
-def number_plate(x, y, z, text):
-    """Raised floor sign; segment lettering also appears in the small web export."""
-    box("Blue enamel floor sign", x, y, z, 0.43, 0.31, 0.052, "denim", 0.035)
-    segments = {
-        "K": [
-            ((-0.07, -0.09), (-0.07, 0.09)),
-            ((-0.07, 0), (0.065, 0.095)),
-            ((-0.07, 0), (0.075, -0.095)),
-        ],
-        "E": [
-            ((0.07, 0.09), (-0.07, 0.09)),
-            ((-0.07, 0.09), (-0.07, -0.09)),
-            ((-0.07, 0), (0.05, 0)),
-            ((-0.07, -0.09), (0.07, -0.09)),
-        ],
-        "1": [
-            ((-0.045, 0.04), (0.022, 0.09)),
-            ((0.022, 0.09), (0.022, -0.09)),
-            ((-0.048, -0.09), (0.08, -0.09)),
-        ],
-        "2": [
-            ((-0.07, 0.09), (0.07, 0.09)),
-            ((0.07, 0.09), (0.07, 0.01)),
-            ((0.07, 0.01), (-0.07, -0.03)),
-            ((-0.07, -0.03), (-0.07, -0.09)),
-            ((-0.07, -0.09), (0.07, -0.09)),
-        ],
-        "D": [
-            ((-0.06, -0.09), (-0.06, 0.09)),
-            ((-0.06, 0.09), (0.02, 0.09)),
-            ((0.02, 0.09), (0.07, 0.05)),
-            ((0.07, 0.05), (0.07, -0.05)),
-            ((0.07, -0.05), (0.02, -0.09)),
-            ((0.02, -0.09), (-0.06, -0.09)),
-        ],
-    }
-    for a, b in segments[text]:
-        post(
-            "Floor sign lettering",
-            (x + a[0], y + a[1], z + 0.032),
-            (x + b[0], y + b[1], z + 0.032),
-            0.011,
-            "porcelain",
-            segments=6,
-        )
-
-
 def entrance():
     """A slim glazed vestibule fits the cut edge of the street-facing ground floor."""
     x, z = -0.31, FRONT + 0.007
@@ -618,16 +571,6 @@ def add_structure():
                         0.012,
                     )
                 window(EYE, y + 1.52, 1.04, 0.86, "porcelain")
-                # Put the landing sign and frosted light near the apartment doors.
-                # Both are legible from the cut face and sit outside the tread runs.
-                number_plate(EYE + 1.14, y + 2.07, FRONT - 0.016, ["K", "E", "1", "2", "D"][f + 1])
-                post(
-                    "Plaque bracket",
-                    (EYE + 1.14, y + 2.07, FRONT - 0.055),
-                    (EYE + CORE, y + 2.07, FRONT - 0.055),
-                    0.021,
-                    "slate",
-                )
                 box("Sconce backplate", EYE - CORE + 0.07, y + 1.97, 0.56, 0.055, 0.24, 0.18, "slate", 0.018)
                 orb("Landing sconce", EYE - CORE + 0.105, y + 1.97, 0.56, 0.092, 0.124, 0.083, "lemon")
                 depth = FRONT - FRONT_EDGE

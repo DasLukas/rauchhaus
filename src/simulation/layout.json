@@ -65,9 +65,19 @@
     {"id": "s_loft", "room": "loft", "label": "Leselampe rechts", "position": [4.65, 8.32, -0.92]}
   ],
   "detectors": [
-    {"id": "m_living", "room": "living", "label": "Rauchwarnmelder im Wohnzimmer", "position": [-3.5, 4.57, 0.22]},
-    {"id": "m_bed", "room": "bedroom", "label": "Rauchwarnmelder im Schlafzimmer", "position": [-6.0, 4.57, 0.2]},
-    {"id": "m_attic", "room": "attic", "label": "Rauchwarnmelder im Dachgeschoss", "position": [-2.12, 10.38, 0.05]},
-    {"id": "m_laundry", "room": "laundry", "label": "Rauchwarnmelder in der Waschküche", "position": [2.9, -0.23, 0.2]}
+    {"id": "m_stair3", "room": "stair3", "label": "Rauchwarnmelder oben im Treppenraum", "position": [0, 11.06, 1.9]},
+    {"id": "m_storage", "room": "storage", "label": "Rauchwarnmelder im Abstellraum", "position": [-4.2, -0.27, 1.9]},
+    {"id": "m_laundry", "room": "laundry", "label": "Rauchwarnmelder in der Waschküche", "position": [4.2, -0.27, 1.9]},
+    {"id": "m_studio0", "room": "studio0", "label": "Rauchwarnmelder in der Wohnküche", "position": [-4.2, 2.13, 1.9]},
+    {"id": "m_dining", "room": "dining", "label": "Rauchwarnmelder im Esszimmer", "position": [2.8, 2.13, 1.9]},
+    {"id": "m_kitchen", "room": "kitchen", "label": "Rauchwarnmelder in der Küche", "position": [5.6, 2.13, 1.9]},
+    {"id": "m_bed", "room": "bedroom", "label": "Rauchwarnmelder im Schlafzimmer", "position": [-5.6, 4.53, 1.9]},
+    {"id": "m_living", "room": "living", "label": "Rauchwarnmelder im Wohnzimmer", "position": [-3.65, 4.53, 1.9]},
+    {"id": "m_studio1", "room": "studio1", "label": "Rauchwarnmelder in der rechten Wohnung im ersten Stock", "position": [4.2, 4.53, 1.9]},
+    {"id": "m_studio2", "room": "studio2", "label": "Rauchwarnmelder in der linken Wohnung im zweiten Stock", "position": [-4.2, 6.93, 1.9]},
+    {"id": "m_playroom", "room": "playroom", "label": "Rauchwarnmelder im Kinderzimmer", "position": [2.8, 6.93, 1.9]},
+    {"id": "m_sleep2", "room": "sleep2", "label": "Rauchwarnmelder im Schlafzimmer im zweiten Stock", "position": [5.6, 6.93, 1.9]},
+    {"id": "m_attic", "room": "attic", "label": "Rauchwarnmelder in der Dachwohnung", "position": [-2.12, 10.339, 1.9]},
+    {"id": "m_loft", "room": "loft", "label": "Rauchwarnmelder in der rechten Dachwohnung", "position": [2.12, 10.339, 1.9]}
   ]
 }

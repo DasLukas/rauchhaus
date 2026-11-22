@@ -41,7 +41,12 @@
     {"id": "s_attic", "room": "attic", "label": "Leselampe", "position": [-0.43, 8.36, -1.04]}
   ],
   "detectors": [
-    {"id": "m_living", "room": "living", "label": "Rauchwarnmelder im Wohnzimmer", "position": [-1.48, 4.57, 0.23]},
-    {"id": "m_attic", "room": "attic", "label": "Rauchwarnmelder im Dachgeschoss", "position": [-1.1, 10.47, 0.14]}
+    {"id": "m_stair3", "room": "stair3", "label": "Rauchwarnmelder oben im Treppenraum", "position": [1.85, 10.138, 1.9]},
+    {"id": "m_kitchen", "room": "kitchen", "label": "Rauchwarnmelder in der Küche", "position": [-2.85, 2.13, 1.9]},
+    {"id": "m_dining", "room": "dining", "label": "Rauchwarnmelder im Esszimmer", "position": [0.05, 2.13, 1.9]},
+    {"id": "m_living", "room": "living", "label": "Rauchwarnmelder im Wohnzimmer", "position": [-1.4, 4.53, 1.9]},
+    {"id": "m_sleep2", "room": "sleep2", "label": "Rauchwarnmelder im Schlafzimmer im zweiten Stock", "position": [-2.85, 6.93, 1.9]},
+    {"id": "m_playroom", "room": "playroom", "label": "Rauchwarnmelder im Kinderzimmer", "position": [0.05, 6.93, 1.9]},
+    {"id": "m_attic", "room": "attic", "label": "Rauchwarnmelder in der Dachwohnung", "position": [-1.1, 10.431, 1.9]}
   ]
 }

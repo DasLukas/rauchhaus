@@ -228,8 +228,10 @@ try {
   )
   assert.equal(await btn('Pause').isDisabled(), true)
   await capture('haus')
+  // Detector and audio timing use real playback, just like the fire lesson.
+  await page.setViewportSize({ width: 480, height: 440 })
   await marker('s_tv').click()
-  await page.locator('[data-marker="m_living"].active').waitFor()
+  await page.locator('[data-marker="m_living"].active').waitFor({ timeout: 60000 })
   await page.locator('[data-marker="m_bed"].active').waitFor({ timeout: 60000 })
   assert.equal(await page.evaluate(() => window.alarmPulses.length), 0)
   await btn('Alarmton').click()
@@ -246,6 +248,7 @@ try {
   await btn('Pause').click()
   assert.equal(await marker('s_tv').getAttribute('aria-pressed'), 'true')
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'false')
+  await page.setViewportSize({ width: 1448, height: 1086 })
   await capture('rauch')
   const doorBox = await marker('d1').boundingBox()
   assert.ok(doorBox)
@@ -328,7 +331,7 @@ try {
   }
   await marker('s_washer').click()
   assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'true')
-  await page.locator('[data-marker="m_laundry"].active').waitFor()
+  await page.locator('[data-marker="m_laundry"].active').waitFor({ timeout: 60000 })
   await btn('Pause').click()
   await btn('Einstellungen').click()
   await fireSwitch.check()

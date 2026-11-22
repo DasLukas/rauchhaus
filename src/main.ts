@@ -150,7 +150,7 @@ function activate(id: string) {
     session.toggleDoor(door.id)
     announce(door.label + (session.snapshot.doors[door.id] ? ' offen.' : ' geschlossen.'))
   } else if (source) {
-    session.selectSource(source.id)
+    if (!session.selectSource(source.id)) return
     announce(`${session.fireEnabled ? 'Feuerversuch' : 'Rauchversuch'} gestartet. ${source.label}.`)
   }
   refresh()

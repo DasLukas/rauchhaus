@@ -8,7 +8,7 @@ import { preview } from 'vite'
 import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
 import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
-import { landingColor, verifySmoke } from './test-smoke-rendering.mjs'
+import { landingColor, verifySmoke, verifySmokeStart } from './test-smoke-rendering.mjs'
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
 const targetUrl = process.env.RAUCHHAUS_TEST_URL
@@ -171,6 +171,7 @@ try {
   assert.equal(await page.locator('.detector:visible').count(), smallHouse.detectors.length)
   assert.equal(await btn('Alarmton').getAttribute('aria-pressed'), 'false')
   await capture('haus-klein')
+  await verifySmokeStart(page, 'klein')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await marker('entry').click()
   const glass = await page.evaluate(async () => {
@@ -228,6 +229,7 @@ try {
   )
   assert.equal(await btn('Pause').isDisabled(), true)
   await capture('haus')
+  await verifySmokeStart(page, 'gross')
   // Detector and audio timing use real playback, just like the fire lesson.
   await page.setViewportSize({ width: 480, height: 440 })
   await marker('s_tv').click()

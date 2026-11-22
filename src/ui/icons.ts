@@ -9,6 +9,7 @@ const glyphs = {
   flame: '<path d="M13 2c1 5-4 6-3 11-2-1-3-3-3-5-2 3-3 5-3 8a8 8 0 0 0 16 0c0-5-3-9-7-14Z" fill="#ff997c"/><path d="M12 20c-2-1-2-3 0-6 0 2 3 3 2 5" fill="#ffca43" stroke="none"/>',
   smoke:
     '<path d="M6.3 20c-4.5-5.8 4.5-6.4 0-12.2m5.7 11c-4.6-6.1 5.1-7.4.2-15m5.4 16.2c-4.3-5.5 4.8-7.6.3-13.3" stroke-width="2"/>',
+  check: '<path d="m4.5 12.5 5 5 10-11" stroke-width="3"/>',
   door: '<path d="m6 4.2 10.6-1.4V21L6 19.8z"/><path d="M16.7 4.3h2v15.4h-2M13.5 12v.2" stroke-width="1.6"/>',
   open: '<path d="M8 4h11v16H8m-3-14 7-3v18l-7-2.5z"/><path d="M9.7 12.1v.5" stroke-width="1.6"/>',
   reset: '<path d="M4.3 8.5a8.4 8.4 0 1 1-.4 6.2M3.7 3.9v5.5h5.6"/>',

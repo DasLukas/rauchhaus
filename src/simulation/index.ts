@@ -45,7 +45,7 @@ export interface SimulationSnapshot {
   readonly source: SourceId | null
   /** Present only while a source is selected and the fire demonstration is enabled. */
   readonly fire: FireState | null
-  /** Normalized plume strength while the selected source is active. */
+  /** Visible plume strength at the object, before its smoke reaches the ceiling. */
   readonly sourceStrength: number
   /** Net tracer created in the upper layer since the experiment started. */
   readonly producedMass: number
@@ -558,9 +558,7 @@ export class SmokeSimulation {
       fire: this.fire?.snapshot() ?? null,
       producedMass: this.producedMass,
       escapedMass: this.escapedMass,
-      sourceStrength: this.source
-        ? emission(elapsed) * Math.min(1, this.fire?.plumeStrength ?? 1)
-        : 0,
+      sourceStrength: this.source ? Math.min(1, this.fire?.plumeStrength ?? 1) : 0,
       rooms: Object.freeze(rooms),
       detectors: Object.freeze(detectors),
       doors: Object.freeze({ ...this.doors }),

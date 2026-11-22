@@ -4,6 +4,26 @@ import { sampleGasFlame } from '../src/simulation/gas-flame'
 import { LearningSession, OBSERVATION_SECONDS } from '../src/ui/session'
 
 describe('free exploration', () => {
+  it('keeps the current experiment on a repeat tap, including while paused', () => {
+    const session = new LearningSession()
+    expect(session.selectSource('s_tv')).toBe(true)
+    const running = session.tick(3)
+    expect(session.selectSource('s_tv')).toBe(false)
+    expect(session.snapshot).toBe(running)
+    expect(session.tick(1).elapsed).toBe(4)
+
+    session.togglePause()
+    const paused = session.snapshot
+    expect(session.selectSource('s_tv')).toBe(false)
+    expect(session.tick(1)).toBe(paused)
+    expect(session.selectSource('s_desk')).toBe(false)
+    expect(session.snapshot).toBe(paused)
+    session.restart()
+    expect(session.selectSource('s_desk')).toBe(true)
+    expect(session.paused).toBe(false)
+    expect(session.snapshot.elapsed).toBe(0)
+  })
+
   it('allows door setup before a source, and freezes the complete snapshot on pause', () => {
     const session = new LearningSession()
     session.togglePause()

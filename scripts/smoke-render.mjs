@@ -89,7 +89,9 @@ export async function mount() {
     television(seconds, openAt) {
       scene.focusFloor(1, -3.5)
       simulation.setDoor('i1', false)
-      simulation.start('s_tv')
+      // The clear reference is the room before the television is selected.
+      if (seconds === 0) simulation.reset()
+      else simulation.start('s_tv')
       simulation.advance(Math.min(seconds, openAt))
       if (seconds >= openAt) {
         simulation.setDoor('i1', true)

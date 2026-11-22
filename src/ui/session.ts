@@ -91,11 +91,13 @@ export class LearningSession {
     return this.snapshot
   }
 
-  selectSource(id: SourceId) {
-    if (this.stage) return
+  /** Start a free experiment in an idle house and report whether the selection changed. */
+  selectSource(id: SourceId): boolean {
+    if (this.stage || this.snapshot.source !== null) return false
     this.free.start(id)
     this.paused = false
     this.snapshot = this.free.snapshot()
+    return true
   }
 
   toggleDoor(id: DoorId) {

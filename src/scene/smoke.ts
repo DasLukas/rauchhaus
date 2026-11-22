@@ -285,16 +285,19 @@ const fragmentShader = `
     float h = point.y - source.y;
     if (inside && strength > 0.001 && h > -0.05) {
       float rise = max(h, 0.0);
-      float width = 0.075 + 0.15 * sqrt(rise);
+      float width = 0.12 + 0.20 * sqrt(rise);
       vec2 curl = vec2(sin(rise * 6.0 - time * 1.9), cos(rise * 5.1 - time * 1.4))
                     * min(0.105, rise * 0.13);
       vec2 center = source.xz + curl;
       vec2 r = (point.xz - center) / width;
+      // Show a short wisp at selection. The rising front overtakes it before
+      // the plume feeds the ceiling layer at the model's normal rise speed.
+      float tip = max(0.5 + 0.4 * time, time * RISE_SPEED);
       float plume = exp(-dot(r,r) * 1.05) * smoothstep(-0.05, 0.08, h)
-                    * (1.0 - smoothstep(time * RISE_SPEED, time * RISE_SPEED + 0.10, rise));
+                    * (1.0 - smoothstep(tip - 0.10, tip + 0.10, rise));
       float column = 4.1 * plume * strength * (0.86 + broad * 0.58);
       extinction += column;
-      soot += column * layerDensity;
+      soot += column * max(0.45, layerDensity);
     }
     // Beer-Lambert transmittance composes over the visible path to each object.
     float smokeDepth = extinction * textureDensity;

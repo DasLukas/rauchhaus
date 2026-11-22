@@ -75,6 +75,37 @@ async function imageStats(page, clip) {
   }, image.toString('base64'))
 }
 
+/** Check the smoke above the television in the overview before the model clock advances. */
+export async function verifySmokeStart(page, house) {
+  const marker = page.locator('[data-marker="s_tv"]')
+  const small = house === 'klein'
+  await rendered(page)
+  const { plume } = await jambPatches(page, small ? 'd0' : 'd0l', 'd1', {
+    plume: ['s_tv', small ? -1.28 : -0.84, small ? 0.32 : 0.12, 0.40, 0.40],
+  })
+  const sources = page.locator('.marker.source:visible')
+  const choices = await sources.count()
+  assert.ok(choices > 1)
+  const clear = await imageStats(page, plume)
+  // Pause in the same click event so slow and fast GPUs sample the same first frame.
+  await marker.evaluate((button) => {
+    button.addEventListener('click', () => document.querySelector('#pause').click(), { once: true })
+  })
+  await marker.click()
+  await page.mouse.move(0, 0)
+  await rendered(page, `rauchstart-${house}-${page.viewportSize().width}`)
+  assert.equal(await sources.count(), 1)
+  assert.equal(await marker.isVisible(), true)
+  const smoke = await imageStats(page, plume)
+  const dimming = clear.luma - smoke.luma
+  assert.ok(dimming > 18, `The first wisp should visibly darken the wall above the TV in ${house} (luma change ${dimming.toFixed(1)})`)
+  await marker.click()
+  assert.ok(await page.getByRole('button', { name: 'Weiter', exact: true }).isVisible())
+  await page.getByRole('button', { name: 'Neu starten', exact: true }).click()
+  assert.equal(await sources.count(), choices)
+  console.log(`Verified smoke at selection in ${house} (luma change ${dimming.toFixed(1)}).`)
+}
+
 /** Render selected model times against the GLB served by the tested site. */
 export async function verifySmoke(page) {
   const bundle = await build({
@@ -349,6 +380,7 @@ function jambPatches(page, lower, upper, boxes) {
   return page.evaluate(
     ({ lower, upper, boxes }) => {
       const anchor = (id) => document.querySelector(`[data-marker="${id}"]`).style
+      const overlay = document.querySelector('#markers').getBoundingClientRect()
       const scale = (parseFloat(anchor(lower).top) - parseFloat(anchor(upper).top)) / 2.4
       return Object.fromEntries(
         Object.entries(boxes).map(([name, [id, dx, dy, w, h]]) => {
@@ -356,8 +388,8 @@ function jambPatches(page, lower, upper, boxes) {
           return [
             name,
             {
-              x: Math.round(parseFloat(origin.left) + dx * scale),
-              y: Math.round(parseFloat(origin.top) - dy * scale),
+              x: Math.round(overlay.left + parseFloat(origin.left) + dx * scale),
+              y: Math.round(overlay.top + parseFloat(origin.top) - dy * scale),
               width: Math.round(w * scale),
               height: Math.round(h * scale),
             },

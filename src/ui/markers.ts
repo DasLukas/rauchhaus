@@ -26,6 +26,7 @@ interface Entry {
 export class Markers {
   private readonly entries = new Map<string, Entry>()
   private lesson: Lesson | null = null
+  private sourceActive = false
   private width = 0
   constructor(
     private readonly root: HTMLElement,
@@ -100,6 +101,7 @@ export class Markers {
   }
 
   update(snapshot: SimulationSnapshot, lesson: Lesson | null, fireEnabled = false) {
+    this.sourceActive = snapshot.source !== null
     this.lesson = lesson
     for (const [id, e] of this.entries) {
       let label = e.label
@@ -109,7 +111,9 @@ export class Markers {
         e.glyph.innerHTML = icon(e.on ? 'open' : 'door')
         e.view.setAttribute('aria-pressed', String(e.on))
       } else if (e.kind === 'source') {
-        e.on = snapshot.source === id
+        const selected = snapshot.source === id
+        if (selected !== e.on) e.glyph.innerHTML = icon(selected ? 'check' : 'smoke')
+        e.on = selected
         const startLabel = fireEnabled ? ' · Feuerversuch starten' : ' · Rauchversuch starten'
         label += e.on ? ' · Versuch aktiv' : startLabel
         e.view.setAttribute('aria-pressed', String(e.on))
@@ -176,8 +180,8 @@ export class Markers {
     e.view.hidden =
       !e.position?.visible ||
       (this.lesson === 'fire' && e.kind !== 'detector') ||
-      (this.lesson === 'doors' &&
-        ((e.kind === 'door' && e.view.dataset.marker !== 'd1') || (e.kind === 'source' && !e.on)))
+      (this.sourceActive && e.kind === 'source' && !e.on) ||
+      (this.lesson === 'doors' && e.kind === 'door' && e.view.dataset.marker !== 'd1')
     if (e.view instanceof HTMLButtonElement) e.view.disabled = this.lesson !== null
   }
 }

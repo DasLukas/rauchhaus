@@ -2,6 +2,7 @@ import './style.css'
 import { createHouseScene, type HouseScene } from './scene'
 import { CLASSROOM_SOURCES, DETECTORS, DOORS, FLOORS, HOUSE_VARIANT, ROOMS } from './simulation'
 import { AlarmSound } from './ui/alarm'
+import { bindFullscreen } from './ui/fullscreen'
 import { icon } from './ui/icons'
 import { element, mountLayout, setButton } from './ui/layout'
 import { Markers } from './ui/markers'
@@ -194,6 +195,7 @@ document.addEventListener('visibilitychange', updateAlarm)
 element('out').onclick = () => scene?.zoomBy(1 / 1.25)
 element('in').onclick = () => scene?.zoomBy(1.25)
 element('home').onclick = () => scene?.resetView()
+const unbindFullscreen = bindFullscreen(element<HTMLButtonElement>('fullscreen'), element('fullscreen-message'))
 
 function showError() {
   ready = false
@@ -246,6 +248,7 @@ async function start() {
 void start().catch(showError)
 if (import.meta.hot) import.meta.hot.dispose(() => {
   document.removeEventListener('visibilitychange', updateAlarm)
+  unbindFullscreen()
   alarm.dispose()
   scene?.dispose()
 })

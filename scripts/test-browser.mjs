@@ -24,7 +24,8 @@ try {
     channel: 'chrome',
     chromiumSandbox: true,
     headless: true,
-    viewport: { width: 1448, height: 1086 },
+    // Exercise native fullscreen before emulating the classroom display sizes.
+    viewport: null,
     ignoreDefaultArgs: ['--enable-unsafe-swiftshader'],
   })
   const page = context.pages()[0] ?? (await context.newPage())
@@ -106,7 +107,12 @@ try {
     await btn('Lernimpuls').click()
     await btn('Raumdurchzündung').click()
     const autoplay = house === 'klein'
-    if (autoplay) await page.emulateMedia({ reducedMotion: 'no-preference' })
+    const originalViewport = page.viewportSize()
+    if (autoplay) {
+      // Keep real-time flame playback affordable on software-rendered CI workers.
+      await page.setViewportSize({ width: 480, height: 360 })
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+    }
     await btn('Feuerversuch starten').click()
     await page.getByText('1 von 2 · Unter der Decke', { exact: true }).waitFor()
     assert.equal(await page.locator('#markers button:visible').count(), 0)
@@ -116,6 +122,7 @@ try {
     await btn('Weiter beobachten').click()
     if (!autoplay) await btn('Beobachtung zeigen').click()
     await btn('Beobachtung besprechen').waitFor({ timeout: 90000 })
+    if (autoplay) await page.setViewportSize(originalViewport)
     await capture(`feuer-${house}-raumdurchzuendung`)
     await btn('Beobachtung besprechen').click()
     await page.getByRole('heading', { name: 'Wo hast du neue Flammen gesehen?' }).waitFor()
@@ -141,6 +148,20 @@ try {
   }
 
   await marker('entry').waitFor()
+  const enterFullscreen = btn('Vollbild starten')
+  const leaveFullscreen = btn('Vollbild beenden')
+  await page.bringToFront()
+  await enterFullscreen.click()
+  await leaveFullscreen.waitFor()
+  assert.ok(await page.evaluate(() => document.fullscreenElement === document.documentElement))
+  await leaveFullscreen.click()
+  await enterFullscreen.waitFor()
+  assert.ok(await page.evaluate(() => document.fullscreenElement === null))
+  await enterFullscreen.press('Enter')
+  await leaveFullscreen.waitFor()
+  await page.evaluate(() => document.exitFullscreen())
+  await enterFullscreen.waitFor()
+  await page.setViewportSize({ width: 1448, height: 1086 })
   assert.deepEqual([...modelRequests], ['rauchhaus-klein.glb'])
   assert.equal(await page.locator('.house-picker [aria-current]').getAttribute('aria-label'), 'Kleines Haus')
   assert.equal(
@@ -207,8 +228,10 @@ try {
   )
   assert.equal(await btn('Pause').isDisabled(), true)
   await capture('haus')
+  // Detector and audio timing use real playback, just like the fire lesson.
+  await page.setViewportSize({ width: 480, height: 440 })
   await marker('s_tv').click()
-  await page.locator('[data-marker="m_living"].active').waitFor()
+  await page.locator('[data-marker="m_living"].active').waitFor({ timeout: 60000 })
   await page.locator('[data-marker="m_bed"].active').waitFor({ timeout: 60000 })
   assert.equal(await page.evaluate(() => window.alarmPulses.length), 0)
   await btn('Alarmton').click()
@@ -225,6 +248,7 @@ try {
   await btn('Pause').click()
   assert.equal(await marker('s_tv').getAttribute('aria-pressed'), 'true')
   assert.equal(await marker('d1').getAttribute('aria-pressed'), 'false')
+  await page.setViewportSize({ width: 1448, height: 1086 })
   await capture('rauch')
   const doorBox = await marker('d1').boundingBox()
   assert.ok(doorBox)
@@ -307,7 +331,7 @@ try {
   }
   await marker('s_washer').click()
   assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'true')
-  await page.locator('[data-marker="m_laundry"].active').waitFor()
+  await page.locator('[data-marker="m_laundry"].active').waitFor({ timeout: 60000 })
   await btn('Pause').click()
   await btn('Einstellungen').click()
   await fireSwitch.check()

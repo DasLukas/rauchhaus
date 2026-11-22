@@ -4,8 +4,6 @@ const glyphs = {
   settings: '<path d="m9.3 3 .6-1h4.2l.6 2 1.6.9 2-.4 2.1 3.6-1.4 1.5v2l1.4 1.6-2.1 3.6-2-.4-1.6.9-.6 2H10l-.6-2-1.7-.9-2 .4-2.1-3.6L5 11.7v-2L3.6 8.1l2.1-3.6 2 .4 1.6-.9z" transform="translate(0 1)"/><circle cx="12" cy="12" r="3"/>',
   muted: '<path d="M3 9h4l5-4v14l-5-4H3zM16 9l6 6m0-6-6 6"/>',
   sound: '<path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
-  brand:
-    '<path d="m3 11.3 9-8.1 9 8.1v9.4H3z" fill="#ff997c" stroke="none"/><path d="m2 12 10-9 10 9M4.5 10.5v10h15v-10"/><path d="M10 20v-6h4v6" fill="currentColor" stroke-width="1"/>',
   bulb: '<g fill="#ffca43" stroke="#d98a20"><path d="M8.8 15.3C8.8 13.7 6.4 12.4 6.4 9a5.6 5.6 0 0 1 11.2 0c0 3.4-2.4 4.7-2.4 6.3Z" stroke-width="1.3"/><path d="M12 .6v1M2.5 7l1.3.5M20.2 7.5l1.3-.5M4.5 2.8l1 .9M18.6 3.7l1-.9" stroke-width="1.4"/></g><path d="M9 17h6m-5 2h4m-3 1.8h2" stroke-width="1.6"/>',
   help: '<circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="M9.1 8.9c.2-3.3 6.1-3.5 6.1.1 0 2.2-3.2 2.3-3.2 5" stroke="#fff9ee" stroke-width="2.1"/><circle cx="12" cy="17.3" r="1.2" fill="#fff9ee" stroke="none"/>',
   flame: '<path d="M13 2c1 5-4 6-3 11-2-1-3-3-3-5-2 3-3 5-3 8a8 8 0 0 0 16 0c0-5-3-9-7-14Z" fill="#ff997c"/><path d="M12 20c-2-1-2-3 0-6 0 2 3 3 2 5" fill="#ffca43" stroke="none"/>',
@@ -19,6 +17,8 @@ const glyphs = {
   play: '<path d="m7 4 13 8-13 8z" fill="currentColor" stroke-linejoin="round"/>',
   minus: '<path d="M5 12h14"/>',
   plus: '<path d="M5 12h14M12 5v14"/>',
+  expand: '<path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/>',
+  collapse: '<path d="M9 4v5H4m16 0h-5V4m0 16v-5h5M4 15h5v5"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   next: '<path d="M4 12h15m-6-6 6 6-6 6"/>',
   alarm:

@@ -17,7 +17,7 @@ function houseChoice(variant: HouseVariant, label: string) {
 export function mountLayout(host: HTMLElement) {
   host.innerHTML = `
     <header class="topbar">
-      <h1 class="brand">${icon('brand')}<span>Das Rauchhaus</span></h1>
+      <h1 class="brand"><img src="${import.meta.env.BASE_URL}haus.svg" alt="" /><span>Das Rauchhaus</span></h1>
       <nav class="house-picker" aria-label="Haus auswählen">${houseChoice('klein', 'Kleines Haus')}${houseChoice('gross', 'Großes Haus')}</nav>
       <nav class="learning-tools" aria-label="Lernen, Hilfe und Einstellungen">${control('lesson', 'bulb', 'Lernimpuls', true)}${control('help', 'help', 'Hilfe', true)}${control('settings', 'settings', 'Einstellungen', true)}</nav>
     </header>
@@ -33,7 +33,8 @@ export function mountLayout(host: HTMLElement) {
     </section>
     <footer class="toolbar" aria-label="Versuch und Ansicht">
       <div class="play-controls">${control('pause', 'pause', 'Pause')}${control('restart', 'reset', 'Neu starten')}${control('sound', 'muted', 'Alarmton', true)}</div>
-      <div class="view-controls">${control('out', 'minus', 'Verkleinern', true)}${control('in', 'plus', 'Vergrößern', true)}${control('home', 'house', 'Ganzes Haus zeigen', true)}</div>
+      <div class="view-controls">${control('out', 'minus', 'Verkleinern', true)}${control('in', 'plus', 'Vergrößern', true)}${control('home', 'house', 'Ganzes Haus zeigen', true)}${control('fullscreen', 'expand', 'Vollbild starten', true)}</div>
+      <div id="fullscreen-message" role="status"></div>
     </footer>
     <div id="announcer" role="status" aria-live="polite" class="sr-only"></div>
     <dialog id="sheet" aria-labelledby="sheet-title"><div id="sheet-body"></div></dialog>`

@@ -107,7 +107,12 @@ try {
     await btn('Lernimpuls').click()
     await btn('Raumdurchzündung').click()
     const autoplay = house === 'klein'
-    if (autoplay) await page.emulateMedia({ reducedMotion: 'no-preference' })
+    const originalViewport = page.viewportSize()
+    if (autoplay) {
+      // Keep real-time flame playback affordable on software-rendered CI workers.
+      await page.setViewportSize({ width: 480, height: 360 })
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+    }
     await btn('Feuerversuch starten').click()
     await page.getByText('1 von 2 · Unter der Decke', { exact: true }).waitFor()
     assert.equal(await page.locator('#markers button:visible').count(), 0)
@@ -117,6 +122,7 @@ try {
     await btn('Weiter beobachten').click()
     if (!autoplay) await btn('Beobachtung zeigen').click()
     await btn('Beobachtung besprechen').waitFor({ timeout: 90000 })
+    if (autoplay) await page.setViewportSize(originalViewport)
     await capture(`feuer-${house}-raumdurchzuendung`)
     await btn('Beobachtung besprechen').click()
     await page.getByRole('heading', { name: 'Wo hast du neue Flammen gesehen?' }).waitFor()

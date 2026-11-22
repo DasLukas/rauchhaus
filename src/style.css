@@ -129,7 +129,7 @@ h1 svg,
   border-radius: 40px;
   padding: 11px 21px 11px 15px;
 }
-.brand svg {
+.brand img {
   width: 1.25em;
   height: 1.25em;
 }
@@ -311,6 +311,25 @@ nav,
 }
 .toolbar {
   gap: 12px;
+  position: relative;
+  flex-wrap: wrap;
+}
+.view-controls {
+  margin-left: auto;
+}
+#fullscreen-message {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: max(8px, env(safe-area-inset-right));
+  left: max(8px, env(safe-area-inset-left));
+  width: fit-content;
+  margin-left: auto;
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: var(--control-shadow);
+}
+#fullscreen-message:not(:empty) {
+  padding: 8px 12px;
 }
 .key {
   width: 32px;
@@ -687,19 +706,11 @@ nav,
   }
 }
 @media (max-width: 420px) {
-  .brand svg {
-    display: none;
+  .toolbar,
+  .toolbar > .play-controls,
+  .toolbar > .view-controls {
+    gap: 1px;
   }
-  .brand {
-    max-width: 6em;
-  }
-  .house-picker, .learning-tools {
-    gap: 0;
-  }
-}
-
-
-@media (max-width: 370px) {
   .brand span {
     position: absolute;
     width: 1px;
@@ -707,7 +718,7 @@ nav,
     overflow: hidden;
     clip-path: inset(50%);
   }
-  .brand svg {
-    display: block;
+  .house-picker, .learning-tools {
+    gap: 0;
   }
 }

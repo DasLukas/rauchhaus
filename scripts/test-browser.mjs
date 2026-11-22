@@ -24,7 +24,8 @@ try {
     channel: 'chrome',
     chromiumSandbox: true,
     headless: true,
-    viewport: { width: 1448, height: 1086 },
+    // Exercise native fullscreen before emulating the classroom display sizes.
+    viewport: null,
     ignoreDefaultArgs: ['--enable-unsafe-swiftshader'],
   })
   const page = context.pages()[0] ?? (await context.newPage())
@@ -141,6 +142,20 @@ try {
   }
 
   await marker('entry').waitFor()
+  const enterFullscreen = btn('Vollbild starten')
+  const leaveFullscreen = btn('Vollbild beenden')
+  await page.bringToFront()
+  await enterFullscreen.click()
+  await leaveFullscreen.waitFor()
+  assert.ok(await page.evaluate(() => document.fullscreenElement === document.documentElement))
+  await leaveFullscreen.click()
+  await enterFullscreen.waitFor()
+  assert.ok(await page.evaluate(() => document.fullscreenElement === null))
+  await enterFullscreen.press('Enter')
+  await leaveFullscreen.waitFor()
+  await page.evaluate(() => document.exitFullscreen())
+  await enterFullscreen.waitFor()
+  await page.setViewportSize({ width: 1448, height: 1086 })
   assert.deepEqual([...modelRequests], ['rauchhaus-klein.glb'])
   assert.equal(await page.locator('.house-picker [aria-current]').getAttribute('aria-label'), 'Kleines Haus')
   assert.equal(

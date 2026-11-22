@@ -6,6 +6,8 @@ A one-page, touch-first 3D teaching tool for primary-school children aged 6–10
 
 White ceiling detectors in each room and at the top of the stairwell flash red together when reached by smoke. The speaker button enables a shared alarm beep. Sound starts muted. **Neu starten** restores the initial doors and camera, ends any lesson and clears all smoke and alarms.
 
+Use **Vollbild starten** to the right of the home button to present the entire workspace. Select **Vollbild beenden** to return. The control appears when the browser supports and permits page fullscreen.
+
 For a fire demonstration, open **Einstellungen**, enable **Feuer** and select a source in the house. Switching fire on or off resets the experiment and camera just like **Neu starten**. Both houses use the same teaching setup. The fire preset gives each selectable source room an open connection, so a fresh free experiment can progress from local flames through rollover to flashover. Doors the class has adjusted keep their position when switching sources. **Neu starten** restores the current mode’s starting doors. Switching houses carries over the fire setting. Opening or reloading a house normally starts with fire off.
 
 For a guided example, open **Lernimpuls** and select **Raumdurchzündung**. The class can observe the television fire together and discuss two frozen views of the room. Both stops fit into about 30–40 seconds of model playback, plus discussion time. **Beobachtung zeigen** advances directly to the next stop.
@@ -19,6 +21,8 @@ Use **Großes Haus** above the scene to explore the larger building. Selecting a
 ![The large house with its central staircase and basement](docs/rauchhaus.png)
 
 The large house has eight apartments around one continuous staircase. Each full storey pairs a one-room home with a two-room home, alternating sides. A glazed entrance, mailboxes, handrails and half-landings mark the common circulation space. The basement contains a bicycle store and a shared laundry. Start the washing-machine experiment and try opening or closing the laundry door. Photovoltaic panels are visible on the roof.
+
+For classroom handouts, the QR code links to **brandschutzfrüherziehung.de**. Download the [scalable SVG](public/rauchhaus-qr.svg) for print or the [PNG](public/rauchhaus-qr.png) for slides.
 
 ## Develop locally
 

@@ -138,7 +138,7 @@ export async function createHouseScene(
   canvas.setAttribute('role', 'group')
   canvas.setAttribute(
     'aria-label',
-    'Das Brandhaus im Schnitt. Mit einem Finger schwenken, auf ein Stockwerk tippen oder die beschrifteten Bedienelemente nutzen.',
+    'Brandhaus im Schnitt. Tippe auf ein Stockwerk, um es zu vergrößern. Mit den Pfeiltasten bewegst du die Ansicht.',
   )
   host.append(canvas)
   const scene = new Scene()

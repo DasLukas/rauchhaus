@@ -42,15 +42,15 @@ function announce(message: string) {
 const fireSteps = {
   rollover: {
     name: '1 von 2 · Unter der Decke',
-    prompt: 'Wo siehst du Flammen, obwohl dort kein Möbelstück brennt?',
-    observation: 'Unter der Decke flammt der heiße Rauch auf.',
+    prompt: 'Wo flackert es über dem Fernseher?',
+    observation: 'Im Rauch unter der Decke flackern Flammen.',
     next: 'Weiter beobachten',
   },
   flashover: {
     name: '2 von 2 · Im ganzen Zimmer',
-    prompt: HOUSE_VARIANT === 'klein' ? 'Schau auf Sofa, Tisch und Teppich. Was steigt dort auf?' : 'Schau auf Sessel und Teppich. Was steigt dort auf?',
-    observation: 'Jetzt brennt es im ganzen Zimmer (Flashover).',
-    next: 'Beobachtung besprechen',
+    prompt: HOUSE_VARIANT === 'klein' ? 'Was steigt über dem Sofa auf?' : 'Was steigt über dem Sessel auf?',
+    observation: 'Jetzt brennt es im ganzen Zimmer.',
+    next: 'Versuch besprechen',
   },
 }
 
@@ -81,8 +81,8 @@ function refresh() {
     const finished = session.trialFinished
     const action = finished
       ? first
-        ? 'Türvergleich starten'
-        : 'Vergleich abschließen'
+        ? 'Mit geschlossener Tür testen'
+        : 'Versuch besprechen'
       : 'Ergebnis ansehen'
     element('trial-name').textContent = first ? '1 von 2 · Tür offen' : '2 von 2 · Tür geschlossen'
     element('trial-hint').textContent = `Schau ins Treppenhaus ${HOUSE_VARIANT === 'klein' ? 'rechts' : 'in der Mitte'}.`
@@ -103,7 +103,7 @@ function endLesson() {
   scene?.resetView()
   refresh()
   lesson.focus({ preventScroll: true })
-  announce('Du kannst wieder frei entdecken.')
+  announce('Jetzt kannst du das Haus selbst erkunden.')
 }
 
 function openPanel(kind: PanelKind) {
@@ -119,10 +119,10 @@ function openPanel(kind: PanelKind) {
       if (selected === 'fire') {
         const room = ROOMS.find((room) => room.id === 'living')
         if (room) scene?.focusFloor(room.floor, (room.minX + room.maxX) / 2)
-        announce('Beobachte das Feuer am Fernseher und die Decke darüber.')
+        announce('Schau über den brennenden Fernseher.')
       } else {
         scene?.resetView()
-        announce('Erster Versuch mit offener Wohnungstür.')
+        announce('Die Wohnungstür ist offen. Wohin zieht der Rauch?')
       }
     } else if (kind === 'result' || kind === 'fireResult') endLesson()
     refresh()
@@ -139,7 +139,7 @@ function activate(id: string) {
     announce(door.label + (session.snapshot.doors[door.id] ? ' offen.' : ' geschlossen.'))
   } else if (source) {
     if (!session.selectSource(source.id)) return
-    announce(`${source.label}. Der Brandversuch startet.`)
+    announce(`${source.label}. Der Versuch beginnt.`)
   }
   refresh()
 }
@@ -147,7 +147,7 @@ function activate(id: string) {
 element('trial-next').onclick = () => {
   if (!session.trialFinished) {
     session.finishTrial()
-    if (session.trialFinished) announce(session.fireObservation ? fireObservationAnnouncement() : 'Beobachtung beendet.')
+    if (session.trialFinished) announce(session.fireObservation ? fireObservationAnnouncement() : 'Der Versuch hält an.')
     else announce(fireSteps.flashover.prompt)
   } else {
     if (scene && (session.stage === 'open' || session.stage === 'closed')) {
@@ -160,7 +160,7 @@ element('trial-next').onclick = () => {
     if (session.stage === 'compare') openPanel('result')
     else if (session.stage === 'fire-result') openPanel('fireResult')
     else if (session.fireObservation) announce(fireSteps.flashover.prompt)
-    else announce('Zweiter Versuch mit geschlossener Wohnungstür.')
+    else announce('Jetzt ist die Wohnungstür zu. Wohin zieht der Rauch?')
   }
   refresh()
 }
@@ -174,7 +174,7 @@ pause.onclick = () => {
 restart.onclick = () => {
   session.restart()
   scene?.resetView()
-  announce('Haus zurückgesetzt. Alle Räume sind rauchfrei.')
+  announce('Neuer Start. Das Haus ist rauchfrei.')
   refresh()
 }
 sound.onclick = () => {
@@ -193,14 +193,14 @@ function showError() {
   loading.hidden = false
   loading.setAttribute('role', 'alert')
   loading.innerHTML =
-    '<strong>Das 3D-Haus konnte nicht geladen werden.</strong><span>Prüfe die Verbindung und verwende einen Browser mit WebGL 2.</span><button type="button" class="action">Erneut laden</button>'
+    '<strong>Das Haus konnte nicht geladen werden.</strong><span>Versuche es noch einmal.</span><button type="button" class="action">Erneut laden</button>'
   loading.querySelector('button')?.addEventListener('click', () => location.reload())
 }
 
 function fireObservationAnnouncement() {
   return session.fireObservation === 'rollover'
-    ? 'Im heißen Rauch unter der Decke sind kurz Flammen zu sehen. Der Versuch pausiert.'
-    : 'Raumdurchzündung. Im Zimmer brennen jetzt auch die Möbel und die Pflanze. Der Versuch pausiert.'
+    ? 'Pause. Im Rauch unter der Decke flackern Flammen.'
+    : 'Pause. Jetzt brennen auch die Möbel.'
 }
 
 async function start() {
@@ -226,7 +226,7 @@ async function start() {
     onProject: (positions) => markers.project(positions),
     onFloorChange(level) {
       const floor = FLOORS.find((floor) => floor.level === level)
-      announce(floor ? `Du erkundest jetzt das ${floor.label}.` : 'Das ganze Haus ist sichtbar.')
+      announce(floor ? `${floor.label}.` : 'Das ganze Haus ist sichtbar.')
     },
     onActivate: activate,
     onError: showError,

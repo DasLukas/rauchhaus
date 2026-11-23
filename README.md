@@ -21,13 +21,13 @@ npm run check:model
 
 ## Brandhaus
 
-Open `?modul=brandhaus` for the small house. Existing links with `?haus=klein` or `?haus=gross` still open that house directly. Each level has one selectable fire source. Tap the orange marker beside the object to see a small local flame and a rising smoke plume. A check mark identifies the active source. Tapping it again keeps the current experiment and its pause state. Tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. Under **Lernimpuls**, choose **Rauchausbreitung** to compare the same television fire with the apartment door open and closed. Watch what changes in the stairwell.
+Open `?modul=brandhaus` for the small house. Existing links with `?haus=klein` or `?haus=gross` still open that house directly. Each level has one selectable fire source. Tap the orange marker beside the object to see a small local flame and a rising smoke plume. A check mark identifies the active source. Tapping it again keeps the current experiment and its pause state. Tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. Under **Lernimpuls**, choose **Wohin zieht der Rauch?** to compare the same television fire with the apartment door open and closed. Watch what changes in the stairwell.
 
 White ceiling detectors in each room and at the top of the stairwell flash red together when reached by smoke. The speaker button enables a shared alarm beep. Sound starts muted. **Neu starten** restores the initial doors and camera, ends any lesson and clears all smoke and alarms.
 
 Use **Vollbild starten** to the right of the home button to present the entire workspace. Select **Vollbild beenden** to return. The control appears when the browser supports and permits page fullscreen.
 
-In free exploration and in the door comparison, flames stay at the selected object. Smoke can reach other rooms and the stairwell. To explore how a room fire can develop beyond the original object, choose **Raumdurchzündung** under **Lernimpuls**. The class can observe the television fire together and discuss two frozen views of the room. Both stops fit into about 30–40 seconds of model playback, plus discussion time. **Beobachtung zeigen** advances to the first stop or plays the short upholstery transition into the second stop.
+In free exploration and in the door comparison, flames stay at the selected object. Smoke can reach other rooms and the stairwell. To explore how a room fire can develop beyond the original object, choose **Wie breitet sich Feuer aus?** under **Lernimpuls**. The class can observe the television fire together and discuss two frozen views of the room. Both stops fit into about 30–40 seconds of model playback, plus discussion time. **Beobachtung zeigen** advances to the first stop or plays the short upholstery transition into the second stop.
 
 ![The small house with the staircase and outside entrance on the right](docs/rauchhaus-klein.png)
 

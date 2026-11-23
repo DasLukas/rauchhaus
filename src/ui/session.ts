@@ -17,7 +17,6 @@ export const OBSERVATION_SECONDS = 40
 export class LearningSession {
   private readonly free: SmokeSimulation
   private example: SmokeSimulation | null = null
-  private freeWasPaused = false
   stage: LessonStage | null = null
   paused = false
   snapshot: SimulationSnapshot
@@ -86,7 +85,8 @@ export class LearningSession {
 
   /** Restore the empty house and its initial doors, and leave any lesson. */
   restart() {
-    this.endLesson()
+    this.stage = null
+    this.example = null
     this.free.reset()
     for (const door of this.house.doors) this.free.setDoor(door.id, door.initiallyOpen)
     this.paused = false
@@ -120,10 +120,9 @@ export class LearningSession {
     }
   }
 
-  /** Start a separate television experiment, preserving the current free scenario. */
+  /** Start a separate television experiment, starting from the lesson’s initial conditions. */
   beginLesson(lesson: Lesson = 'doors') {
     if (this.stage) return
-    this.freeWasPaused = this.paused
     this.example = new SmokeSimulation(this.house, lesson === 'fire' ? 'compartment' : 'local')
     if (lesson === 'doors') {
       this.startTrial('open')
@@ -168,10 +167,6 @@ export class LearningSession {
   }
 
   endLesson() {
-    if (!this.stage) return
-    this.stage = null
-    this.example = null
-    this.paused = this.freeWasPaused
-    this.snapshot = this.free.snapshot()
+    if (this.stage) this.restart()
   }
 }

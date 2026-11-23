@@ -159,14 +159,14 @@ describe('guided door comparison', () => {
   })
 
   it.each([false, true])(
-    'restores the free experiment including its paused state (%s)',
+    'clears the previous experiment on exit (previously paused: %s)',
     (paused) => {
       const session = new LearningSession()
+      const initial = session.snapshot
       session.selectSource('s_washer')
       session.toggleDoor('dbr')
       session.tick(6.41)
       if (paused) session.togglePause()
-      const free = session.snapshot
 
       session.beginLesson()
       session.tick(5)
@@ -174,9 +174,9 @@ describe('guided door comparison', () => {
       expect(session.snapshot.elapsed).toBe(5)
       session.endLesson()
       expect(session.stage).toBeNull()
-      expect(session.paused).toBe(paused)
-      expect(session.snapshot).toBe(free)
-      expect(session.tick(1).elapsed).toBeCloseTo(free.elapsed + (paused ? 0 : 1))
+      expect(session.paused).toBe(false)
+      expect(session.snapshot).toEqual(initial)
+      expect(session.tick(1).elapsed).toBe(0)
     },
   )
 })
@@ -186,9 +186,9 @@ describe('guided fire development', () => {
     'halts at visible fire in the gas layer and on room contents in the %s house',
     (variant) => {
       const session = new LearningSession(getHouse(variant))
+      const initial = session.snapshot
       session.selectSource('s_tv')
       session.tick(5)
-      const free = session.snapshot
       session.beginLesson('fire')
       expect(session.snapshot.doors.d1).toBe(true)
       expect(session.snapshot.fire?.phase).toBe('local')
@@ -212,24 +212,23 @@ describe('guided fire development', () => {
       session.nextTrial()
       expect(session.stage).toBe('fire-result')
       session.endLesson()
-      expect(session.snapshot).toBe(free)
+      expect(session.snapshot).toEqual(initial)
       expect(session.paused).toBe(false)
     },
   )
 
-  it.each(['fire', 'doors'] as const)('can return to a paused free experiment or restart from the %s lesson', (lesson) => {
+  it.each(['fire', 'doors'] as const)('resets the house when exiting or restarting the %s lesson', (lesson) => {
     const session = new LearningSession()
     const initial = session.snapshot
     session.toggleDoor('d1')
     session.selectSource('s_washer')
     session.tick(6.41)
     session.togglePause()
-    const paused = session.snapshot
     session.beginLesson(lesson)
     session.finishTrial()
     session.endLesson()
-    expect(session.snapshot).toBe(paused)
-    expect(session.paused).toBe(true)
+    expect(session.snapshot).toEqual(initial)
+    expect(session.paused).toBe(false)
     session.beginLesson(lesson)
     session.restart()
     expect(session.stage).toBeNull()

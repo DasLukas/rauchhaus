@@ -1,3 +1,4 @@
+import { bindLessonHint } from '../ui/lesson-hint'
 import { element } from '../ui/dom'
 import { bindFullscreen } from '../ui/fullscreen'
 import { icon } from '../ui/icons'
@@ -57,6 +58,7 @@ export function mountTriangle(root: HTMLElement) {
 
   const session = new TriangleSession()
   const lesson = element<HTMLButtonElement>('triangle-lesson')
+  const hint = bindLessonHint(lesson, 'verbrennungsdreieck')
   const next = element<HTMLButtonElement>('triangle-next')
   const nextLabel = element('triangle-next-label')
   const end = element<HTMLButtonElement>('triangle-end')
@@ -138,6 +140,7 @@ export function mountTriangle(root: HTMLElement) {
     }
     restorePlayback = instrument.capturePlayback()
     session.begin(instrument.getViewAngle())
+    hint.started()
     presentStage()
   }
   next.onclick = () => {
@@ -168,6 +171,7 @@ export function mountTriangle(root: HTMLElement) {
       document.removeEventListener('visibilitychange', updatePlayback)
       dialog.removeEventListener('close', updatePlayback)
       unbindFullscreen()
+      hint.dispose()
       instrument.dispose()
     })
 }

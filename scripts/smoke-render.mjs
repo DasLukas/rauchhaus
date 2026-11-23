@@ -28,6 +28,7 @@ export async function mount() {
         if (phase === 'flashover') {
           lesson.nextTrial()
           lesson.finishTrial()
+          lesson.tick(60)
         }
       }
       observation = lesson.snapshot

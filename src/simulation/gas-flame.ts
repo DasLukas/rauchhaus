@@ -24,3 +24,8 @@ export function sampleGasFlame(elapsed: number, source: SourceId) {
   const strength = progress > 0 && progress < 1 ? Math.sin(Math.PI * progress) ** 2 : 0
   return { progress, strength, x: fraction(seed + 2), z: fraction(seed + 3) }
 }
+
+// Two pockets overlap briefly in separate parts of the layer.
+export function sampleGasPair(elapsed: number, source: SourceId) {
+  return [sampleGasFlame(elapsed, source), sampleGasFlame(Math.max(0, elapsed - 0.12), source)] as const
+}

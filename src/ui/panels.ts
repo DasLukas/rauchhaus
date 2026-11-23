@@ -53,20 +53,21 @@ const fireIntro = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('bulb')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wie wird aus einem kleinen Feuer ein Zimmerbrand?</h2>
   <p>Am Fernseher im ersten Stock entsteht ein Feuer. Wo werden die nächsten Flammen sichtbar? Schau zuerst zum Fernseher und dann zur Zimmerdecke.</p>
-  <p>Der Versuch läuft im Zeitraffer und hält an zwei Stellen an. Mit „Beobachtung zeigen“ springst du zur nächsten Stelle.</p>
+  <p>Der Versuch läuft im Zeitraffer und hält an zwei Stellen an. Mit „Beobachtung zeigen“ siehst du die nächste Beobachtung.</p>
   <button type="button" class="action" data-start="fire">Feuerversuch starten ${icon('next')}</button>`
 
 const fireResult = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wo hast du neue Flammen gesehen?</h2>
-  <p>Was brannte, als du die Flammen unter der Decke gesehen hast? Was hat sich danach bei den Möbeln verändert?</p>
+  <p>Was brannte, als du die Flammen unter der Decke gesehen hast? Was hast du am Polster gesehen, bevor es Feuer fing?</p>
   <button type="button" class="action" data-panel="fireFindings">Ergebnis ansehen ${icon('next')}</button>`
 
 const fireFindings = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wie sich das Feuer im Zimmer ausgebreitet hat</h2>
-    <p>Über dem Fernseher sammelten sich heiße Brandgase. Wo sie sich mit Luft mischten, flammte kurz eine Feuerzunge auf und erlosch wieder. Breiten sich die Flammen durch die heiße Gasschicht unter der Decke aus, heißt das <strong>Rollover</strong>.</p>
-    <p>Die heißen Gase und die Flammen strahlten Wärme durch das Zimmer. Fast gleichzeitig fingen Möbel, Stoffe und sogar die Blätter der Pflanze im Modell Feuer. Diesen Übergang zum Vollbrand nennt man <strong>Raumdurchzündung</strong> oder <strong>Flashover</strong>.</p>
+    <p>Über dem Fernseher sammelten sich heiße Brandgase. Wo sie sich mit Luft mischten, flammten kurz zwei Flammenzungen auf. Breiten sich die Flammen durch die heiße Gasschicht unter der Decke aus, heißt das <strong>Rollover</strong>.</p>
+    <p>Die Hitze hat auch das Polster erwärmt. Aus dem heißen Material sind Gase ausgetreten, die brennen können. Im Modell zeigen das die feinen Schlieren. So kann das Polster Feuer fangen, obwohl die Flammen vom Fernseher es gar nicht berühren.</p>
+    <p>Fast gleichzeitig fingen Möbel, Stoffe und sogar die Blätter der Pflanze im Modell Feuer. Diesen Übergang zum Vollbrand nennt man <strong>Raumdurchzündung</strong> oder <strong>Flashover</strong>.</p>
     <p>Jeder Brand kann anders verlaufen. Die Zeit im Modell ist für die Vorführung verkürzt.</p>
   <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`
 

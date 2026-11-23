@@ -2,9 +2,22 @@
 export const fireShader = `
   uniform vec3 fireAmounts; // source, gas flames, additional burning surfaces
   uniform vec4 fuelSurfaces[FUEL_COUNT]; // xyz at the actual surface, w = burning width
-  uniform vec4 gasBurst; // room X fraction, absolute Z, envelope strength, burst progress
+  uniform vec4 firstBurst, secondBurst; // room X fraction, absolute Z, envelope strength, burst progress
+  uniform float upholsteryGas;
   uniform float flameTime;
   uniform float sliceDepth;
+
+  // A translucent tracer rising from the upholstered seat in the living room.
+  float upholsteryWisp() {
+    if (upholsteryGas <= 0.0) return 0.0;
+    vec3 d = point - (fuelSurfaces[0].xyz + vec3(0.12, 0.0, 0.17));
+    float h = d.y / 0.78;
+    if (h <= 0.0 || h >= 1.0 || abs(d.x) > 0.38 || abs(d.z) > 0.38) return 0.0;
+    float centre = 0.16 * sin(7.0 * h - flameTime * 2.0) * h;
+    float x = (d.x - centre) / (0.055 + h * 0.075);
+    float z = max(0.0, abs(d.z) - sliceDepth * 0.50) / 0.1;
+    return 3.0 * upholsteryGas * exp(-x*x - z*z) * smoothstep(0.0, 0.09, h) * (1.0 - smoothstep(0.44, 1.0, h));
+  }
 
   // Returns optical density and density-weighted hot core.
   vec2 burningPatch(vec3 origin, float width, float power) {
@@ -39,7 +52,7 @@ export const fireShader = `
 
   // One short-lived pocket in the turbulent contact between hot gas and air.
   // The cutaway shows this gas-flaming effect only in the upper part of the room.
-  vec2 gasFlame(float top, float smokeEdge, float front) {
+  vec2 gasFlame(float top, float smokeEdge, float front, vec4 gasBurst) {
     float power = fireAmounts.y * gasBurst.z * front * (1.0 - fireAmounts.z);
     float height = top - floorY;
     float clearance = (smokeEdge - floorY) / height;
@@ -47,10 +60,10 @@ export const fireShader = `
     if (power <= 0.001 || point.y < floorY + 0.49 * height || top <= smokeEdge) return vec2(0.0);
 
     float span = roomSides.y - roomSides.x;
-    float centre = mix(roomSides.x, roomSides.y, 0.065 + gasBurst.x * 0.87);
+    float centre = mix(roomSides.x, roomSides.y, gasBurst.x);
     float direction = centre >= source.x ? 1.0 : -1.0;
     float age = gasBurst.w;
-    float lengthScale = min(span * 0.5, 0.84 + 0.40 * gasBurst.x);
+    float lengthScale = min(span * 0.19, 0.76);
     centre += direction * (age - 0.5) * lengthScale * 0.20;
     float u = direction * (point.x - centre) / lengthScale + 0.5;
     if (u <= 0.0 || u >= 1.0 || abs(point.y - smokeEdge) > 0.42) return vec2(0.0);
@@ -64,11 +77,11 @@ export const fireShader = `
     float across = max(0.0, abs(point.z - centreZ) - 0.5 * sliceDepth) / (0.025 + 0.085 * taper);
     float lift = min(0.23, 0.33 * (top - smokeEdge));
     float curl = sin(6.4 * u + 5.0 * gasBurst.x - 1.8 * age);
-    float axis = smokeEdge + lift + 0.10 * u * u + 0.055 * taper * curl + 0.10 * (fold - 0.5);
+    float axis = smokeEdge - 0.07 + lift * 0.20 + 0.07 * u * u + 0.055 * taper * curl + 0.10 * (fold - 0.5);
     float vertical = (point.y - axis) / (0.006 + taper * (0.025 + 0.045 * grain));
     float edge = 1.0 - smoothstep(0.45, 1.05, length(vec2(across, vertical)));
     float wisps = smoothstep(0.14 + 0.34 * u, 0.65, 0.70 * fold + 0.30 * grain + 0.13 * taper);
-    float gas = 28.0 * power * taper * edge * wisps;
+    float gas = 36.0 * power * taper * edge * (0.45 + 0.55 * wisps);
     return vec2(gas, gas * edge * (0.20 + 0.65 * grain));
   }
 
@@ -80,6 +93,6 @@ export const fireShader = `
         if (fuel.w > 0.0) fire += burningPatch(fuel.xyz, fuel.w, fireAmounts.z);
       }
     }
-    return fire + gasFlame(top, smokeEdge, front);
+    return fire + gasFlame(top, smokeEdge, front, firstBurst) + gasFlame(top, smokeEdge, front, secondBurst);
   }
 `

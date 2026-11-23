@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getHouse } from '../src/simulation'
-import { sampleGasFlame } from '../src/simulation/gas-flame'
+import { sampleGasPair } from '../src/simulation/gas-flame'
 import { LearningSession, OBSERVATION_SECONDS } from '../src/ui/session'
 
 describe('free exploration', () => {
@@ -197,11 +197,19 @@ describe('guided fire development', () => {
       expect(session.fireObservation).toBe('rollover')
       expect(session.snapshot.fire?.phase).toBe('rollover')
       expect(session.snapshot.fire?.rollover).toBeGreaterThanOrEqual(0.45)
-      expect(sampleGasFlame(session.snapshot.elapsed, 's_tv').strength).toBeGreaterThanOrEqual(0.8)
+      for (const burst of sampleGasPair(session.snapshot.elapsed, 's_tv')) {
+        expect(burst.strength).toBeGreaterThanOrEqual(0.72)
+      }
       expect(session.snapshot.fire?.involvement).toBe(0)
       const first = session.snapshot
       expect(session.tick(1)).toBe(first)
       session.nextTrial()
+      session.finishTrial()
+      expect(session.paused).toBe(false)
+      expect(session.snapshot.fire?.outgassing).toBeGreaterThanOrEqual(0.85)
+      expect(session.snapshot.fire?.involvement).toBe(0)
+      session.tick(1)
+      expect(session.snapshot.fire?.involvement).toBe(0)
       for (let frame = 0; frame < 240 && !session.trialFinished; frame++) session.tick(0.2)
       expect(session.fireObservation).toBe('flashover')
       expect(session.snapshot.fire?.phase).toBe('flashover')

@@ -56,13 +56,13 @@ function announce(message: string) {
 const fireSteps = {
   rollover: {
     name: '1 von 2 · Unter der Decke',
-    prompt: 'Wo flammt der Rauch kurz auf?',
-    observation: 'Eine Flammenzunge im heißen Rauch.',
+    prompt: 'Wo siehst du Flammen, obwohl dort kein Möbelstück brennt?',
+    observation: 'Zwei Flammenzungen unter der Rauchschicht.',
     next: 'Weiter beobachten',
   },
   flashover: {
     name: '2 von 2 · Im ganzen Zimmer',
-    prompt: 'Schau auf die Möbel und die Pflanze.',
+    prompt: HOUSE_VARIANT === 'klein' ? 'Schau auf das rote Sofa. Was siehst du vor den Flammen?' : 'Schau auf den Sessel. Was siehst du vor den Flammen?',
     observation: 'Jetzt brennt es im ganzen Zimmer (Flashover).',
     next: 'Beobachtung besprechen',
   },
@@ -82,12 +82,14 @@ function refresh() {
   lesson.setAttribute('aria-expanded', String(Boolean(session.stage)))
   app.classList.toggle('learning', Boolean(session.stage))
   trial.hidden = !session.stage || session.stage === 'compare' || session.stage === 'fire-result'
+  const showingTransition = session.showingUpholstery && !session.trialFinished
+  element<HTMLButtonElement>('trial-next').disabled = showingTransition
   if (session.fireObservation) {
     const step = fireSteps[session.fireObservation]
     const done = session.trialFinished
     element('trial-name').textContent = step.name
     element('trial-hint').textContent = done ? step.observation : step.prompt
-    element('trial-action').textContent = done ? step.next : 'Beobachtung zeigen'
+    element('trial-action').textContent = done ? step.next : showingTransition ? 'Beobachtung läuft' : 'Beobachtung zeigen'
   } else if (!trial.hidden) {
     const first = session.stage === 'open'
     const finished = session.trialFinished
@@ -161,7 +163,8 @@ function activate(id: string) {
 element('trial-next').onclick = () => {
   if (!session.trialFinished) {
     session.finishTrial()
-    announce(session.fireObservation ? fireObservationAnnouncement() : 'Beobachtung beendet.')
+    if (session.trialFinished) announce(session.fireObservation ? fireObservationAnnouncement() : 'Beobachtung beendet.')
+    else announce(fireSteps.flashover.prompt)
   } else {
     session.nextTrial()
     if (session.stage === 'compare') openPanel('result')
@@ -206,7 +209,7 @@ function showError() {
 
 function fireObservationAnnouncement() {
   return session.fireObservation === 'rollover'
-    ? 'Im heißen Rauch unter der Decke ist eine Flammenzunge aufgeflammt. Der Versuch pausiert.'
+    ? 'Im heißen Rauch unter der Decke sind zwei Flammenzungen aufgeflammt. Der Versuch pausiert.'
     : 'Raumdurchzündung. Im Zimmer brennen jetzt auch die Möbel und die Pflanze. Der Versuch pausiert.'
 }
 

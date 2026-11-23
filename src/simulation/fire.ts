@@ -5,6 +5,8 @@ export interface FireState {
   readonly sourceIntensity: number
   /** Flaming gas at the interface of the upper layer and the air below. */
   readonly rollover: number
+  /** Visible release from the warming upholstery before it ignites. */
+  readonly outgassing: number
   /** Strength of secondary flames on exposed room contents after flashover. */
   readonly involvement: number
 }
@@ -70,6 +72,7 @@ export class CompartmentFire {
       phase: this.involved ? 'flashover' : this.rollover > 0.02 ? 'rollover' : 'local',
       sourceIntensity: this.intensity,
       rollover: this.rollover,
+      outgassing: clamp((this.surfaceHeating - 0.32) / 0.18) * (1 - clamp(this.involvement * 4)),
       involvement: this.involvement,
     })
   }

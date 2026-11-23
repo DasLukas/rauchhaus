@@ -138,6 +138,7 @@ function cell(bounds: Room): Cell {
 const LOCAL_FIRE: FireState = Object.freeze({
   phase: 'local',
   sourceIntensity: 0.3,
+  outgassing: 0,
   rollover: 0,
   involvement: 0,
 })

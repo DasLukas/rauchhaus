@@ -176,7 +176,9 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   assert.ok(await renderedDifference(page, beforeLesson, await scene()) < 5, 'Leaving the lesson must restore the charred log and camera angle')
   await button('Neu starten').click()
   await button('Hilfe').click()
-  await page.getByText('Für Erwachsene', { exact: true }).click()
+  const help = page.getByRole('dialog', { name: 'So geht’s' })
+  await help.getByRole('button', { name: 'Verstanden' }).waitFor()
+  assert.equal(await help.getByText('Für Erwachsene', { exact: true }).count(), 0)
   await page.keyboard.press('Escape')
   for (const [width, height] of [[1024, 768], [820, 1180], [390, 844]]) {
     await page.setViewportSize({ width, height })

@@ -12,14 +12,9 @@ const helpContent = `
     <h2 id="triangle-help-title">So geht’s</h2>
     <button type="button" class="close compact" aria-label="Schließen" data-close>${icon('close')}</button>
   </header>
-  <p>Zieh den Knopf im Dreieck oder tippe auf einen Punkt. Bewegst du ihn zum Beispiel vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff.</p>
-  <p>Zieh seitlich über die Ofenscheibe, um den Ofen von einer anderen Seite zu sehen. Mit „Lernimpuls“ kannst du die drei Seiten des Dreiecks nacheinander untersuchen.</p>
-  <details><summary>Für Erwachsene</summary>
-    <p>Die Mitte steht für genügend Wärme, Sauerstoff und Brennstoff. Die Abstände sind Modellwerte. Das Dreieck gibt keine Mengenverhältnisse für einen echten Brand an.</p>
-    <p>Jede Einstellung zeigt dasselbe Holz unter den gewählten Bedingungen. Die Ausgangsszene enthält bereits brennendes Holz. Die Rückkehr zur Mitte zeigt diesen Ausgangszustand erneut.</p>
-    <p>Beim Erhitzen setzt Holz brennbare Gase frei. Am Ende des Brennstoffversuchs liefert der verkohlte Rest zu wenig Gas für eine Flamme. Holzkohle kann bei genügend Wärme und Sauerstoff weiterglühen.</p>
-    <p>Mit der Tabulatortaste erreichst du den Knopf. Die Pfeiltasten verschieben ihn, Pos1 bringt ihn zurück in die Mitte.</p>
-  </details>
+  <p>Zieh den Knopf oder wähle einen Punkt im Dreieck. Ziehst du ihn vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff.</p>
+  <p>Zieh seitlich über die Scheibe, um den Ofen zu drehen.</p>
+  <p>Im <strong>Lernimpuls</strong> testest du Sauerstoff, Wärme und Brennstoff.</p>
   <button class="action" type="button" data-close>Verstanden</button>`
 
 /** Mount the movable triangle and its optional guided wood-combustion comparisons. */

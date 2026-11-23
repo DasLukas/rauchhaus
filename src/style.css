@@ -432,6 +432,29 @@ nav,
   width: 20px;
   height: 20px;
 }
+#trial-next {
+  position: relative;
+}
+#trial-next .trial-timer {
+  display: none;
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: #ffffff52;
+  stroke-width: 2.5px;
+}
+#trial-next.timed .trial-timer {
+  display: block;
+}
+.trial-timer .timer-fill {
+  stroke: #ffe194;
+  stroke-dasharray: 1;
+  stroke-dashoffset: var(--timer-offset, 1);
+}
 .close {
   border: 0;
   box-shadow: none;
@@ -528,6 +551,12 @@ nav,
   font-size: 15px;
   line-height: 1.4;
   margin: 2px 0 0;
+}
+.fire-terms {
+  margin: 15px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #dacfb9;
+  font-size: 1rem;
 }
 #sheet details {
   border-top: 1px solid #dacfb9;

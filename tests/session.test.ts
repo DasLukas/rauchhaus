@@ -203,6 +203,14 @@ describe('guided fire development', () => {
       session.selectSource('s_tv')
       session.tick(5)
       session.beginLesson('fire')
+      expect(session.trialProgress).toBe(0)
+      session.tick(1)
+      const progress = session.trialProgress
+      expect(progress).toBeGreaterThan(0)
+      session.togglePause()
+      session.tick(2)
+      expect(session.trialProgress).toBe(progress)
+      session.togglePause()
       expect(session.snapshot.doors.d1).toBe(true)
       expect(session.snapshot.fire?.phase).toBe('local')
       expect(session.trialFinished).toBe(false)
@@ -216,9 +224,11 @@ describe('guided fire development', () => {
         expect(burst.strength).toBeGreaterThanOrEqual(0.88)
       }
       expect(session.snapshot.fire?.involvement).toBe(0)
+      expect(session.trialProgress).toBe(1)
       const first = session.snapshot
       expect(session.tick(1)).toBe(first)
       session.nextTrial()
+      expect(session.trialProgress).toBe(0)
       session.finishTrial()
       expect(session.paused).toBe(false)
       expect(session.snapshot.fire?.outgassing).toBeGreaterThanOrEqual(0.85)

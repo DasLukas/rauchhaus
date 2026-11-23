@@ -26,6 +26,7 @@ const intro = `
 const result = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wann war mehr Rauch im Treppenhaus?</h2>
+  <p>Denk an die offene Tür und an die geschlossene Tür.</p>
   <button type="button" class="action" data-panel="smokeFindings">Ergebnis ansehen ${icon('next')}</button>`
 
 const smokeFindings = `
@@ -35,7 +36,7 @@ const smokeFindings = `
     <figure data-view="open"><figcaption>Tür offen</figcaption></figure>
     <figure data-view="closed"><figcaption>Tür geschlossen</figcaption></figure>
   </div>
-  <p>Durch die offene Tür zog Rauch ins Treppenhaus. Wenn die Tür später zugeht, verschwindet der Rauch dort nicht sofort.</p>
+  <p>Durch die offene Tür zog Rauch ins Treppenhaus. Rauch im Treppenhaus ist gefährlich.</p>
   <p><strong>Wenn es brennt</strong><br>Zieh beim Rausgehen die Tür hinter dir zu. Geh dafür nie zurück. Geh nie in ein verrauchtes Treppenhaus.</p>
   <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`
 
@@ -60,6 +61,7 @@ const fireIntro = `
 const fireResult = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Was hast du an den Möbeln entdeckt?</h2>
+  <p>Denk an den Moment, bevor die Möbel Feuer fingen.</p>
   <button type="button" class="action" data-panel="fireFindings">Ergebnis ansehen ${icon('next')}</button>`
 
 const fireFindings = `
@@ -71,10 +73,9 @@ const fireFindings = `
   </div>
   <p>Unter der Decke brannten heiße Gase. Dort hast du die kurzen Flammen gesehen.</p>
   <p>Aus den heißen Möbeln steigt Gas auf. Im Modell siehst du es als helle Schlieren. Das Gas kann brennen. Kurz darauf brannten viele Dinge im Zimmer fast gleichzeitig.</p>
-  <details><summary>Wie nennt das die Feuerwehr?</summary>
+  <h3 class="fire-terms">Wie nennt das die Feuerwehr?</h3>
     <p><strong>Rollover</strong> heißt es, wenn sich Flammen in den heißen Gasen unter der Decke ausbreiten.</p>
     <p>Der schnelle Übergang zum Vollbrand heißt <strong>Raumdurchzündung</strong> oder <strong>Flashover</strong>.</p>
-  </details>
   <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`
 
 const panels = { help, lessons, intro, result, smokeFindings, fireIntro, fireResult, fireFindings }

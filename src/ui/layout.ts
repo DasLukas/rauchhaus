@@ -30,7 +30,8 @@ export function mountLayout(host: HTMLElement) {
       <div id="load-state" role="status"><span class="spinner"></span><span>Das Haus lädt …</span></div>
       <div id="trial" class="trial-bar" role="region" aria-label="Lernimpuls" hidden>
         <div class="trial-copy"><strong id="trial-name"></strong><span id="trial-hint"></span></div>
-        <button id="trial-next" class="action" type="button"><span id="trial-action"></span>${icon('next')}</button>
+        <button id="trial-next" class="action" type="button"><svg class="trial-timer" aria-hidden="true" focusable="false"><rect width="100%" height="100%" rx="24"/><rect class="timer-fill" width="100%" height="100%" rx="24" pathLength="1"/></svg><span id="trial-action"></span>${icon('next')}</button>
+        <span id="trial-progress" class="sr-only" role="progressbar" aria-label="Ablauf des Versuchs" aria-valuemin="0" aria-valuemax="100" hidden></span>
         <button id="trial-end" class="compact close" type="button" aria-label="Lernimpuls beenden">${icon('close')}</button>
       </div>
     </section>

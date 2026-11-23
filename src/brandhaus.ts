@@ -24,6 +24,9 @@ const alarm = new AlarmSound()
 const sound = element<HTMLButtonElement>('sound')
 const markerLayer = element('markers')
 const trial = element('trial')
+const nextButton = element<HTMLButtonElement>('trial-next')
+const progressBar = element('trial-progress')
+let lastPercent = -1
 const pause = element<HTMLButtonElement>('pause')
 const restart = element<HTMLButtonElement>('restart')
 const lesson = element<HTMLButtonElement>('lesson')
@@ -54,6 +57,19 @@ const fireSteps = {
   },
 }
 
+function updateTrialTimer() {
+  const progress = session.trialProgress
+  const percent = progress === null || progress >= 1 ? -1 : Math.floor(progress * 100)
+  if (percent === lastPercent) return
+  lastPercent = percent
+  nextButton.classList.toggle('timed', percent >= 0)
+  progressBar.hidden = percent < 0
+  if (percent >= 0) {
+    nextButton.style.setProperty('--timer-offset', String(1 - percent / 100))
+    progressBar.setAttribute('aria-valuenow', String(percent))
+  }
+}
+
 function refresh() {
   const state = session.snapshot
   markers.update(state, session.lesson)
@@ -69,7 +85,8 @@ function refresh() {
   app.classList.toggle('learning', Boolean(session.stage))
   trial.hidden = !session.stage || session.stage === 'compare' || session.stage === 'fire-result'
   const showingTransition = session.showingOutgassing && !session.trialFinished
-  element<HTMLButtonElement>('trial-next').disabled = showingTransition
+  updateTrialTimer()
+  nextButton.disabled = showingTransition
   if (session.fireObservation) {
     const step = fireSteps[session.fireObservation]
     const done = session.trialFinished
@@ -126,7 +143,7 @@ function openPanel(kind: PanelKind) {
       }
     } else if (kind === 'result' || kind === 'fireResult') endLesson()
     refresh()
-    if (selected) element('trial-next').focus({ preventScroll: true })
+    if (selected) nextButton.focus({ preventScroll: true })
   }, views)
 }
 
@@ -144,7 +161,7 @@ function activate(id: string) {
   refresh()
 }
 
-element('trial-next').onclick = () => {
+nextButton.onclick = () => {
   if (!session.trialFinished) {
     session.finishTrial()
     if (session.trialFinished) announce(session.fireObservation ? fireObservationAnnouncement() : 'Der Versuch hält an.')
@@ -209,6 +226,7 @@ async function start() {
     onFrame(dt) {
       const wasDone = session.trialFinished
       const state = document.hidden || modal ? session.snapshot : session.tick(Math.min(dt, 0.2))
+      updateTrialTimer()
       const alarms = DETECTORS.filter((d) => state.detectors[d.id])
       const signature = alarms.map((d) => d.id).join(',')
       if (signature !== detectorState) {

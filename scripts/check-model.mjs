@@ -6,16 +6,7 @@ import { fuelSurfaces } from '../src/scene/fuels.ts'
 import { getHouse, roofHeightAt } from '../src/simulation/house.ts'
 
 const readAsset = (path) => readFileSync(new URL(path, import.meta.url))
-function checkModel(variant) {
-  const {
-    doors: DOORS,
-    rooms: ROOMS,
-    sources: SOURCES,
-    classroomSources,
-    detectors: DETECTORS,
-    roof: ROOF,
-    modelFilename,
-  } = getHouse(variant)
+function inspectAsset(modelFilename) {
   const blendFilename = modelFilename.replace(/\.glb$/, '.blend')
   const source = readAsset(`../assets/blender/${blendFilename}`)
   const signature = source.readUInt32LE()
@@ -99,6 +90,20 @@ function checkModel(variant) {
   }
 
   for (const root of scene.nodes) inspect(root, new Matrix4())
+  return { gltf, visited, names, draws, triangles, bytes }
+}
+
+function checkModel(variant) {
+  const {
+    doors: DOORS,
+    rooms: ROOMS,
+    sources: SOURCES,
+    classroomSources,
+    detectors: DETECTORS,
+    roof: ROOF,
+    modelFilename,
+  } = getHouse(variant)
+  const { names, draws, triangles, bytes } = inspectAsset(modelFilename)
   for (const roomId of new Set(classroomSources.map((source) => source.room))) {
     const room = ROOMS.find((room) => room.id === roomId)
     const surfaces = fuelSurfaces(variant, roomId)
@@ -203,4 +208,28 @@ function checkModel(variant) {
   )
 }
 
+function checkStove() {
+  const { gltf, names, visited, triangles, draws } = inspectAsset('holzofen.glb')
+  const animated = new Set()
+  function includeFlames(index) {
+    animated.add(index)
+    for (const child of gltf.nodes[index].children ?? []) includeFlames(child)
+  }
+  for (const name of ['Stove', 'Fuel', 'Embers', 'Flames']) {
+    const group = names.get(name)
+    assert(group && !group.bounds.isEmpty(), `Missing stove geometry: ${name}`)
+  }
+  includeFlames(gltf.nodes.findIndex((node) => node.name === 'Flames'))
+  const channels = (gltf.animations ?? []).flatMap((clip) => clip.channels.map((channel) => ({
+    target: channel.target,
+    keys: gltf.accessors[clip.samplers[channel.sampler].input],
+  })))
+  assert(channels.some(({ target, keys }) =>
+    visited.has(target.node) && animated.has(target.node) && keys.count >= 3 &&
+    keys.max[0] > keys.min[0]), 'Expected animated flame geometry in the exported Blender clip')
+  assert(triangles <= 250_000 && draws <= 48, 'The stove exceeds the classroom model budget')
+  console.log(`holzofen.glb verified: ${triangles.toLocaleString('en-US')} triangles, ${draws} draws, animated channels: ${channels.length}.`)
+}
+
 for (const variant of ['gross', 'klein']) checkModel(variant)
+checkStove()

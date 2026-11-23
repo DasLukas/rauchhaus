@@ -1,8 +1,27 @@
-# Das Rauchhaus
+# Brandschutz entdecken
 
 [Open the published version from main](https://daslukas.github.io/rauchhaus/)
 
-A one-page, touch-first 3D teaching tool for primary-school children aged 6–10. Each level has one selectable smoke source. Its orange marker sits beside the object on the wall. Tap an orange smoke source to see a short plume rise immediately from the object. A check mark identifies the active source. Tapping it again keeps the current experiment and its pause state. Tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed. Classroom use needs a WebGL 2 browser and a connection to load the site. The application runs entirely on the device after loading.
+Two German, touch-first fire science activities for primary-school children aged 6–10. The home page opens a lesson picker with still previews from both scenes. Open **Brandhaus** to explore smoke and fire in a building or **Verbrennungsdreieck** to explore a wood fire. Each module has its own shareable URL, an optional guided activity and an **Übersicht** link back to the picker. The 3D activities need WebGL 2. The application runs locally in the browser after its assets have loaded.
+
+## Verbrennungsdreieck
+
+Open `?modul=verbrennungsdreieck`. Drag the knob or tap a point in the triangle. Moving farther from an edge reduces the corresponding condition. In the centre all three are sufficient. The thermometer stands for heat, the wind symbol for oxygen and the log for fuel. The adjacent stove shows the effect on wood, flame and glow. Swipe the stove sideways, use its arrow buttons, or focus it and use the arrow keys for a small change in viewing angle. With the knob focused, arrow keys move it and Home centres it.
+
+Choose **Lernimpuls** to compare oxygen, heat and fuel in turn. Children can tap a picture to predict the outcome or discuss it aloud before observing. The oxygen trial compares a smaller flame with the loss of visible flames. The remaining trials distinguish a cold log from exhausted fuel. Each trial starts with the same burning specimen. **Beobachtung zeigen** reaches the same observation as moving the knob by hand. Closing the lesson restores the free experiment, including the viewing angle and pause state.
+
+![The triangular control beside a burning log in the 3D stove](docs/verbrennungsdreieck.webp)
+
+The stove uses an [editable animated Blender scene](assets/blender/holzofen.blend). To regenerate the source and its self-contained web model with Blender 5.3, run:
+
+```sh
+blender --background --python-exit-code 1 --python assets/blender/build_stove.py
+npm run check:model
+```
+
+## Brandhaus
+
+Open `?modul=brandhaus` for the small house. Existing links with `?haus=klein` or `?haus=gross` still open that house directly. Each level has one selectable smoke source. Its orange marker sits beside the object on the wall. Tap an orange smoke source to see a short plume rise immediately from the object. A check mark identifies the active source. Tapping it again keeps the current experiment and its pause state. Tap a turquoise marker to open a door. Observe the plume, the ceiling layer and the shared stairwell. The optional guided activity repeats the same television scenario with the apartment door open and closed.
 
 White ceiling detectors in each room and at the top of the stairwell flash red together when reached by smoke. The speaker button enables a shared alarm beep. Sound starts muted. **Neu starten** restores the initial doors and camera, ends any lesson and clears all smoke and alarms.
 
@@ -26,7 +45,7 @@ For classroom handouts, the QR code links to **brandschutzfrüherziehung.de**. D
 
 ## Develop locally
 
-Install Node.js 24.15 or later and npm. Both versioned GLB files are ready to serve. Blender is needed only when changing the artwork.
+Install Node.js 24.15 or later and npm. All three versioned GLB files are ready to serve. Blender is needed only when changing the artwork.
 
 ```sh
 npm ci
@@ -40,11 +59,11 @@ Open the address printed by Vite. To view this branch on a tablet, serve the loc
 | Command | Verifies |
 | --- | --- |
 | `npm run lint` | Static analysis |
-| `npm test` | Room filling, smoke balance, detectors, door changes, time-step invariance, fire development and guided activities |
-| `npm run check:model` | Editable Blender source and self-contained WebGL export, including all control anchors, moving doors and mesh budgets |
+| `npm test` | Room filling, smoke balance, detectors, door changes, time-step invariance, fire development and guided activities, triangle geometry and navigation |
+| `npm run check:model` | Editable Blender source and self-contained WebGL export, including house interaction anchors, moving doors, stove animation channels and mesh budgets |
 | `npm run build` | TypeScript types and production bundle in `dist/` |
 | `npm run check` | All four checks above |
-| `npm run test:browser` | Compares rendered smoke and flame observations, runs both guided activities, and checks floor navigation and touch targets in installed Chrome. Run the build first. |
+| `npm run test:browser` | Compares rendered smoke and flame observations, runs the guided house and triangle activities, compares rendered stove states and camera views, and checks dashboard navigation and touch targets in installed Chrome. Run the build first. |
 
 The browser test starts Chrome with its sandbox enabled and a new temporary profile, then closes the instance and removes the profile. It exercises the actual washing-machine control and detector in the app. A rendering fixture advances the television, laundry and desk-lamp experiments to repeatable observation points. The desk-lamp tests follow smoke through the attic door and, with that door closed, down to the lower landings. Set `RAUCHHAUS_TEST_URL` to test an existing deployment, or `RAUCHHAUS_SCREENSHOTS` to save evidence in a directory of your choice. Running the smoke source while reviewing a tablet in both orientations is part of release verification. On physical devices, check tap accuracy, swipe separation, frame rate and readability. A simulator is useful for Safari behavior and layout.
 
@@ -68,6 +87,8 @@ Use short-lived branches and pull requests against `main`. GitHub Actions instal
 
 ## Teaching basis
 
+The triangle lesson asks children to predict, observe and explain. In each comparison the model changes one limiting condition while the other two remain sufficient. The first experiment provides the most guidance. This adapts research on [structured inquiry with third graders (Hardy et al.)](https://www.uni-muenster.de/imperia/md/content/didaktik_des_sachunterrichts/dokumente/literaturmoeller/article.pdf) and on [learning to control variables at ages 7–10 (Chen & Klahr)](https://doi.org/10.1111/1467-8624.00081). The studies evaluated those teaching approaches in other science tasks. The stove is a qualitative comparison of conditions around an already-burning piece of wood. Its distances and animation times are teaching controls. [Richter et al.](https://doi.org/10.1016/j.combustflame.2021.111591) experimentally distinguished flaming and smouldering under different heat and oxygen conditions in particleboard.
+
 The optional fire lesson starts with a flame at the television. At the first stop, pupils can locate a tongue of flame in the upper smoke layer. During playback, individual pockets flare up, move a short distance and die away. Flames spreading through this layer are called rollover. At the second, they can identify newly burning surfaces away from the television, including the sofa, rug and potted plant in the small house. Thermal radiation can heat exposed combustible surfaces across a room. With sufficient oxygen, these surfaces can ignite in rapid succession as the fire transitions to full room involvement (flashover). The two observations illustrate one possible course of a fire. The demonstration clock compresses the development for discussion. The irregular timing and placement illustrate the sporadic flames described in the [New Zealand Fire Service training glossary, p. 159](https://www.fireandemergency.nz/assets/Documents/Files/Policy-Documents-part-2-QFC-1-07-Fire-Science-and-Ventilation-study-guide-Part-2.pdf). See the [Hessian State Fire Service School, sections 7.1 and 7.2](https://hlfs.hessen.de/sites/hlfs.hessen.de/files/2023-11/b-iii_lernu_einsatzlehre-explosion_01.00.00.pdf), the [NIST definition of flashover](https://www.nist.gov/glossary-term/24071) and [NIST’s introduction to ventilation and fire growth](https://www.nist.gov/el/fire-research-division-73300/firegov-fire-service/fire-dynamics).
 
 Warm smoke rises to the ceiling. As the upper layer deepens, its lower edge reaches the top of an open door. Smoke then passes beneath the lintel, rises on the receiving side and spreads along the next ceiling. Closing the door reduces further transfer while smoke already in the room persists. The demonstration uses a light-to-dark grey palette to show increasing smoke loading. Its clock and colours are teaching choices. Real fire development, escape times and safe occupancy cannot be inferred from the animation.
@@ -89,4 +110,4 @@ In the large house, start the ground-floor kettle and open its apartment door. S
 
 ## Licensing
 
-Code and technical documentation use the [MIT License](LICENSE). Original 3D artwork, graphics and German educational content use [CC BY 4.0](public/licenses/CC-BY-4.0.txt). Suggested credit: “Das Rauchhaus, DasLukas and contributors,” with a link to this repository, a link to the license and a description of adaptations. The locally served Nunito font uses the [SIL Open Font License](public/licenses/Nunito-OFL.txt). Three.js uses the [MIT License](public/licenses/Three-MIT.txt).
+Code and technical documentation use the [MIT License](LICENSE). Original 3D artwork, graphics and German educational content use [CC BY 4.0](public/licenses/CC-BY-4.0.txt). Suggested credit: “Brandschutz entdecken (formerly Das Rauchhaus), DasLukas and contributors,” with a link to this repository, a link to the license and a description of adaptations. The locally served Nunito font uses the [SIL Open Font License](public/licenses/Nunito-OFL.txt). Three.js uses the [MIT License](public/licenses/Three-MIT.txt).

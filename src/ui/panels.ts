@@ -1,6 +1,6 @@
 import { HOUSE_VARIANT } from '../simulation'
 import { icon } from './icons'
-import { element } from './layout'
+import { element } from './dom'
 import type { Lesson } from './session'
 
 const closeButton = `<button class="close compact" data-close type="button" aria-label="Schließen">${icon('close')}</button>`

@@ -92,6 +92,22 @@ h1 svg,
 .toolbar > * {
   pointer-events: auto;
 }
+.house-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.module-error {
+  margin: auto;
+  width: min(90%, 420px);
+  padding: 24px;
+  background: var(--paper);
+  border-radius: 24px;
+  text-align: center;
+}
+.module-error h1 {
+  line-height: 1.15;
+}
 .brand,
 .pill {
   color: var(--ink);
@@ -703,6 +719,25 @@ nav,
   }
   .brand {
     font-size: 20px;
+  }
+  .house-identity {
+    gap: 5px;
+  }
+  .house-identity .brand {
+    padding-inline: 6px;
+  }
+  .house-identity .brand img {
+    display: none;
+  }
+}
+@media (max-width: 440px) {
+  .house-identity .brand {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 }
 @media (max-width: 420px) {

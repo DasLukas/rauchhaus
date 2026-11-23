@@ -8,6 +8,7 @@ import { preview } from 'vite'
 import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
 import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
+import { verifyLearningModules } from './test-learning-modules.mjs'
 import { landingColor, verifySmoke, verifySmokeStart } from './test-smoke-rendering.mjs'
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
@@ -54,8 +55,15 @@ try {
       return start.apply(this, args)
     }
   })
-  await page.goto(targetUrl || `http://127.0.0.1:${port}/`)
-  assert.match(await page.title(), /Das Rauchhaus/)
+  const dashboardUrl = targetUrl || `http://127.0.0.1:${port}/`
+  await page.goto(dashboardUrl)
+  const houseCard = page.getByRole('link', { name: /^Brandhaus\b/ })
+  await houseCard.waitFor()
+  assert.match(await page.title(), /Brandschutz entdecken/)
+  assert.equal(modelRequests.size, 0, 'The dashboard must not load a house model')
+  await houseCard.click()
+  await page.getByRole('heading', { name: 'Brandhaus', exact: true }).waitFor()
+  assert.match(await page.title(), /Brandhaus/)
   const marker = (id) => page.locator(`[data-marker="${id}"]`)
   const btn = (name) => page.getByRole('button', { name, exact: true })
   const fireSwitch = page.getByRole('switch', { name: 'Feuer', exact: true })
@@ -300,7 +308,7 @@ try {
     )
     const targets = await page.evaluate(() => {
       const markers = Array.from(
-        document.querySelectorAll('#markers button:not([hidden]),.toolbar button,.house-picker a,.learning-tools button'),
+        document.querySelectorAll('#markers button:not([hidden]),.toolbar button,.house-identity a,.house-picker a,.learning-tools button'),
       )
       return {
         fits: document.documentElement.scrollWidth <= innerWidth,
@@ -358,6 +366,7 @@ try {
   assert.equal(await fireSwitch.isChecked(), false)
   await btn('Fertig').click()
   await verifySmoke(page)
+  await verifyLearningModules(page, dashboardUrl, capture)
   assert.deepEqual(errors, [])
   console.log(
     'Passed: model load, smoke alarm, matched TV and laundry trials, opposed entrance doors, zoom and portrait touch controls.',

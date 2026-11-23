@@ -4,7 +4,6 @@ import {
   DirectionalLight,
   type Group,
   HemisphereLight,
-  type Material,
   MathUtils,
   Mesh,
   NeutralToneMapping,
@@ -13,7 +12,6 @@ import {
   Raycaster,
   Scene,
   SRGBColorSpace,
-  Texture,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -31,6 +29,7 @@ import {
   type SourceId,
 } from '../simulation'
 import { HouseCamera, pickedFloor } from './camera'
+import { releaseMeshes } from './dispose'
 import { addSkyClouds } from './sky'
 import { SmokeVolumes } from './smoke'
 
@@ -93,24 +92,6 @@ function lighting(scene: Scene): void {
   scene.add(fill)
 }
 
-function releaseMeshes(root: Object3D): void {
-  const materials = new Set<Material>()
-  const textures = new Set<Texture>()
-  root.traverse((node) => {
-    if (!(node instanceof Mesh)) return
-    node.geometry.dispose()
-    const list = Array.isArray(node.material) ? node.material : [node.material]
-    for (const material of list) materials.add(material)
-  })
-  for (const material of materials) {
-    for (const value of Object.values(material)) {
-      if (value instanceof Texture) textures.add(value)
-    }
-    material.dispose()
-  }
-  for (const texture of textures) texture.dispose()
-}
-
 function readAnchors(model: Group) {
   const output = new Map<string, { position: Vector3; floor: number }>()
   const roomFloors = new Map(ROOMS.map((room) => [room.id, room.floor]))
@@ -156,7 +137,7 @@ export async function createHouseScene(
   canvas.setAttribute('role', 'group')
   canvas.setAttribute(
     'aria-label',
-    'Das Rauchhaus im Schnitt. Mit einem Finger schwenken, auf ein Stockwerk tippen oder die beschrifteten Bedienelemente nutzen.',
+    'Das Brandhaus im Schnitt. Mit einem Finger schwenken, auf ein Stockwerk tippen oder die beschrifteten Bedienelemente nutzen.',
   )
   host.append(canvas)
   const scene = new Scene()

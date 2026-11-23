@@ -1,0 +1,111 @@
+#app[data-page="dashboard"] {
+  min-height: 100svh;
+  height: auto;
+  justify-content: center;
+  overflow: visible;
+  padding: max(34px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(42px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+.lesson-dashboard {
+  width: min(100%, 1120px);
+  margin-inline: auto;
+}
+.dashboard-heading {
+  text-align: center;
+  margin-bottom: clamp(24px, 5vmin, 54px);
+}
+.dashboard-heading h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .2em;
+  font-size: clamp(2.1rem, 5.4vw, 4.8rem);
+  font-weight: 950;
+  letter-spacing: -.045em;
+  line-height: 1.04;
+  margin: 0;
+}
+.dashboard-heading img {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+.dashboard-heading p {
+  margin: .55em 0 0;
+  font-size: clamp(1.05rem, 2.2vw, 1.52rem);
+  font-weight: 650;
+}
+.lesson-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(18px, 2.5vw, 34px);
+}
+.lesson-card {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(8px, 1vw, 12px);
+  border: 1px solid #fffbea;
+  border-radius: clamp(24px, 3vw, 36px);
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--paper);
+  box-shadow: 0 7px 0 #dfd1b7, 0 13px 26px #184c6329;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.lesson-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.8;
+  height: auto;
+  object-fit: cover;
+  background: #b6e9ee;
+  border-radius: clamp(17px, 2.4vw, 26px);
+}
+.card-content {
+  position: relative;
+  flex: 1;
+  padding: clamp(14px, 1.7vw, 26px) clamp(11px, 1.45vw, 20px) clamp(12px, 1.35vw, 19px);
+}
+.card-content h2 {
+  font-size: clamp(1.65rem, 3.1vw, 2.7rem);
+  font-weight: 950;
+  letter-spacing: -.045em;
+  line-height: 1.13;
+  margin: 0;
+}
+.card-content p {
+  max-width: 35ch;
+  margin: .55em 46px 0 0;
+  font-size: clamp(1rem, 1.55vw, 1.25rem);
+  font-weight: 600;
+  line-height: 1.42;
+}
+.card-arrow {
+  position: absolute;
+  right: clamp(7px, 1.2vw, 17px);
+  bottom: 0.65em;
+  display: grid;
+  place-items: center;
+  width: clamp(38px, 4vw, 46px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--teal);
+  color: white;
+}
+.card-arrow svg {width: 54%; height: 54%;}
+@media (hover: hover) {
+  .lesson-card:hover { transform: translateY(-4px); box-shadow: 0 9px 0 #dfd1b7, 0 19px 32px #184c6336; }
+}
+.lesson-card:active { transform: translateY(4px); box-shadow: 0 3px 0 #dfd1b7, 0 6px 12px #184c6330; }
+@media (max-width: 690px) {
+  .lesson-dashboard { max-width: 490px; }
+  .lesson-cards { grid-template-columns: minmax(0, 1fr); gap: 23px; }
+  .dashboard-heading h1 { font-size: clamp(1.74rem, 6.9vw, 2.55rem); }
+  .dashboard-heading { margin-bottom: 19px; }
+  .card-content { padding: 12px 9px; }
+  .card-content p { margin-top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lesson-card { transition: none; }
+}

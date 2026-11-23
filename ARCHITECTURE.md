@@ -2,7 +2,7 @@
 
 ## Runtime and boundaries
 
-The application is a static, German-language TypeScript client. Vite builds the entry point, CSS, local font and Three.js renderer. The house selector links to the same page with a house query parameter. The small house is the default. Only the selected GLB is requested, from the same origin. Each page load creates its own camera, markers and simulation. The application has no account system, API, analytics or persistent student records. Reloading starts a clean exploration. Only the repository link in the adult help section navigates off site, after deliberate activation.
+The application is a static, German-language TypeScript client built with Vite. A small entry point resolves the query string and dynamically imports the dashboard, house or triangle. Native document navigation supports bookmarks, history and deployment under a relative base path. The root loads two local WebP previews. A module requests its own Three.js scene and GLB only after entry. The brand house defaults to the small layout. Legacy house-only links and the one-time fire-mode parameter still enter the house. An explicit module takes precedence. Each page load creates its own camera, markers and simulation. The application has no account system, API, analytics or persistent student records. Reloading starts a clean exploration. Only the repository link in the adult help section navigates off site, after deliberate activation.
 
 ## Modules and data flow
 
@@ -11,12 +11,23 @@ The application is a static, German-language TypeScript client. Vite builds the 
 | `src/simulation` | House topology, source locations, detector elevations, deterministic smoke transport and optional compartment fire development. Independent of the DOM, Three.js and frame rate. |
 | `src/ui` | German learning activities, settings, native dialog, marker buttons, icons and experiment state. |
 | `src/scene` | Orthographic camera, physical-object hit testing, indicator projection, lighting, smoke volumes and visible flames. |
-| `src/main.ts` | Connects controls and time updates to the active simulation and presents status changes. |
+| `src/main.ts` and `src/navigation.ts` | Resolve the module and load its entry point. |
+| `src/dashboard.ts` | Native lesson links with scene previews and a short explanation. |
+| `src/brandhaus.ts` | Connects house controls and time updates to the active simulation and presents status changes. |
+| `src/triangle` | Equilateral control geometry, deterministic experiment readings, guided trial state, accessible instrument and 3D stove playback. |
 | `assets/blender` and `public/models` | Source artwork, repeatable generator and batched web export. |
 
 Selecting a source starts a run with the current door settings. The session locks that choice until reset and the marker overlay hides the other sources. Selecting the active source preserves the current run and its pause state. A door change updates connectivity while retaining the existing upper layers. The animation clock advances the active simulation and passes an immutable snapshot to the renderer. The renderer projects interaction anchors to viewport coordinates. The DOM uses those positions for keyboard- and touch-accessible controls. Pause, an open help dialog and a backgrounded page suspend the teaching clock. A guided activity owns a second simulation instance and restores the original experiment on exit. Both trial arms share the same source, initial conditions and observation time, apart from the living-room door setting.
 
 Both house sizes share the simulation rules, coefficients, settings and learning activities. Layout data defines the geometry, room connections, fixtures and controls. Geometry can affect when an observation occurs. Changes to smoke and fire behaviour should be verified in both layouts. Free fire tests exercise every selectable source with the default fire setup and with its room doors deliberately closed.
+
+## Triangle and stove
+
+Pointer, touch, keyboard and guided moves use the same coordinate system. Inputs outside the upright equilateral triangle project to the nearest side. For each labelled side, the perpendicular distance divided by the triangle height gives a normalized value `d`. Its qualitative availability is `clamp(1.5 * (1 - d), 0, 1)`. At the centre each value is sufficient. On a straight path to the opposite vertex the named factor alone becomes insufficient. The minimum availability controls the flame response, with a small steady region around the centre and an extinguished region at the extremes.
+
+The specimen is a comparison of the same piece of initially burning wood under different conditions. Returning to the centre restores the comparison baseline. The renderer loads one Blender-authored GLB with separate fuel, ember and flame groups. Three.js plays the exported flame deformation with an AnimationMixer. Fuel availability controls the remaining wood geometry, while heat and oxygen affect visible flame and glow. After loss of flame due to oxygen, residual luminosity fades with model time. The orthographic camera can orbit horizontally up to 20 degrees on either side. The animation loop suspends unnecessary work while paused or hidden and honours reduced motion. The native HTML controls and observation text remain available if the model fails to load.
+
+A guided session retains the free control position, camera angle, animation phase and pause setting. Each factor trial restores the burning baseline, accepts an optional prediction, and uses the same observation point for guided dragging and the skip button. The adult help explains the mapping and the purpose of the baseline. Trial answers exist only in memory.
 
 ## Smoke model
 

@@ -11,12 +11,13 @@ const helpContent = `
     <h2 id="triangle-help-title">So geht’s</h2>
     <button type="button" class="close compact" aria-label="Schließen" data-close>${icon('close')}</button>
   </header>
-  <p>Zieh den Knopf im Dreieck oder tippe auf einen Punkt. Bewegst du ihn zum Beispiel vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff.</p>
-  <p>Zieh seitlich über die Ofenscheibe, um den Ofen von einer anderen Seite zu sehen. Mit „Lernimpuls“ kannst du die drei Seiten des Dreiecks nacheinander untersuchen.</p>
+  <p>Hier ist Holz der Brennstoff. Der Sauerstoff kommt aus der Luft.</p>
+  <p>Zieh den Knopf im Dreieck oder tippe auf einen Punkt. Ziehst du ihn vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff. In der Mitte siehst du wieder das Feuer vom Anfang.</p>
+  <p>Zieh seitlich über die Ofenscheibe, um den Ofen zu drehen. Mit „Lernimpuls“ startest du drei kurze Versuche.</p>
   <details><summary>Für Erwachsene</summary>
     <p>Die Mitte steht für genügend Wärme, Sauerstoff und Brennstoff. Die Abstände sind Modellwerte. Das Dreieck gibt keine Mengenverhältnisse für einen echten Brand an.</p>
-    <p>Jede Einstellung zeigt dasselbe Holz unter den gewählten Bedingungen. Die Ausgangsszene enthält bereits brennendes Holz. Die Rückkehr zur Mitte zeigt diesen Ausgangszustand erneut.</p>
-    <p>Beim Erhitzen setzt Holz brennbare Gase frei. Am Ende des Brennstoffversuchs liefert der verkohlte Rest zu wenig Gas für eine Flamme. Holzkohle kann bei genügend Wärme und Sauerstoff weiterglühen.</p>
+    <p>Jeder Versuch beginnt mit einem brennenden Stück Holz. Der Knopf wechselt zwischen Vergleichsbildern. Beim Brennstoff zeigt er, wie viel Holz schon verbrannt ist.</p>
+    <p>Heißes Holz setzt brennbare Gase frei. Diese brennen in der Flamme. Holzkohle kann danach ohne Flamme weiterglühen. Bei vollständigem Ausbrand bleibt Asche zurück.</p>
     <p>Mit der Tabulatortaste erreichst du den Knopf. Die Pfeiltasten verschieben ihn, Pos1 bringt ihn zurück in die Mitte.</p>
   </details>
   <button class="action" type="button" data-close>Verstanden</button>`
@@ -150,7 +151,7 @@ export function mountTriangle(root: HTMLElement) {
     restorePlayback = undefined
     instrument.setViewAngle(STOVE_START_ANGLE)
     refresh()
-    announcer.textContent = 'Das Holz brennt wieder. Der Knopf liegt in der Mitte.'
+    announcer.textContent = 'Der Knopf liegt in der Mitte. Du siehst wieder das Feuer vom Anfang.'
   }
   element('triangle-help').onclick = () => {
     dialog.showModal()

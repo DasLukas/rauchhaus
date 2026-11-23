@@ -1,15 +1,13 @@
 import {
   AnimationMixer,
-  Color,
+  type Color,
   DirectionalLight,
   type Group,
   HemisphereLight,
   LoadingManager,
-  type Material,
   Mesh,
   MeshStandardMaterial,
   NeutralToneMapping,
-  type Object3D,
   OrthographicCamera,
   PCFShadowMap,
   PointLight,
@@ -19,6 +17,7 @@ import {
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { releaseMeshes } from '../scene/dispose'
 import { STOVE_START_ANGLE, type TriangleReading } from './experiment'
+import { bindFuel } from './fuel'
 
 /** Horizontal orbit is intentionally limited to keep the glass, log and flames in view. */
 export const STOVE_ORBIT_LIMIT = Math.PI / 9
@@ -29,62 +28,6 @@ export interface StoveView {
   setAngle(radians: number): void
   capturePlayback(): () => void
   dispose(): void
-}
-
-/**
- * Bind the authored wood surfaces to the remaining fuel. Preserve each grain/bark tone as
- * it darkens and develops a thin ash finish. Materials also used by the stove are isolated.
- */
-export function bindWoodFinish(model: Object3D, wood: Object3D): (available: number) => void {
-  const timber = new Set<Mesh>()
-  wood.traverse((object) => {
-    if (object instanceof Mesh) timber.add(object)
-  })
-  const outside = new Set<Material>()
-  model.traverse((object) => {
-    if (object instanceof Mesh && !timber.has(object)) {
-      for (const material of [object.material].flat()) outside.add(material)
-    }
-  })
-  const copies = new Map<MeshStandardMaterial, MeshStandardMaterial>()
-  const finishes = new Map<MeshStandardMaterial, { fresh: Color; char: Color; ash: Color }>()
-  function prepare(source: Material): Material {
-    if (!(source instanceof MeshStandardMaterial)) return source
-    let material = source
-    if (outside.has(source)) {
-      material = copies.get(source) ?? source.clone()
-      copies.set(source, material)
-    }
-    if (!finishes.has(material)) {
-      const fresh = material.color.clone()
-      const lightness = 0.2126 * fresh.r + 0.7152 * fresh.g + 0.0722 * fresh.b
-      const charcoal = 0.013 + 0.15 * lightness
-      const ash = 0.026 + 0.64 * lightness
-      finishes.set(material, {
-        fresh,
-        char: new Color(charcoal * 1.1, charcoal, charcoal * 0.96),
-        ash: new Color(ash * 1.05, ash, ash * 0.94),
-      })
-    }
-    return material
-  }
-  for (const part of timber) {
-    part.material = Array.isArray(part.material)
-      ? part.material.map(prepare)
-      : prepare(part.material)
-  }
-  let previousFuel = -1
-  return (available) => {
-    if (available === previousFuel) return
-    previousFuel = available
-    const char = Math.min(1, (1 - available) / 0.7)
-    const ash = Math.max(0, 1 - available / 0.4)
-    for (const [material, finish] of finishes)
-      material.color
-        .copy(finish.fresh)
-        .lerp(finish.char, char)
-        .lerp(finish.ash, ash * ash)
-  }
 }
 
 /**
@@ -101,6 +44,7 @@ export async function createStove(
   const renderer = new WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' })
   renderer.setClearColor(0, 0)
   renderer.toneMapping = NeutralToneMapping
+  renderer.localClippingEnabled = true
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = PCFShadowMap
   renderer.shadowMap.autoUpdate = false
@@ -193,7 +137,7 @@ export async function createStove(
         if (object instanceof Mesh) object.castShadow = object.receiveShadow = false
       })
     renderer.shadowMap.needsUpdate = true
-    const setWoodFinish = bindWoodFinish(root, wood)
+    const setFuel = bindFuel(root, wood, coals, fire)
     const fireScale = fire.scale.clone()
     const emission = new Map<MeshStandardMaterial, { strength: number; baseColor: Color }>()
     coals.traverse((object) => {
@@ -233,11 +177,11 @@ export async function createStove(
       if (cooling) residual = Math.max(0, residual - dt / 4)
       if (dirty || animate || cooling) {
         const { flame, availability } = reading
-        setWoodFinish(availability.fuel)
+        if (setFuel(availability.fuel)) renderer.shadowMap.needsUpdate = true
         fire.visible = flame > 0
         fire.scale.copy(fireScale)
         fire.scale.x *= 0.48 + 0.52 * flame
-        fire.scale.y *= Math.sqrt(flame)
+        fire.scale.y *= flame
         glow = Math.max(residual, Math.sqrt(flame)) * availability.heat * availability.fuel
         coals.visible = glow > 0.025
         for (const [material, original] of emission) {

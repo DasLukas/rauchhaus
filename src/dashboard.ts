@@ -3,14 +3,14 @@ import { icon } from './ui/icons'
 
 const lessons = [
   {
+    id: 'verbrennungsdreieck',
+    title: 'Verbrennungsdreieck',
+    description: 'Verschiebe den Knopf. Entdecke, was ein Feuer zum Brennen braucht.',
+  },
+  {
     id: 'brandhaus',
     title: 'Brandhaus',
     description: 'Öffne und schließe Türen. Entdecke, wie sich Rauch im Haus ausbreitet.',
-  },
-  {
-    id: 'verbrennungsdreieck',
-    title: 'Verbrennungsdreieck',
-    description: 'Verschiebe den Knopf. Entdecke, was ein Holzfeuer zum Brennen braucht.',
   },
 ] as const
 

@@ -1,6 +1,36 @@
 // Exercise the learning pages with the same isolated Chrome session as the house suite.
 import assert from 'node:assert/strict'
 
+// Measure the bright tongues above the intact log at the starting camera angle.
+async function renderedFlameHeight(page, screenshot) {
+  return page.evaluate(async (url) => {
+    const image = new Image()
+    image.src = url
+    await image.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(image, 0, 0)
+    const { data } = ctx.getImageData(0, 0, image.width, image.height)
+    let top = image.height
+    let bottom = -1
+    for (let y = Math.floor(image.height * 0.15); y < image.height * 0.70; y++) {
+      let lit = 0
+      for (let x = Math.floor(image.width * 0.15); x < image.width * 0.82; x++) {
+        const i = 4 * (y * image.width + x)
+        const red = data[i], green = data[i + 1], blue = data[i + 2]
+        if (red > 211 && green > 125 && red - blue > 58 && green - blue > 36) lit++
+      }
+      if (lit >= 2) {
+        top = Math.min(top, y)
+        bottom = y
+      }
+    }
+    return Math.max(0, bottom - top + 1)
+  }, `data:image/png;base64,${screenshot.toString('base64')}`)
+}
+
 async function renderedDifference(page, first, second) {
   const images = [first, second].map((buffer) => `data:image/png;base64,${buffer.toString('base64')}`)
   return page.evaluate(async (urls) => {
@@ -113,6 +143,13 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
 
   const board = await page.locator('.triangle-board').boundingBox()
   const tip = { x: board.x + board.width / 2, y: board.y + board.height * .045 }
+  // At the middle of the base both heat and oxygen are lower. Match the child's marked position.
+  await page.mouse.click(board.x + board.width * .495, board.y + board.height * .935)
+  assert.equal(await instrument.getAttribute('data-fire-state'), 'weak')
+  const fullHeight = await renderedFlameHeight(page, centre)
+  const weakHeight = await renderedFlameHeight(page, await scene())
+  assert.ok(weakHeight > 0 && weakHeight < fullHeight * .72,
+    `The smaller-flames caption must show visibly shorter flames (${weakHeight}/${fullHeight} px)`)
   await page.mouse.click(board.x + board.width * .875, board.y + board.height * .93)
   assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
   const cooled = await scene()
@@ -128,8 +165,8 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
   const spent = await scene()
   assert.ok(await renderedDifference(page, cooled, spent) > 100,
-    'The unlit log should look different when fuel is spent than when it is just cold')
-  await capture('ofen-verkohlt')
+    'The ash residue should look different from the intact, cooled log')
+  await capture('ofen-ascherest')
   await stove.press('ArrowLeft')
   const beforeLesson = await scene()
   const originalPosition = await knob.getAttribute('style')
@@ -173,7 +210,7 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   }
   assert.equal(await study.isHidden(), true)
   assert.equal(await knob.getAttribute('style'), originalPosition)
-  assert.ok(await renderedDifference(page, beforeLesson, await scene()) < 5, 'Leaving the lesson must restore the charred log and camera angle')
+  assert.ok(await renderedDifference(page, beforeLesson, await scene()) < 5, 'Leaving the lesson must restore the ash residue and camera angle')
   await button('Neu starten').click()
   await button('Hilfe').click()
   await page.getByText('Für Erwachsene', { exact: true }).click()

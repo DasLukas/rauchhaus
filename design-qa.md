@@ -10,7 +10,7 @@ The starting camera shows the stove door, top and right side. Children turn the 
 
 The observation area reserves space for the longest wrapped caption at each screen width. The browser test compares the stove canvas bounds before and after cooling the log, including a change from one line of detail to two at 1024 × 768.
 
-The fuel comparison changes the appearance of the full log resting on the grate. The wood darkens and an ash-grey grain becomes visible at the end of the comparison. Moving away from heat instead leaves cooled, brown wood. The guided activity asks children to look for these differences directly through the stove window.
+In the fuel comparison the top of the log recedes while the lower bark stays in place. A little ash remains at the end. In the cooling trial the flames go out while the log is still visible at its original size. Children can identify each outcome through the stove window.
 
 ## Responsive layout and checks
 

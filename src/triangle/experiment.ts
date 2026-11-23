@@ -24,6 +24,7 @@ export interface TriangleReading {
   readonly availability: Readonly<Record<TriangleFactor, number>>
   readonly limitingFactor: TriangleFactor | null
   readonly state: 'steady' | 'weak' | 'out'
+  /** Visible flame height relative to the burning log at the centre. */
   readonly flame: number
 }
 
@@ -94,14 +95,19 @@ export function readTriangle(input: TrianglePoint): TriangleReading {
     availability[factor] < availability[lowest] ? factor : lowest,
   )
   const minimum = availability[least]
-  // A small central band tolerates finger imprecision, and the last part of travel shows extinction.
-  const t = clamp((minimum - 0.16) / (0.86 - 0.16))
-  const flame = t * t * (3 - 2 * t)
+  // The caption starts calling the flames smaller once their height has dropped by a third.
+  // Interpolate on both sides of that point so a small drag never jumps between two sizes.
+  const extinction = 0.16
+  const weakThreshold = 0.86
+  const weakHeight = 0.66
+  const sustained = clamp((minimum - extinction) / (weakThreshold - extinction))
+  const nearCentre = clamp((minimum - weakThreshold) / (0.98 - weakThreshold))
+  const flame = weakHeight * sustained + (1 - weakHeight) * nearCentre
   return {
     point,
     availability,
-    limitingFactor: t === 1 ? null : least,
-    state: t === 1 ? 'steady' : t === 0 ? 'out' : 'weak',
+    limitingFactor: sustained === 1 ? null : least,
+    state: sustained === 1 ? 'steady' : sustained === 0 ? 'out' : 'weak',
     flame,
   }
 }

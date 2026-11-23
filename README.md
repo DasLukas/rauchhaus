@@ -8,7 +8,7 @@ Two German, touch-first fire science activities for primary-school children aged
 
 Open `?modul=verbrennungsdreieck`. Drag the knob or tap a point in the triangle. Moving farther from an edge reduces the corresponding condition. In the centre all three are sufficient. The thermometer stands for heat, the wind symbol for oxygen and the log for fuel. The adjacent stove shows the effect on wood, flame and glow. The stove starts at a slight angle so its front and right side are visible. Drag directly on the stove or focus it and use the left and right arrow keys to look around. Home restores its starting view. With the knob focused, arrow keys move it and Home centres it.
 
-Choose **Lernimpuls** for three short trials. Each starts with the same burning log. Follow the arrow with the knob or press **Zeigen** to see what changes. With less oxygen the flames become smaller. Cooling leaves brown wood, while using up the fuel leaves a charred log. Press **Weiter** for the next trial. **Fertig** and the close button return to the original free experiment and viewing angle.
+Choose **Lernimpuls** for three short trials. Each starts with the same burning log. Follow the arrow with the knob or press **Zeigen** to see what changes. With less oxygen the flames become smaller. Cooling puts out the flames and leaves the wood in place. In the fuel trial the log burns away from the top down until only a little ash remains. Press **Weiter** for the next trial. **Fertig** and the close button return to the original free experiment and viewing angle.
 
 ![The triangular control beside a burning log in the 3D stove](docs/verbrennungsdreieck.webp)
 

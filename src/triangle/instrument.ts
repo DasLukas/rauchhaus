@@ -88,12 +88,12 @@ function boardMarkup(): string {
 
 const observations = {
   steady: ['Das Holz brennt.', 'Über dem glühenden Holz steigen Flammen auf.'],
-  'weak-heat': ['Die Flammen sind kleiner.', 'Es ist weniger Wärme verfügbar.'],
-  'weak-oxygen': ['Die Flammen sind kleiner.', 'Es ist weniger Sauerstoff verfügbar.'],
-  'weak-fuel': ['Die Flammen sind kleiner.', 'Das Scheit wird dunkler. Ein Teil des Holzes ist schon verbrannt.'],
-  'out-heat': ['Die Flammen sind aus.', 'Das braune Holz ist noch da. Es ist zu kühl zum Weiterbrennen.'],
-  'out-oxygen': ['Die Flammen sind aus.', 'Der Sauerstoff reicht nicht mehr zum Weiterbrennen der Flammen.'],
-  'out-fuel': ['Die Flammen sind aus.', 'Auf dem verkohlten Rest liegt graue Asche.'],
+  'weak-heat': ['Die Flammen sind kleiner.', 'Das Holz kühlt ab.'],
+  'weak-oxygen': ['Die Flammen sind kleiner.', 'Das Feuer bekommt weniger Sauerstoff aus der Luft.'],
+  'weak-fuel': ['Die Flammen sind kleiner.', 'Ein Teil des Holzes ist schon verbrannt.'],
+  'out-heat': ['Die Flammen sind aus.', 'Das Holz ist noch da. Es ist jetzt zu kühl, um weiterzubrennen.'],
+  'out-oxygen': ['Die Flammen sind aus.', 'Für die Flammen ist zu wenig Sauerstoff da.'],
+  'out-fuel': ['Die Flammen sind aus.', 'Im Ofen liegt jetzt Asche.'],
 } as const
 
 export interface TriangleInstrument {

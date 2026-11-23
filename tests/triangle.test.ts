@@ -49,6 +49,23 @@ describe('triangle control', () => {
     },
   )
 
+  it('makes the flames visibly shorter at the bottom edge and across the smaller-flames caption', () => {
+    const base = readTriangle({ x: 0.495, y: TRIANGLE_HEIGHT })
+    expect(base).toMatchObject({ state: 'weak', limitingFactor: 'oxygen' })
+    expect(base.flame).toBeLessThan(0.60)
+
+    const justBefore = readTriangle(factorPoint('oxygen', 0.139))
+    const justAfter = readTriangle(factorPoint('oxygen', 0.141))
+    expect(justBefore.state).toBe('steady')
+    expect(justAfter.state).toBe('weak')
+    expect(justBefore.flame - justAfter.flame).toBeLessThan(0.01)
+    // Each animated tongue can vary by up to 18% from its authored height.
+    expect(justAfter.flame * 1.18).toBeLessThan(0.82)
+    const guided = readTriangle(factorPoint('oxygen', 0.65))
+    expect(guided.flame).toBeGreaterThan(0.15)
+    expect(guided.flame).toBeLessThan(base.flame)
+  })
+
   it('keeps the same orthogonal endpoint on a slanted edge when the pointer leaves the control', () => {
     const leftMidpoint = { x: 0.25, y: TRIANGLE_HEIGHT / 2 }
     const outside = { x: leftMidpoint.x - TRIANGLE_HEIGHT * 0.2, y: leftMidpoint.y - 0.1 }

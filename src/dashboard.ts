@@ -20,8 +20,8 @@ export function mountDashboard(root: HTMLElement): void {
   root.innerHTML = `
     <section class="lesson-dashboard" aria-labelledby="dashboard-heading">
       <header class="dashboard-heading">
-        <h1 id="dashboard-heading"><img src="${base}haus.svg" width="58" height="58" alt="">Brandschutz entdecken</h1>
-        <p>Welche Lektion möchtest du erkunden?</p>
+        <h1 id="dashboard-heading"><img src="${base}haus.svg" width="58" height="58" alt=""><span>Brandschutzfrüherziehung</span></h1>
+        <p>Entdecke, wie Feuer entsteht und was du tun kannst, wenn es brennt.</p>
       </header>
       <nav class="lesson-cards" aria-label="Lektion auswählen">
         ${lessons.map(({ id, title, description }) => `

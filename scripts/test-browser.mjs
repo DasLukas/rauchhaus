@@ -59,7 +59,7 @@ try {
   await page.goto(dashboardUrl)
   const houseCard = page.getByRole('link', { name: /^Brandhaus\b/ })
   await houseCard.waitFor()
-  assert.match(await page.title(), /Brandschutz entdecken/)
+  assert.match(await page.title(), /Brandschutzfrüherziehung/)
   assert.equal(modelRequests.size, 0, 'The dashboard must not load a house model')
   await houseCard.click()
   await page.getByRole('heading', { name: 'Brandhaus', exact: true }).waitFor()

@@ -8,10 +8,10 @@ root.dataset.page = page
 
 async function openPage() {
   if (page === 'brandhaus') {
-    document.title = 'Brandhaus · Brandschutz entdecken'
+    document.title = 'Brandhaus · Brandschutzfrüherziehung'
     await import('./brandhaus')
   } else if (page === 'verbrennungsdreieck') {
-    document.title = 'Verbrennungsdreieck · Brandschutz entdecken'
+    document.title = 'Verbrennungsdreieck · Brandschutzfrüherziehung'
     const { mountTriangle } = await import('./triangle')
     mountTriangle(root)
   } else {

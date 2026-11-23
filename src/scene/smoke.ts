@@ -28,7 +28,7 @@ import {
   SOURCES,
   type SourceId,
 } from '../simulation'
-import { sampleGasPair } from '../simulation/gas-flame'
+import { sampleGasBursts } from '../simulation/gas-flame'
 import { fireShader } from './fire'
 import { fuelSurfaces } from './fuels'
 
@@ -303,7 +303,7 @@ const fragmentShader = `
     float smokeDepth = extinction * textureDensity;
     float totalDepth = smokeDepth;
     #ifdef SHOW_FIRE
-    float wispDepth = inside ? upholsteryWisp() : 0.0;
+    float wispDepth = inside ? surfaceWisps() : 0.0;
     totalDepth += fire.x + wispDepth;
     #endif
     float alpha = 1.0 - exp(-totalDepth * pathLength * coverage);
@@ -385,7 +385,7 @@ export class SmokeVolumes extends Group {
         fireAmounts: { value: new Vector3() },
         firstBurst: { value: new Vector4() },
         secondBurst: { value: new Vector4() },
-        upholsteryGas: { value: 0 },
+        surfaceGas: { value: 0 },
         fuelSurfaces: { value: patches },
         flameTime: { value: 0 },
         openings: { value: portals.length ? portals : [new Vector4()] },
@@ -432,13 +432,14 @@ export class SmokeVolumes extends Group {
       if (fire && active) {
         u.fireAmounts.value.set(fire.sourceIntensity, fire.rollover, fire.involvement)
         u.flameTime.value = reducedMotion ? 0 : snapshot.elapsed
-        u.upholsteryGas.value = room.id === 'living' ? fire.outgassing : 0
+        u.surfaceGas.value = fire.outgassing
         if (fire.rollover > 0) {
-          const pair = sampleGasPair(snapshot.elapsed, active.id)
+          const bursts = sampleGasBursts(snapshot.elapsed, active.id, fire.burstSeed)
           // Reserve separate bands above the seating, clear of the detector and TV.
           const centres = HOUSE_VARIANT === 'klein' ? [0.63, 0.79] : [0.19, 0.69]
-          for (const [i, burst] of pair.entries()) {
-            const x = centres[i] + (burst.x - 0.5) * 0.075
+          u.secondBurst.value.z = 0
+          for (const [i, burst] of bursts.entries()) {
+            const x = centres[burst.band] + (burst.x - 0.5) * 0.075
             const z = room.minZ + (room.maxZ - room.minZ) * (0.57 + 0.12 * burst.z)
             const uniform = i === 0 ? u.firstBurst : u.secondBurst
             uniform.value.set(x, z, burst.strength, reducedMotion ? 0.5 : burst.progress)

@@ -1,11 +1,12 @@
 /** Observable fire behaviour in the source compartment, in normalized teaching units. */
 export interface FireState {
   readonly phase: 'local' | 'rollover' | 'flashover'
+  readonly burstSeed: number
   /** Visible flame strength at the selected object. */
   readonly sourceIntensity: number
   /** Flaming gas at the interface of the upper layer and the air below. */
   readonly rollover: number
-  /** Visible release from the warming upholstery before it ignites. */
+  /** Visible release from the heated fuel surfaces before it ignites. */
   readonly outgassing: number
   /** Strength of secondary flames on exposed room contents after flashover. */
   readonly involvement: number
@@ -19,6 +20,8 @@ const clamp = (value: number) => Math.max(0, Math.min(1, value))
  * combustion, the upper layer heats up, and radiation heats exposed contents.
  */
 export class CompartmentFire {
+  constructor(private readonly burstSeed: number) {}
+
   private burningArea = 0.2
   private air = 1
   private layerHeating = 0
@@ -69,6 +72,7 @@ export class CompartmentFire {
   /** Return a detached view that stays valid across later simulation steps. */
   snapshot(): FireState {
     return Object.freeze({
+      burstSeed: this.burstSeed,
       phase: this.involved ? 'flashover' : this.rollover > 0.02 ? 'rollover' : 'local',
       sourceIntensity: this.intensity,
       rollover: this.rollover,

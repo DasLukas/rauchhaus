@@ -137,6 +137,7 @@ function cell(bounds: Room): Cell {
 // A small, steady fire gives the free exploration and both door trials the same source.
 const LOCAL_FIRE: FireState = Object.freeze({
   phase: 'local',
+  burstSeed: 0,
   sourceIntensity: 0.3,
   outgassing: 0,
   rollover: 0,
@@ -287,7 +288,11 @@ export class SmokeSimulation {
   private remainder = 0
   private cached: SimulationSnapshot | null = null
 
-  constructor(house = HOUSE, private readonly fireScenario: 'local' | 'compartment' = 'local') {
+  constructor(
+    house = HOUSE,
+    private readonly fireScenario: 'local' | 'compartment' = 'local',
+    private readonly burstSeed = 0,
+  ) {
     this.house = house
     this.cells = table(house.rooms, cell)
     this.doors = table(house.doors, (door) => door.initiallyOpen)
@@ -361,7 +366,7 @@ export class SmokeSimulation {
       (opening) =>
         opening.door && (opening.first === this.sourceCell || opening.second === this.sourceCell),
     )
-    this.fire = this.fireScenario === 'compartment' ? new CompartmentFire() : null
+    this.fire = this.fireScenario === 'compartment' ? new CompartmentFire(this.burstSeed) : null
     const [x, y, z] = source.position
     this.plumeRiseTime = (ceilingY(this.sourceCell.bounds, x) - y) / PLUME_RISE_SPEED
     this.sourceCell.front = { x, z, radius: 0, riseRemaining: 0 }

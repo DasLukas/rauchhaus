@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getHouse } from '../src/simulation'
-import { sampleGasPair } from '../src/simulation/gas-flame'
+import { sampleGasBursts } from '../src/simulation/gas-flame'
 import { LearningSession, OBSERVATION_SECONDS } from '../src/ui/session'
 
 describe('free exploration', () => {
@@ -182,6 +182,19 @@ describe('guided door comparison', () => {
 })
 
 describe('guided fire development', () => {
+  it('varies between one and two separated tongues and keeps a paused burst stable', () => {
+    const counts = new Set<number>()
+    for (let slot = 0; slot < 30; slot++) {
+      const elapsed = (slot + 0.5) * 1.55
+      const bursts = sampleGasBursts(elapsed, 's_tv', 42)
+      expect(bursts.every((burst) => burst.strength > 0)).toBe(true)
+      expect(new Set(bursts.map((burst) => burst.band)).size).toBe(bursts.length)
+      expect(sampleGasBursts(elapsed, 's_tv', 42)).toEqual(bursts)
+      counts.add(bursts.length)
+    }
+    expect(counts).toEqual(new Set([1, 2]))
+  })
+
   it.each(['klein', 'gross'] as const)(
     'halts at visible fire in the gas layer and on room contents in the %s house',
     (variant) => {
@@ -197,8 +210,10 @@ describe('guided fire development', () => {
       expect(session.fireObservation).toBe('rollover')
       expect(session.snapshot.fire?.phase).toBe('rollover')
       expect(session.snapshot.fire?.rollover).toBeGreaterThanOrEqual(0.45)
-      for (const burst of sampleGasPair(session.snapshot.elapsed, 's_tv')) {
-        expect(burst.strength).toBeGreaterThanOrEqual(0.72)
+      const fire = session.snapshot.fire
+      expect.assert(fire)
+      for (const burst of sampleGasBursts(session.snapshot.elapsed, 's_tv', fire.burstSeed)) {
+        expect(burst.strength).toBeGreaterThanOrEqual(0.88)
       }
       expect(session.snapshot.fire?.involvement).toBe(0)
       const first = session.snapshot

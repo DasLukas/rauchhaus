@@ -5,7 +5,7 @@ import {
   type SourceId,
   type SimulationSnapshot,
 } from '../simulation'
-import { sampleGasPair } from '../simulation/gas-flame'
+import { sampleGasBursts } from '../simulation/gas-flame'
 
 export type FireObservation = 'rollover' | 'flashover'
 export type LessonStage = 'open' | 'closed' | 'compare' | FireObservation | 'fire-result'
@@ -17,7 +17,7 @@ export const OBSERVATION_SECONDS = 40
 export class LearningSession {
   private readonly free: SmokeSimulation
   private example: SmokeSimulation | null = null
-  showingUpholstery = false
+  showingOutgassing = false
   stage: LessonStage | null = null
   paused = false
   snapshot: SimulationSnapshot
@@ -86,7 +86,7 @@ export class LearningSession {
 
   /** Restore the empty house and its initial doors, and leave any lesson. */
   restart() {
-    this.showingUpholstery = false
+    this.showingOutgassing = false
     this.stage = null
     this.example = null
     this.free.reset()
@@ -104,10 +104,10 @@ export class LearningSession {
     const fire = this.snapshot.fire
     switch (this.stage) {
       case 'rollover':
-        // Hold both visible tongues for discussion during the intermittent gas burning.
+        // Hold the visible tongues for discussion during the intermittent gas burning.
         return Boolean(
           fire && fire.rollover >= 0.45 && this.snapshot.source &&
-          sampleGasPair(this.snapshot.elapsed, this.snapshot.source).every((burst) => burst.strength >= 0.72),
+          sampleGasBursts(this.snapshot.elapsed, this.snapshot.source, fire.burstSeed).every((burst) => burst.strength >= 0.88),
         )
       case 'flashover':
         return Boolean(fire && fire.involvement >= 0.65)
@@ -125,7 +125,9 @@ export class LearningSession {
   /** Start a separate television experiment, starting from the lesson’s initial conditions. */
   beginLesson(lesson: Lesson = 'doors') {
     if (this.stage) return
-    this.example = new SmokeSimulation(this.house, lesson === 'fire' ? 'compartment' : 'local')
+    this.example = lesson === 'fire'
+      ? new SmokeSimulation(this.house, 'compartment', Math.floor(Math.random() * 0x100000000))
+      : new SmokeSimulation(this.house, 'local')
     if (lesson === 'doors') {
       this.startTrial('open')
       return
@@ -151,8 +153,8 @@ export class LearningSession {
     if (!this.stage || this.trialFinished) return
     this.paused = false
     if (this.stage === 'flashover' && !this.snapshot.fire?.involvement) {
-      this.showingUpholstery = true
-      // Seek into the upholstery preview, then let ordinary playback show ignition.
+      this.showingOutgassing = true
+      // Seek into the outgassing preview, then let ordinary playback show ignition.
       for (let i = 0; i < 240 && (this.snapshot.fire?.outgassing ?? 0) < 0.85; i++) {
         this.tick(0.25)
         if (this.snapshot.fire?.involvement) break

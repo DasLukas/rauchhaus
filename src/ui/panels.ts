@@ -59,14 +59,14 @@ const fireIntro = `
 const fireResult = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wo hast du neue Flammen gesehen?</h2>
-  <p>Was brannte, als du die Flammen unter der Decke gesehen hast? Was hast du am Polster gesehen, bevor es Feuer fing?</p>
+  <p>Was brannte, als du die Flammen unter der Decke gesehen hast? Was hast du an den Möbeln gesehen, bevor sie Feuer fingen?</p>
   <button type="button" class="action" data-panel="fireFindings">Ergebnis ansehen ${icon('next')}</button>`
 
 const fireFindings = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wie sich das Feuer im Zimmer ausgebreitet hat</h2>
-    <p>Über dem Fernseher sammelten sich heiße Brandgase. Wo sie sich mit Luft mischten, flammten kurz zwei Flammenzungen auf. Breiten sich die Flammen durch die heiße Gasschicht unter der Decke aus, heißt das <strong>Rollover</strong>.</p>
-    <p>Die Hitze hat auch das Polster erwärmt. Aus dem heißen Material sind Gase ausgetreten, die brennen können. Im Modell zeigen das die feinen Schlieren. So kann das Polster Feuer fangen, obwohl die Flammen vom Fernseher es gar nicht berühren.</p>
+    <p>Über dem Fernseher sammelten sich heiße Brandgase. Wo sie sich mit Luft mischten, waren kurz Flammenzungen zu sehen. Breiten sich die Flammen durch die heiße Gasschicht unter der Decke aus, heißt das <strong>Rollover</strong>.</p>
+    <p>Die Hitze erwärmt auch Polster, Holz und Stoff im Zimmer. Aus diesen Materialien können brennbare Gase austreten. Im Modell machen die hellen Schlieren das sichtbar. So können auch Möbel Feuer fangen, die die Flammen vom Fernseher noch gar nicht berührt haben.</p>
     <p>Fast gleichzeitig fingen Möbel, Stoffe und sogar die Blätter der Pflanze im Modell Feuer. Diesen Übergang zum Vollbrand nennt man <strong>Raumdurchzündung</strong> oder <strong>Flashover</strong>.</p>
     <p>Jeder Brand kann anders verlaufen. Die Zeit im Modell ist für die Vorführung verkürzt.</p>
   <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`

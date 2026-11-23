@@ -3,20 +3,27 @@ export const fireShader = `
   uniform vec3 fireAmounts; // source, gas flames, additional burning surfaces
   uniform vec4 fuelSurfaces[FUEL_COUNT]; // xyz at the actual surface, w = burning width
   uniform vec4 firstBurst, secondBurst; // room X fraction, absolute Z, envelope strength, burst progress
-  uniform float upholsteryGas;
+  uniform float surfaceGas;
   uniform float flameTime;
   uniform float sliceDepth;
 
-  // A translucent tracer rising from the upholstered seat in the living room.
-  float upholsteryWisp() {
-    if (upholsteryGas <= 0.0) return 0.0;
-    vec3 d = point - (fuelSurfaces[0].xyz + vec3(0.12, 0.0, 0.17));
-    float h = d.y / 0.78;
-    if (h <= 0.0 || h >= 1.0 || abs(d.x) > 0.38 || abs(d.z) > 0.38) return 0.0;
-    float centre = 0.16 * sin(7.0 * h - flameTime * 2.0) * h;
-    float x = (d.x - centre) / (0.055 + h * 0.075);
-    float z = max(0.0, abs(d.z) - sliceDepth * 0.50) / 0.1;
-    return 3.0 * upholsteryGas * exp(-x*x - z*z) * smoothstep(0.0, 0.09, h) * (1.0 - smoothstep(0.44, 1.0, h));
+  // Pale tracers make the release of gas from exposed fuel surfaces visible.
+  float surfaceWisps() {
+    if (surfaceGas <= 0.0) return 0.0;
+    float density = 0.0;
+    for (int i = 0; i < FUEL_COUNT; ++i) {
+      vec4 fuel = fuelSurfaces[i];
+      vec3 d = point - fuel.xyz;
+      float h = d.y / (0.38 + 0.82 * fuel.w);
+      if (fuel.w <= 0.0 || h <= 0.0 || h >= 1.0 || abs(d.x) > 0.46 || abs(d.z) > 0.40) continue;
+      float phase = 3.1 * fuel.x + 2.3 * fuel.z - 2.0 * flameTime;
+      float curl = h * (0.14 * sin(7.0 * h + phase) + 0.045 * sin(13.0 * h + phase));
+      float x = (d.x - curl) / (0.045 + 0.07 * fuel.w + h * 0.08);
+      float z = max(0.0, abs(d.z) - sliceDepth * 0.5) / 0.13;
+      density += (2.3 + 4.1 * fuel.w) * exp(-x*x - z*z)
+               * smoothstep(0.0, 0.08, h) * (1.0 - smoothstep(0.40, 1.0, h));
+    }
+    return surfaceGas * density;
   }
 
   // Returns optical density and density-weighted hot core.

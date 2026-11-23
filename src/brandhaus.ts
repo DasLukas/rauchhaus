@@ -42,12 +42,12 @@ const fireSteps = {
   rollover: {
     name: '1 von 2 · Unter der Decke',
     prompt: 'Wo siehst du Flammen, obwohl dort kein Möbelstück brennt?',
-    observation: 'Zwei Flammenzungen unter der Rauchschicht.',
+    observation: 'Unter der Decke flammt der heiße Rauch auf.',
     next: 'Weiter beobachten',
   },
   flashover: {
     name: '2 von 2 · Im ganzen Zimmer',
-    prompt: HOUSE_VARIANT === 'klein' ? 'Schau auf das rote Sofa. Was siehst du vor den Flammen?' : 'Schau auf den Sessel. Was siehst du vor den Flammen?',
+    prompt: HOUSE_VARIANT === 'klein' ? 'Schau auf Sofa, Tisch und Teppich. Was steigt dort auf?' : 'Schau auf Sessel und Teppich. Was steigt dort auf?',
     observation: 'Jetzt brennt es im ganzen Zimmer (Flashover).',
     next: 'Beobachtung besprechen',
   },
@@ -67,7 +67,7 @@ function refresh() {
   lesson.setAttribute('aria-expanded', String(Boolean(session.stage)))
   app.classList.toggle('learning', Boolean(session.stage))
   trial.hidden = !session.stage || session.stage === 'compare' || session.stage === 'fire-result'
-  const showingTransition = session.showingUpholstery && !session.trialFinished
+  const showingTransition = session.showingOutgassing && !session.trialFinished
   element<HTMLButtonElement>('trial-next').disabled = showingTransition
   if (session.fireObservation) {
     const step = fireSteps[session.fireObservation]
@@ -191,7 +191,7 @@ function showError() {
 
 function fireObservationAnnouncement() {
   return session.fireObservation === 'rollover'
-    ? 'Im heißen Rauch unter der Decke sind zwei Flammenzungen aufgeflammt. Der Versuch pausiert.'
+    ? 'Im heißen Rauch unter der Decke sind kurz Flammen zu sehen. Der Versuch pausiert.'
     : 'Raumdurchzündung. Im Zimmer brennen jetzt auch die Möbel und die Pflanze. Der Versuch pausiert.'
 }
 

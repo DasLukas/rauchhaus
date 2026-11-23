@@ -33,6 +33,10 @@ const result = `
 const smokeFindings = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Eine geschlossene Tür bremst den Rauch.</h2>
+  <div class="door-comparison">
+    <figure data-view="open"><figcaption>Tür offen</figcaption></figure>
+    <figure data-view="closed"><figcaption>Tür geschlossen</figcaption></figure>
+  </div>
   <p>Durch die offene Tür zog mehr Rauch ins Treppenhaus. Auch wenn du die Tür später schließt, bleibt der Rauch, der schon im Treppenhaus ist.</p>
   <p><strong>Das kannst du dir merken</strong><br>Wenn du bei einem Brand einen Raum verlässt, zieh die Tür hinter dir zu. So breitet sich der Rauch langsamer aus. Geh dafür nie zurück. Geh auch nie in ein verrauchtes Treppenhaus, selbst wenn du dort keine Flammen siehst.</p>
   <p>Rauchmelder erkennen Rauch früh und piepen laut. So können sie dich auch im Schlaf warnen.</p>
@@ -75,13 +79,28 @@ const panels = { help, lessons, intro, result, smokeFindings, fireIntro, fireRes
 export type PanelKind = keyof typeof panels
 
 /** Show a native modal and report the selected lesson when it closes. */
-export function showPanel(kind: PanelKind, onClose: (lesson: Lesson | null) => void) {
+export function showPanel(
+  kind: PanelKind,
+  onClose: (lesson: Lesson | null) => void,
+  doorViews: Partial<Record<'open' | 'closed', HTMLCanvasElement>>,
+) {
   const dialog = element<HTMLDialogElement>('sheet')
   const body = element('sheet-body')
   if (dialog.open) return
   let selected: Lesson | null = null
   function render(panel: PanelKind) {
     body.innerHTML = panels[panel]
+    if (panel === 'smokeFindings') {
+      for (const door of ['open', 'closed'] as const) {
+        const image = doorViews[door]
+        if (!image) continue
+        image.setAttribute('role', 'img')
+        image.setAttribute('aria-label', door === 'open'
+          ? 'Rauch verdeckt den oberen Teil der Treppe vor der Brandwohnung.'
+          : 'Die Treppe vor der Brandwohnung ist klar zu sehen.')
+        body.querySelector(`[data-view="${door}"]`)?.append(image)
+      }
+    }
     for (const button of body.querySelectorAll<HTMLButtonElement>('[data-close]')) {
       button.onclick = () => dialog.close()
     }

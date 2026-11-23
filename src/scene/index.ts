@@ -59,6 +59,7 @@ export interface HouseScene {
   focusFloor(floor: number, x?: number): void
   /** Restore the original cutaway view and yaw. */
   resetView(): void
+  captureLanding(snapshot: SimulationSnapshot): HTMLCanvasElement
   /** Stop animation, detach event handlers and release graphics resources. */
   dispose(): void
 }
@@ -235,6 +236,33 @@ export async function createHouseScene(
         projections.push({ id, x, y, visible })
       }
       callbacks.onProject(projections)
+    }
+
+    function captureLanding(snapshot: SimulationSnapshot): HTMLCanvasElement {
+      const image = document.createElement('canvas')
+      image.width = 540
+      image.height = 360
+      const view = new HouseCamera()
+      view.resize(image.width, image.height)
+      const landing = ROOMS.find((room) => room.id === 'stair1')
+      if (landing) view.focus(landing.floor, (landing.minX + landing.maxX) / 2)
+      view.update(0, true)
+
+      // Skipping to the result can precede the next animation frame. Apply the
+      // final smoke and door positions before copying the WebGL drawing buffer.
+      smoke?.update(snapshot, reducedMotion.matches)
+      for (const { id, object, angle, rest } of hinges) {
+        const rotation = snapshot.doors[id] ? angle : 0
+        object.quaternion.copy(rest)
+        object.rotateOnAxis(axis, rotation)
+        opening.set(id, rotation)
+      }
+      renderer.shadowMap.needsUpdate = true
+      renderer.render(scene, view.camera)
+      image.getContext('2d')?.drawImage(canvas, 0, 0, image.width, image.height)
+      renderer.render(scene, camera.camera)
+      forceRender = true
+      return image
     }
 
     function resize(): void {
@@ -460,7 +488,7 @@ export async function createHouseScene(
     resizeObserver.observe(host)
     resize()
     request = requestAnimationFrame(frame)
-    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, dispose }
+    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, captureLanding, dispose }
   } catch (error) {
     dispose()
     throw error

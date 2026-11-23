@@ -448,6 +448,28 @@ nav,
   border-radius: 25px;
   box-shadow: 0 16px 60px #163c4344;
 }
+#sheet:has(.door-comparison) {
+  width: min(720px, calc(100% - 28px));
+}
+.door-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 2vw, 16px);
+  margin: 14px 0;
+}
+.door-comparison figure {
+  margin: 0;
+}
+.door-comparison figcaption {
+  font-weight: 850;
+  margin-bottom: 4px;
+}
+.door-comparison canvas {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  background: #9ee5f5;
+}
 #sheet::backdrop {
   background: #14374766;
 }

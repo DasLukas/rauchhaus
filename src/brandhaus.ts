@@ -30,6 +30,7 @@ const lesson = element<HTMLButtonElement>('lesson')
 const hint = bindLessonHint(lesson, 'brandhaus')
 const loading = element('load-state')
 let scene: HouseScene | undefined
+const doorViews: Partial<Record<'open' | 'closed', HTMLCanvasElement>> = {}
 let modal = false
 let detectorState = ''
 let ready = false
@@ -125,7 +126,7 @@ function openPanel(kind: PanelKind) {
     } else if (kind === 'result' || kind === 'fireResult') endLesson()
     refresh()
     if (selected) element('trial-next').focus({ preventScroll: true })
-  })
+  }, doorViews)
 }
 
 function activate(id: string) {
@@ -148,6 +149,9 @@ element('trial-next').onclick = () => {
     if (session.trialFinished) announce(session.fireObservation ? fireObservationAnnouncement() : 'Beobachtung beendet.')
     else announce(fireSteps.flashover.prompt)
   } else {
+    if (scene && (session.stage === 'open' || session.stage === 'closed')) {
+      doorViews[session.stage] = scene.captureLanding(session.snapshot)
+    }
     session.nextTrial()
     if (session.stage === 'compare') openPanel('result')
     else if (session.stage === 'fire-result') openPanel('fireResult')

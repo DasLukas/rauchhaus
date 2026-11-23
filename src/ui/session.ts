@@ -10,8 +10,8 @@ import { sampleGasBursts } from '../simulation/gas-flame'
 export type FireObservation = 'rollover' | 'flashover'
 export type LessonStage = 'open' | 'closed' | 'compare' | FireObservation | 'fire-result'
 export type Lesson = 'doors' | 'fire'
-// Allow the layer to become visible one landing above the television.
-export const OBSERVATION_SECONDS = 40
+// Stop both door trials when the open-door smoke layer covers much of the upper stairwell.
+export const OBSERVATION_SECONDS = 50
 
 /** Owns the free experiment and an isolated simulation for each guided lesson. */
 export class LearningSession {

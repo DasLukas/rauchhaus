@@ -7,122 +7,54 @@ import {
   type TrianglePoint,
 } from './experiment'
 
-export type TrianglePhase = 'free' | 'predict' | 'explore' | 'discuss' | 'transfer' | 'result'
-
-export const predictionLabels = {
-  steady: 'Große Flammen',
-  weak: 'Kleinere Flammen',
-  wood: 'Braunes Holz ohne Flammen',
-  charred: 'Dunkler Rest ohne Flammen',
-} as const
-
-export type Prediction = keyof typeof predictionLabels
-
-interface Observation {
-  deficiency: number
-  direction: string
-  observation: string
-}
-
-interface Comparison {
+interface Trial {
   factor: TriangleFactor
   title: string
-  prediction: string
-  choices: readonly Prediction[]
-  observations: readonly Observation[]
+  prompt: string
+  observation: string
+  deficiency: number
 }
 
-const comparisons: readonly Comparison[] = [
+const trials: readonly Trial[] = [
   {
     factor: 'oxygen',
     title: 'Weniger Sauerstoff',
-    prediction: 'Was siehst du wohl, wenn das Holz etwas weniger Sauerstoff bekommt?',
-    choices: ['steady', 'weak', 'wood'],
-    observations: [
-      {
-        deficiency: 0.65,
-        direction:
-          'Folge dem Pfeil nach links unten, weg vom Luftzeichen. Schau dabei auf die Flammen.',
-        observation: 'Die Flammen sind kleiner als am Anfang. Wovon hat das Holz noch genug?',
-      },
-      {
-        deficiency: 1,
-        direction: 'Folge dem Pfeil weiter bis zur Ecke. Was passiert jetzt mit Flammen und Glut?',
-        observation:
-          'Die Flammen sind aus. Das heiße Holz kann noch kurz nachglühen. Was war beim ersten Stopp anders?',
-      },
-    ],
+    prompt: 'Zieh den Knopf am Pfeil entlang. Was machen die Flammen?',
+    observation: 'Mit weniger Sauerstoff werden die Flammen kleiner.',
+    deficiency: 0.65,
   },
   {
     factor: 'heat',
     title: 'Weniger Wärme',
-    prediction:
-      'Wieder sehen wir dasselbe Stück Holz. Wie sieht es ohne die nötige Wärme zum Brennen aus?',
-    choices: ['wood', 'steady', 'charred'],
-    observations: [
-      {
-        deficiency: 1,
-        direction: 'Bewege den Knopf vom Thermometer weg. Schau auf das Holz und auf die Flammen.',
-        observation:
-          'Das braune Holz liegt noch im Ofen. Es ist zum Brennen zu kühl. Woran siehst du das?',
-      },
-    ],
+    prompt: 'Zieh den Knopf vom Thermometer weg. Brennt das Holz weiter?',
+    observation: 'Die Flammen sind aus. Das abgekühlte Holz bleibt braun.',
+    deficiency: 1,
   },
   {
     factor: 'fuel',
     title: 'Weniger Brennstoff',
-    prediction:
-      'Wieder brennt dasselbe Stück Holz. Was bleibt davon übrig, wenn am Ende der Brennzeit die Flammen erlöschen?',
-    choices: ['wood', 'charred', 'weak'],
-    observations: [
-      {
-        deficiency: 1,
-        direction: 'Finde den Weg für weniger Brennstoff. Beobachte Holz und Flammen.',
-        observation:
-          'Jetzt siehst du einen dunklen, verkohlten Rest mit aschgrauen Streifen. Er gibt zu wenig brennbares Gas für Flammen ab. Wie sah das kalte Holz aus?',
-      },
-    ],
+    prompt: 'Zieh den Knopf vom Holzzeichen weg. Was bleibt übrig?',
+    observation: 'Das Holz ist verkohlt. Feuer braucht Brennstoff, Wärme und Sauerstoff.',
+    deficiency: 1,
   },
 ]
 
-/** The free experiment and its camera angle survive a complete or interrupted lesson. */
+/** Three single-factor trials share the free experiment and its movable knob. */
 export class TriangleSession {
-  phase: TrianglePhase = 'free'
+  phase: 'free' | 'explore' | 'observe' = 'free'
   private index = 0
-  private stopIndex = 0
-  prediction: Prediction | null = null
   private guidedPoint = TRIANGLE_CENTER
   private freePoint = TRIANGLE_CENTER
   private freeAngle = STOVE_START_ANGLE
 
-  get comparison() {
-    return comparisons[this.index]
-  }
-  get stop() {
-    return this.comparison.observations[this.stopIndex]
-  }
-  get firstStop() {
-    return this.stopIndex === 0
-  }
-  get hasAnotherStop() {
-    return this.stopIndex + 1 < this.comparison.observations.length
-  }
-  /** Mark the two oxygen paths while the class first learns to move away from a side. */
-  get guide() {
-    if (this.phase !== 'explore' || this.comparison.factor !== 'oxygen') return null
-    return {
-      from: factorPoint(
-        'oxygen',
-        this.comparison.observations[this.stopIndex - 1]?.deficiency ?? 0,
-      ),
-      to: factorPoint('oxygen', this.stop.deficiency),
-    }
+  get trial() {
+    return trials[this.index]
   }
   get number() {
     return this.index + 1
   }
   get total() {
-    return comparisons.length
+    return trials.length
   }
   get position() {
     return this.phase === 'free' ? this.freePoint : this.guidedPoint
@@ -130,85 +62,51 @@ export class TriangleSession {
   get viewAngle() {
     return this.freeAngle
   }
+  private get target() {
+    return factorPoint(this.trial.factor, this.trial.deficiency)
+  }
+  get guide() {
+    return this.phase === 'explore' ? { from: TRIANGLE_CENTER, to: this.target } : null
+  }
 
-  /** Start at a repeatable baseline, retaining the free view for restoration on exit. */
+  /** Start with the same burning log for everyone, preserving the child's free view. */
   begin(freeAngle: number) {
     if (this.phase !== 'free') return
     this.freeAngle = freeAngle
     this.index = 0
-    this.stopIndex = 0
-    this.prediction = null
     this.guidedPoint = TRIANGLE_CENTER
-    this.phase = 'predict'
+    this.phase = 'explore'
   }
 
-  /**
-   * In a guided trial, project the input onto the path opposite its named side.
-   * The other two conditions then remain sufficient throughout the comparison.
-   */
+  /** Project guided input onto the arrow so only the selected factor can decrease. */
   move(point: TrianglePoint) {
     if (this.phase === 'free') {
       this.freePoint = constrainPoint(point)
       return
     }
     if (this.phase !== 'explore') return
-    const { factor } = this.comparison
-    const end = factorPoint(factor, 1)
+    const end = factorPoint(this.trial.factor, 1)
     const dx = end.x - TRIANGLE_CENTER.x
     const dy = end.y - TRIANGLE_CENTER.y
     const t =
       ((point.x - TRIANGLE_CENTER.x) * dx + (point.y - TRIANGLE_CENTER.y) * dy) /
       (dx * dx + dy * dy)
-    if (t >= this.stop.deficiency - 0.035) this.showObservation()
-    else
-      this.guidedPoint = factorPoint(
-        factor,
-        Math.max(t, this.comparison.observations[this.stopIndex - 1]?.deficiency ?? 0),
-      )
+    if (t >= this.trial.deficiency - 0.035) this.next()
+    else this.guidedPoint = factorPoint(this.trial.factor, t)
   }
 
-  /** Accept an optional prediction from this trial until the class starts observing. */
-  choose(choice: Prediction) {
-    if (this.phase === 'predict' && this.comparison.choices.includes(choice))
-      this.prediction = this.prediction === choice ? null : choice
-  }
-
-  /** Land on the same observation point as a completed drag. */
-  showObservation() {
-    if (this.phase !== 'explore') return
-    this.guidedPoint = factorPoint(this.comparison.factor, this.stop.deficiency)
-    this.phase = 'discuss'
-  }
-
-  /** Advance only after the class has had time to predict, observe or explain. */
+  /** Show the observation, start the next trial with fresh wood, or return to free play. */
   next() {
-    switch (this.phase) {
-      case 'predict':
+    if (this.phase === 'explore') {
+      this.guidedPoint = this.target
+      this.phase = 'observe'
+    } else if (this.phase === 'observe') {
+      if (this.number === this.total) this.end()
+      else {
+        this.index++
+        this.guidedPoint = TRIANGLE_CENTER
         this.phase = 'explore'
-        break
-      case 'explore':
-        this.showObservation()
-        break
-      case 'discuss':
-        if (this.hasAnotherStop) {
-          this.stopIndex++
-          this.phase = 'explore'
-        } else if (this.number === this.total) {
-          this.phase = 'transfer'
-        } else {
-          this.index++
-          this.stopIndex = 0
-          this.prediction = null
-          this.guidedPoint = TRIANGLE_CENTER
-          this.phase = 'predict'
-        }
-        break
-      case 'transfer':
-        this.phase = 'result'
-        break
-      case 'result':
-        this.end()
-        break
+      }
     }
   }
 
@@ -218,7 +116,7 @@ export class TriangleSession {
 
   /** Restore the initial free experiment and the default viewing angle. */
   restart() {
-    this.phase = 'free'
+    this.end()
     this.freePoint = TRIANGLE_CENTER
     this.freeAngle = STOVE_START_ANGLE
   }

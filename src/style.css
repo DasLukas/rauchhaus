@@ -362,7 +362,7 @@ nav,
   background: #f7e9cc;
 }
 #load-state,
-#trial {
+.trial-bar {
   background: var(--paper);
   box-shadow: var(--control-shadow);
   border-radius: 22px;
@@ -401,6 +401,8 @@ nav,
   bottom: max(70px, calc(56px + env(safe-area-inset-bottom)));
   left: 50%;
   transform: translateX(-50%);
+}
+.trial-bar {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -641,22 +643,22 @@ nav,
     height: 28px;
     border-width: 2px;
   }
-  #trial {
+  .trial-bar {
     gap: 5px;
     padding: 5px 6px 5px 10px;
   }
   .trial-copy {
     font-size: 13px;
   }
-  #trial .action {
+  .trial-bar .action {
     font-size: 13px;
     padding: 7px 10px;
     gap: 3px;
   }
-  #trial .action svg {
+  .trial-bar .action svg {
     width: 15px;
   }
-  #trial .close {
+  .trial-bar .close {
     background: transparent;
   }
 }

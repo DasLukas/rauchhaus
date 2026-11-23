@@ -77,7 +77,7 @@ function boardMarkup(): string {
         <path id="triangle-study-guide" marker-end="url(#triangle-study-arrow)" hidden/>
       </svg>
       ${label('heat')}${label('oxygen')}
-      <button class="triangle-knob" type="button" aria-label="Knopf im Verbrennungsdreieck" aria-describedby="triangle-key-help triangle-observation">
+      <button id="triangle-knob" class="triangle-knob" type="button" aria-label="Knopf im Verbrennungsdreieck" aria-describedby="triangle-key-help triangle-observation">
         <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3v26M3 16h26M12 7l4-4 4 4m0 18-4 4-4-4M7 12l-4 4 4 4m18 0 4-4-4-4"/></svg>
       </button>
       <span id="triangle-key-help" class="sr-only">Tippe auf eine Stelle im Dreieck oder benutze die Pfeiltasten. Pos1 oder die Eingabetaste bringt den Knopf zur Mitte.</span>
@@ -100,7 +100,7 @@ export interface TriangleInstrument {
   getReading(): TriangleReading
   /** Programmatic changes do not dispatch user input back into the lesson. */
   setPosition(point: TrianglePoint): void
-  /** Display a direction arrow between two points, or remove it outside the first trial. */
+  /** Display a direction arrow between two points, or remove it when the current observation is reached. */
   setGuide(guide: { from: TrianglePoint; to: TrianglePoint } | null): void
   setInteractive(enabled: boolean): void
   setPaused(paused: boolean): void

@@ -27,6 +27,23 @@ async function renderedDifference(page, first, second) {
   }, images)
 }
 
+/** The whole trial must stay usable without a scroll or overlapping its navigation. */
+async function verifyGuideFits(page) {
+  const fits = await page.evaluate(() => {
+    const bounds = (selector) => document.querySelector(selector).getBoundingClientRect()
+    const header = bounds('.triangle-topbar')
+    const strip = bounds('#triangle-study')
+    const footer = bounds('.toolbar')
+    const inside = (r) => r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1
+    const scene = ['.triangle-control', '.triangle-knob', '.stove-canvas'].map(bounds)
+    return scrollY === 0 && document.documentElement.scrollHeight <= innerHeight + 1
+      && document.documentElement.scrollWidth <= innerWidth + 1
+      && [header, strip, footer, bounds('#triangle-next'), bounds('#triangle-end')].every(inside)
+      && strip.bottom <= footer.top && scene.every((r) => inside(r) && r.top >= header.bottom && r.bottom <= strip.top)
+  })
+  assert.ok(fits, 'The scene, current instruction and controls must fit in one viewport')
+}
+
 export async function verifyLearningModules(page, dashboardUrl, capture) {
   const modules = new Set()
   const record = (request) => {
@@ -64,7 +81,7 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))
     return stove.screenshot()
   }
-  // Compare a playing Blender clip with the same camera before freezing the reference pose.
+  // Compare a playing Blender clip with the same camera before enabling reduced motion.
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   const moving = await scene()
   await page.waitForTimeout(250)
@@ -125,18 +142,13 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   await button('Lernimpuls').click()
   for (const factor of ['oxygen', 'heat', 'fuel']) {
     assert.equal(await study.getAttribute('data-factor'), factor)
-    assert.equal(await study.getAttribute('data-phase'), 'predict')
-    if (factor === 'oxygen') {
-      const picture = page.locator('#triangle-predictions [data-choice]').first()
-      await picture.click()
-      assert.equal(await picture.getAttribute('aria-pressed'), 'true')
-      await capture('lernimpuls-vermutung')
-    }
-    await next.click()
     assert.equal(await study.getAttribute('data-phase'), 'explore')
+    assert.equal(await next.textContent(), 'Zeigen')
     const trail = page.locator('#triangle-study-guide')
+    // A vertical SVG path has zero bounding-box width even when its stroke is visible.
+    assert.ok(await trail.evaluate((path) => getComputedStyle(path).display !== 'none' && path.getTotalLength() > 0))
+    await verifyGuideFits(page)
     if (factor === 'oxygen') {
-      await trail.waitFor()
       const target = await trail.evaluate((path) => {
         const end = path.getPointAtLength(path.getTotalLength()).matrixTransform(path.getScreenCTM())
         return { x: end.x, y: end.y }
@@ -146,22 +158,19 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
       await page.mouse.down()
       await page.mouse.move(target.x, target.y, { steps: 12 })
       await page.mouse.up()
-      await page.locator('#triangle-study[data-phase="discuss"]').waitFor()
+    } else if (factor === 'heat') {
+      for (let i = 0; i < 16 && await knob.isEnabled(); i++) await knob.press('Shift+ArrowRight')
     } else {
-      assert.ok(await trail.isHidden())
-      await button('Beobachtung zeigen').click()
-    }
-    assert.equal(await instrument.getAttribute('data-fire-state'), factor === 'oxygen' ? 'weak' : 'out')
-    if (factor === 'oxygen') {
+      await capture('lernimpuls-brennstoff')
       await next.click()
-      await button('Beobachtung zeigen').click()
-      assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
     }
+    assert.equal(await study.getAttribute('data-phase'), 'observe')
+    assert.ok(await trail.evaluate((path) => getComputedStyle(path).display === 'none'))
+    assert.equal(await instrument.getAttribute('data-fire-state'), factor === 'oxygen' ? 'weak' : 'out')
+    assert.equal(await next.textContent(), factor === 'fuel' ? 'Fertig' : 'Weiter')
+    await verifyGuideFits(page)
     await next.click()
   }
-  assert.equal(await study.getAttribute('data-phase'), 'transfer')
-  await next.click()
-  await button('Weiter entdecken').click()
   assert.equal(await study.isHidden(), true)
   assert.equal(await knob.getAttribute('style'), originalPosition)
   assert.ok(await renderedDifference(page, beforeLesson, await scene()) < 5, 'Leaving the lesson must restore the charred log and camera angle')
@@ -191,6 +200,15 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
       assert.ok((await detail.boundingBox()).height > initialDetail.height, 'Exercise a caption that wraps to a second line')
       await capture('verbrennungsdreieck-1024-abgekuehlt')
     }
+    await button('Lernimpuls').click()
+    const guidedStove = await stove.boundingBox()
+    for (let stage = 0; stage < 6; stage++) {
+      await verifyGuideFits(page)
+      assert.deepEqual(await stove.boundingBox(), guidedStove, 'Changing the guide text must keep the stove stationary')
+      if (width === 1024 && stage === 4) await capture('lernimpuls-brennstoff-1024')
+      await next.click()
+    }
+    assert.ok(await study.isHidden())
     await page.getByRole('link', { name: 'Zur Übersicht' }).click()
     await triangleLink.waitFor()
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))

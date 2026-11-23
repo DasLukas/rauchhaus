@@ -86,26 +86,15 @@ function boardMarkup(): string {
     </div>`
 }
 
-function observation(reading: TriangleReading): [string, string] {
-  if (reading.state === 'steady')
-    return ['Das Holz brennt.', 'Über dem glühenden Holz steigen Flammen auf.']
-  if (reading.limitingFactor === 'fuel') {
-    if (reading.state === 'weak')
-      return ['Die Flammen sind kleiner.', 'Das Scheit wird dunkler. Ein Teil des Holzes ist schon verbrannt.']
-    return ['Die Flammen sind aus.', 'Auf dem verkohlten Rest liegt graue Asche.']
-  }
-  if (reading.state === 'weak')
-    return [
-      'Die Flammen sind kleiner.',
-      `Es ist weniger ${labels[reading.limitingFactor ?? 'oxygen']} verfügbar.`,
-    ]
-  if (reading.limitingFactor === 'heat')
-    return ['Die Flammen sind aus.', 'Das braune Holz ist noch da. Es ist zu kühl zum Weiterbrennen.']
-  return [
-    'Die Flammen sind aus.',
-    'Der Sauerstoff reicht nicht mehr zum Weiterbrennen der Flammen.',
-  ]
-}
+const observations = {
+  steady: ['Das Holz brennt.', 'Über dem glühenden Holz steigen Flammen auf.'],
+  'weak-heat': ['Die Flammen sind kleiner.', 'Es ist weniger Wärme verfügbar.'],
+  'weak-oxygen': ['Die Flammen sind kleiner.', 'Es ist weniger Sauerstoff verfügbar.'],
+  'weak-fuel': ['Die Flammen sind kleiner.', 'Das Scheit wird dunkler. Ein Teil des Holzes ist schon verbrannt.'],
+  'out-heat': ['Die Flammen sind aus.', 'Das braune Holz ist noch da. Es ist zu kühl zum Weiterbrennen.'],
+  'out-oxygen': ['Die Flammen sind aus.', 'Der Sauerstoff reicht nicht mehr zum Weiterbrennen der Flammen.'],
+  'out-fuel': ['Die Flammen sind aus.', 'Auf dem verkohlten Rest liegt graue Asche.'],
+} as const
 
 export interface TriangleInstrument {
   getReading(): TriangleReading
@@ -136,7 +125,9 @@ export function mountInstrument(
       </div>
       <span id="stove-camera-help" class="sr-only">Mit einem Finger seitlich ziehen oder die Pfeiltasten links und rechts nutzen. Pos1 zeigt die Startansicht.</span>
       <figcaption id="triangle-observation" aria-live="polite" aria-atomic="true">
-        <strong></strong><span></span>
+        ${Object.entries(observations).map(([key, [title, detail]]) =>
+          `<span class="observation-copy" data-observation="${key}" aria-hidden="true"><strong>${title}</strong><span>${detail}</span></span>`
+        ).join('')}
       </figcaption>
     </figure>
   </div>`
@@ -152,8 +143,7 @@ export function mountInstrument(
   const guides = factors.map(
     (factor) => [factor, find<SVGLineElement>(`[data-guide="${factor}"]`)] as const,
   )
-  const caption = find<HTMLElement>('figcaption strong')
-  const detail = find<HTMLElement>('figcaption span')
+  let activeCaption: HTMLElement | undefined
   const viewer = find<HTMLElement>('.stove-window')
   const load = find<HTMLElement>('.stove-load')
   const loadText = find<HTMLElement>('.stove-load span')
@@ -179,9 +169,12 @@ export function mountInstrument(
       guide.setAttribute('x2', String(end.x))
       guide.setAttribute('y2', String(end.y))
     }
-    const [title, hint] = observation(reading)
-    if (caption.textContent !== title) caption.textContent = title
-    if (detail.textContent !== hint) detail.textContent = hint
+    const key = reading.state === 'steady' ? 'steady' : `${reading.state}-${reading.limitingFactor}`
+    if (activeCaption?.dataset.observation !== key) {
+      activeCaption?.setAttribute('aria-hidden', 'true')
+      activeCaption = find<HTMLElement>(`[data-observation="${key}"]`)
+      activeCaption.removeAttribute('aria-hidden')
+    }
     instrument.dataset.fireState = reading.state
     stove?.setReading(reading)
   }

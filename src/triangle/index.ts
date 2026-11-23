@@ -68,7 +68,6 @@ export function mountTriangle(root: HTMLElement) {
     </div>
     <footer class="toolbar" aria-label="Versuch und Ansicht">
       <div class="play-controls">
-        <button class="pill" id="triangle-pause" type="button" aria-label="Pause" title="Pause"></button>
         <button class="pill" id="triangle-restart" type="button" aria-label="Neu starten" title="Neu starten">${icon('reset')}<span>Neu starten</span></button>
       </div>
       <div class="view-controls"><button id="fullscreen" class="pill compact" type="button" aria-label="Vollbild starten" title="Vollbild starten">${icon('expand')}</button></div>
@@ -79,7 +78,6 @@ export function mountTriangle(root: HTMLElement) {
 
   const session = new TriangleSession()
   const lesson = element<HTMLButtonElement>('triangle-lesson')
-  const pause = element<HTMLButtonElement>('triangle-pause')
   const next = element<HTMLButtonElement>('triangle-next')
   const nextLabel = element('triangle-next-label')
   const end = element<HTMLButtonElement>('triangle-end')
@@ -115,7 +113,7 @@ export function mountTriangle(root: HTMLElement) {
       (session.phase === 'discuss' && !watchingCooling) ||
       session.phase === 'transfer' ||
       session.phase === 'result'
-    instrument.setPaused(document.hidden || dialog.open || session.paused || discussing)
+    instrument.setPaused(document.hidden || dialog.open || discussing)
   }
 
   function refresh() {
@@ -125,11 +123,6 @@ export function mountTriangle(root: HTMLElement) {
     study.dataset.phase = phase
     study.dataset.factor = comparison.factor
     lesson.disabled = !free
-    pause.hidden = !free
-    const pauseLabel = session.paused ? 'Weiter' : 'Pause'
-    pause.innerHTML = `${icon(session.paused ? 'play' : 'pause')}<span>${pauseLabel}</span>`
-    pause.setAttribute('aria-label', pauseLabel)
-    pause.title = pauseLabel
     instrument.setInteractive(free || phase === 'explore')
     instrument.setGuide(session.guide)
     instrument.setPosition(session.position)
@@ -230,10 +223,6 @@ export function mountTriangle(root: HTMLElement) {
     }
   }
   end.onclick = leave
-  pause.onclick = () => {
-    session.togglePause()
-    refresh()
-  }
   element('triangle-restart').onclick = () => {
     session.restart()
     restorePlayback = undefined

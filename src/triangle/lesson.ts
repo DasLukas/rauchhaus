@@ -85,7 +85,7 @@ const comparisons: readonly Comparison[] = [
   },
 ]
 
-/** The free experiment and its camera and pause setting survive a complete or interrupted lesson. */
+/** The free experiment and its camera angle survive a complete or interrupted lesson. */
 export class TriangleSession {
   phase: TrianglePhase = 'free'
   private index = 0
@@ -93,7 +93,6 @@ export class TriangleSession {
   prediction: Prediction | null = null
   private guidedPoint = TRIANGLE_CENTER
   private freePoint = TRIANGLE_CENTER
-  private freePaused = false
   private freeAngle = STOVE_START_ANGLE
 
   get comparison() {
@@ -127,9 +126,6 @@ export class TriangleSession {
   }
   get position() {
     return this.phase === 'free' ? this.freePoint : this.guidedPoint
-  }
-  get paused() {
-    return this.phase === 'free' && this.freePaused
   }
   get viewAngle() {
     return this.freeAngle
@@ -216,10 +212,6 @@ export class TriangleSession {
     }
   }
 
-  togglePause() {
-    if (this.phase === 'free') this.freePaused = !this.freePaused
-  }
-
   end() {
     this.phase = 'free'
   }
@@ -228,7 +220,6 @@ export class TriangleSession {
   restart() {
     this.phase = 'free'
     this.freePoint = TRIANGLE_CENTER
-    this.freePaused = false
     this.freeAngle = STOVE_START_ANGLE
   }
 }

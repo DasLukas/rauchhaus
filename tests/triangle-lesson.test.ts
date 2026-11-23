@@ -138,23 +138,20 @@ describe('guided wood comparisons', () => {
     expect(session.position).toEqual(TRIANGLE_CENTER)
   })
 
-  it('preserves free position, pause and camera angle on early exit and completion', () => {
+  it('preserves free position and camera angle on early exit and completion', () => {
     for (const complete of [false, true]) {
       const session = new TriangleSession()
       const point = factorPoint('fuel', 0.42)
       session.move(point)
-      session.togglePause()
       session.begin(-0.18)
       session.begin(0)
       session.next()
       session.move(factorPoint('oxygen', 0.3))
-      expect(session.paused).toBe(false)
       if (complete) {
         for (let i = 0; i < 12; i++) session.next()
       } else session.end()
       expect(session.phase).toBe('free')
       expect(session.position).toEqual(point)
-      expect(session.paused).toBe(true)
       expect(session.viewAngle).toBe(-0.18)
     }
   })
@@ -162,7 +159,6 @@ describe('guided wood comparisons', () => {
   it('restarts at the free burning baseline from a guided trial', () => {
     const session = new TriangleSession()
     session.move(factorPoint('heat', 1))
-    session.togglePause()
     session.begin(0.12)
     session.next()
     session.showObservation()
@@ -170,6 +166,5 @@ describe('guided wood comparisons', () => {
     expect(session.phase).toBe('free')
     expect(session.position).toEqual(TRIANGLE_CENTER)
     expect(session.viewAngle).toBe(STOVE_START_ANGLE)
-    expect(session.paused).toBe(false)
   })
 })

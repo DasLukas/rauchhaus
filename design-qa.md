@@ -4,9 +4,11 @@ The [wood-stove concept](docs/konzept-verbrennungsdreieck-holzscheit.png) sets t
 
 ## The free experiment
 
-The framed module title sits in the same toolbar as the Brandhaus title. Each coloured side has a large pictogram above its name. Colours continue into the triangle from their respective edges, and the dotted guides track the knob as it moves. In the centre, all three conditions are sufficient.
+The framed module title sits in the same toolbar as the Brandhaus title. Each coloured side has an adjacent label with the pictogram above its name. Colours continue into the triangle from their respective edges, and the dotted guides track the knob as it moves. In the centre, all three conditions are sufficient.
 
 The starting camera shows the stove door, top and right side. Children turn the stove by dragging directly on it. With keyboard focus on the stove, Left and Right turn it and Home restores the starting view. Help and the guided lesson explain the interaction on demand.
+
+The observation area reserves space for the longest wrapped caption at each screen width. The browser test compares the stove canvas bounds before and after cooling the log, including a change from one line of detail to two at 1024 × 768.
 
 The fuel comparison changes the appearance of the full log resting on the grate. The wood darkens and an ash-grey grain becomes visible at the end of the comparison. Moving away from heat instead leaves cooled, brown wood. The guided activity uses these distinct appearances in its prediction pictures and observations.
 

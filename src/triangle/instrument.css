@@ -85,39 +85,12 @@
   top: 38.5%;
   transform: translateY(-50%);
 }
-.label-heat { right: 76%; }
-.label-oxygen { left: 76%; }
-.triangle-label::before {
-  position: absolute;
-  content: "";
-  pointer-events: none;
-  opacity: 0.64;
-}
-.label-heat::before,
-.label-oxygen::before {
-  top: 50%;
-  height: 2px;
-  width: 11.2cqw;
-}
-.label-heat::before {
-  left: 100%;
-  background: #c2644b;
-}
-.label-oxygen::before {
-  right: 100%;
-  background: #167e77;
-}
+.label-heat { right: 68%; }
+.label-oxygen { left: 68%; }
 .label-fuel {
   position: relative;
   transform: none;
-  margin-top: max(5px, 2cqw);
-}
-.label-fuel::before {
-  width: 2px;
-  height: calc(4.7cqw + max(5px, 2cqw));
-  bottom: 100%;
-  left: 50%;
-  background: #ba8626;
+  margin-top: -2.7cqw;
 }
 .triangle-knob {
   display: grid;
@@ -193,7 +166,6 @@
 }
 #triangle-observation {
   display: grid;
-  gap: 3px;
   width: fit-content;
   max-width: 100%;
   padding: 0.55em 1.05em;
@@ -203,6 +175,16 @@
   text-align: center;
   font-size: clamp(14px, 1.55vw, 20px);
   line-height: 1.3;
+}
+/* Stack all observations in one cell so wrapping never moves the stove. */
+.observation-copy {
+  grid-area: 1 / 1;
+  align-self: center;
+  display: grid;
+  gap: 3px;
+}
+.observation-copy[aria-hidden="true"] {
+  visibility: hidden;
 }
 #triangle-observation strong {
   font-size: 1.25em;

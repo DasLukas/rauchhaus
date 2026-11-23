@@ -59,7 +59,7 @@ export interface HouseScene {
   focusFloor(floor: number, x?: number): void
   /** Restore the original cutaway view and yaw. */
   resetView(): void
-  captureLanding(snapshot: SimulationSnapshot): HTMLCanvasElement
+  captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement
   /** Stop animation, detach event handlers and release graphics resources. */
   dispose(): void
 }
@@ -238,14 +238,14 @@ export async function createHouseScene(
       callbacks.onProject(projections)
     }
 
-    function captureLanding(snapshot: SimulationSnapshot): HTMLCanvasElement {
+    function captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement {
       const image = document.createElement('canvas')
       image.width = 540
       image.height = 360
       const view = new HouseCamera()
       view.resize(image.width, image.height)
-      const landing = ROOMS.find((room) => room.id === 'stair1')
-      if (landing) view.focus(landing.floor, (landing.minX + landing.maxX) / 2)
+      const room = ROOMS.find((room) => room.id === roomId)
+      if (room) view.focus(room.floor, (room.minX + room.maxX) / 2)
       view.update(0, true)
 
       // Skipping to the result can precede the next animation frame. Apply the
@@ -488,7 +488,7 @@ export async function createHouseScene(
     resizeObserver.observe(host)
     resize()
     request = requestAnimationFrame(frame)
-    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, captureLanding, dispose }
+    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, captureRoom, dispose }
   } catch (error) {
     dispose()
     throw error

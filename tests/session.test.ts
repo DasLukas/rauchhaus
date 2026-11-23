@@ -226,6 +226,8 @@ describe('guided fire development', () => {
       session.tick(1)
       expect(session.snapshot.fire?.involvement).toBe(0)
       for (let frame = 0; frame < 240 && !session.trialFinished; frame++) session.tick(0.2)
+      expect(session.outgassingSnapshot?.fire?.outgassing).toBeGreaterThanOrEqual(0.85)
+      expect(session.outgassingSnapshot?.fire?.involvement).toBe(0)
       expect(session.fireObservation).toBe('flashover')
       expect(session.snapshot.fire?.phase).toBe('flashover')
       expect(session.snapshot.fire?.involvement).toBeGreaterThanOrEqual(0.65)

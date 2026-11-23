@@ -17,6 +17,7 @@ export const OBSERVATION_SECONDS = 50
 export class LearningSession {
   private readonly free: SmokeSimulation
   private example: SmokeSimulation | null = null
+  outgassingSnapshot: SimulationSnapshot | null = null
   showingOutgassing = false
   stage: LessonStage | null = null
   paused = false
@@ -56,6 +57,10 @@ export class LearningSession {
         const step = Math.min(remaining, 0.25)
         this.active.advance(step)
         this.snapshot = this.active.snapshot()
+        const fire = this.snapshot.fire
+        if (!this.outgassingSnapshot && fire && fire.outgassing >= 0.85 && fire.involvement === 0) {
+          this.outgassingSnapshot = this.snapshot
+        }
         remaining -= step
       }
       if (this.trialFinished) this.paused = true
@@ -86,6 +91,7 @@ export class LearningSession {
 
   /** Restore the empty house and its initial doors, and leave any lesson. */
   restart() {
+    this.outgassingSnapshot = null
     this.showingOutgassing = false
     this.stage = null
     this.example = null

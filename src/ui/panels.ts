@@ -33,7 +33,7 @@ const result = `
 const smokeFindings = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Eine geschlossene Tür bremst den Rauch.</h2>
-  <div class="door-comparison">
+  <div class="scene-comparison">
     <figure data-view="open"><figcaption>Tür offen</figcaption></figure>
     <figure data-view="closed"><figcaption>Tür geschlossen</figcaption></figure>
   </div>
@@ -69,6 +69,10 @@ const fireResult = `
 const fireFindings = `
   <header class="sheet-heading"><span class="lesson-icon">${icon('eye')}</span>${closeButton}</header>
   <h2 id="sheet-title">Wie sich das Feuer im Zimmer ausgebreitet hat</h2>
+  <div class="scene-comparison">
+    <figure data-view="outgassing"><figcaption>Ausgasen der Möbel</figcaption></figure>
+    <figure data-view="flashover"><figcaption>Vollbrand im Zimmer</figcaption></figure>
+  </div>
     <p>Über dem Fernseher sammelten sich heiße Brandgase. Wo sie sich mit Luft mischten, waren kurz Flammenzungen zu sehen. Breiten sich die Flammen durch die heiße Gasschicht unter der Decke aus, heißt das <strong>Rollover</strong>.</p>
     <p>Die Hitze erwärmt auch Polster, Holz und Stoff im Zimmer. Aus diesen Materialien können brennbare Gase austreten. Im Modell machen die hellen Schlieren das sichtbar. So können auch Möbel Feuer fangen, die die Flammen vom Fernseher noch gar nicht berührt haben.</p>
     <p>Fast gleichzeitig fingen Möbel, Stoffe und sogar die Blätter der Pflanze im Modell Feuer. Diesen Übergang zum Vollbrand nennt man <strong>Raumdurchzündung</strong> oder <strong>Flashover</strong>.</p>
@@ -78,11 +82,19 @@ const fireFindings = `
 const panels = { help, lessons, intro, result, smokeFindings, fireIntro, fireResult, fireFindings }
 export type PanelKind = keyof typeof panels
 
+const descriptions = {
+  open: 'Rauch verdeckt den oberen Teil der Treppe vor der Brandwohnung.',
+  closed: 'Die Treppe vor der Brandwohnung ist klar zu sehen.',
+  outgassing: 'Helle Schlieren steigen über den erhitzten Möbeln auf.',
+  flashover: 'An mehreren Möbeln im Zimmer sind gleichzeitig Flammen zu sehen.',
+}
+export type LessonViews = Partial<Record<keyof typeof descriptions, HTMLCanvasElement>>
+
 /** Show a native modal and report the selected lesson when it closes. */
 export function showPanel(
   kind: PanelKind,
   onClose: (lesson: Lesson | null) => void,
-  doorViews: Partial<Record<'open' | 'closed', HTMLCanvasElement>>,
+  views: LessonViews,
 ) {
   const dialog = element<HTMLDialogElement>('sheet')
   const body = element('sheet-body')
@@ -90,15 +102,13 @@ export function showPanel(
   let selected: Lesson | null = null
   function render(panel: PanelKind) {
     body.innerHTML = panels[panel]
-    if (panel === 'smokeFindings') {
-      for (const door of ['open', 'closed'] as const) {
-        const image = doorViews[door]
-        if (!image) continue
+    for (const figure of body.querySelectorAll<HTMLElement>('figure[data-view]')) {
+      const key = figure.dataset.view as keyof typeof descriptions
+      const image = views[key]
+      if (image) {
         image.setAttribute('role', 'img')
-        image.setAttribute('aria-label', door === 'open'
-          ? 'Rauch verdeckt den oberen Teil der Treppe vor der Brandwohnung.'
-          : 'Die Treppe vor der Brandwohnung ist klar zu sehen.')
-        body.querySelector(`[data-view="${door}"]`)?.append(image)
+        image.setAttribute('aria-label', descriptions[key])
+        figure.append(image)
       }
     }
     for (const button of body.querySelectorAll<HTMLButtonElement>('[data-close]')) {

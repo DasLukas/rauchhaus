@@ -448,23 +448,23 @@ nav,
   border-radius: 25px;
   box-shadow: 0 16px 60px #163c4344;
 }
-#sheet:has(.door-comparison) {
+#sheet:has(.scene-comparison) {
   width: min(720px, calc(100% - 28px));
 }
-.door-comparison {
+.scene-comparison {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(8px, 2vw, 16px);
   margin: 14px 0;
 }
-.door-comparison figure {
+.scene-comparison figure {
   margin: 0;
 }
-.door-comparison figcaption {
+.scene-comparison figcaption {
   font-weight: 850;
   margin-bottom: 4px;
 }
-.door-comparison canvas {
+.scene-comparison canvas {
   display: block;
   width: 100%;
   border-radius: 10px;

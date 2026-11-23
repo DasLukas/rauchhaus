@@ -7,7 +7,7 @@ import { bindFullscreen } from './ui/fullscreen'
 import { icon } from './ui/icons'
 import { mountLayout, setButton } from './ui/layout'
 import { Markers } from './ui/markers'
-import { showPanel, type PanelKind } from './ui/panels'
+import { showPanel, type LessonViews, type PanelKind } from './ui/panels'
 import { LearningSession } from './ui/session'
 
 const app = element('app')
@@ -30,7 +30,7 @@ const lesson = element<HTMLButtonElement>('lesson')
 const hint = bindLessonHint(lesson, 'brandhaus')
 const loading = element('load-state')
 let scene: HouseScene | undefined
-const doorViews: Partial<Record<'open' | 'closed', HTMLCanvasElement>> = {}
+let views: LessonViews = {}
 let modal = false
 let detectorState = ''
 let ready = false
@@ -113,6 +113,7 @@ function openPanel(kind: PanelKind) {
   showPanel(kind, (selected) => {
     modal = false
     if (selected) {
+      views = {}
       session.beginLesson(selected)
       hint.started()
       if (selected === 'fire') {
@@ -126,7 +127,7 @@ function openPanel(kind: PanelKind) {
     } else if (kind === 'result' || kind === 'fireResult') endLesson()
     refresh()
     if (selected) element('trial-next').focus({ preventScroll: true })
-  }, doorViews)
+  }, views)
 }
 
 function activate(id: string) {
@@ -150,7 +151,10 @@ element('trial-next').onclick = () => {
     else announce(fireSteps.flashover.prompt)
   } else {
     if (scene && (session.stage === 'open' || session.stage === 'closed')) {
-      doorViews[session.stage] = scene.captureLanding(session.snapshot)
+      views[session.stage] = scene.captureRoom(session.snapshot, 'stair1')
+    } else if (scene && session.stage === 'flashover') {
+      if (session.outgassingSnapshot) views.outgassing = scene.captureRoom(session.outgassingSnapshot, 'living')
+      views.flashover = scene.captureRoom(session.snapshot, 'living')
     }
     session.nextTrial()
     if (session.stage === 'compare') openPanel('result')

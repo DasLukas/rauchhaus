@@ -1,14 +1,42 @@
 #app[data-page="dashboard"] {
   min-height: 100svh;
   height: auto;
-  justify-content: center;
   overflow: visible;
   padding: max(34px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
-    max(42px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    max(8px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+.dashboard-footer {
+  margin-top: 24px;
+}
+.dashboard-footer nav {
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+.dashboard-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: .92rem;
+  font-weight: 650;
+  text-underline-offset: .2em;
+}
+.info-sources {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.info-sources a { font-weight: 850; }
+.info-sources span {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.45;
 }
 .lesson-dashboard {
   width: min(100%, 1120px);
-  margin-inline: auto;
+  margin: auto;
 }
 .dashboard-heading {
   text-align: center;

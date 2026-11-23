@@ -12,10 +12,8 @@ import { LearningSession } from './ui/session'
 const app = element('app')
 mountLayout(app)
 const session = new LearningSession()
-const houseLink = element<HTMLAnchorElement>('switch-house')
 const arrival = new URL(location.href)
 if (arrival.searchParams.has('feuer')) {
-  setFireEnabled(arrival.searchParams.get('feuer') === '1')
   arrival.searchParams.delete('feuer')
   arrival.searchParams.set('modul', 'brandhaus')
   history.replaceState(history.state, '', arrival)
@@ -28,7 +26,6 @@ const trial = element('trial')
 const pause = element<HTMLButtonElement>('pause')
 const restart = element<HTMLButtonElement>('restart')
 const lesson = element<HTMLButtonElement>('lesson')
-const settings = element<HTMLButtonElement>('settings')
 const loading = element('load-state')
 let scene: HouseScene | undefined
 let modal = false
@@ -37,15 +34,6 @@ let ready = false
 
 function announce(message: string) {
   element('announcer').textContent = message
-}
-
-/** Carry the current choice to the other house for that navigation only. */
-function setFireEnabled(enabled: boolean) {
-  session.setFireEnabled(enabled)
-  const destination = new URL(houseLink.href)
-  if (enabled) destination.searchParams.set('feuer', '1')
-  else destination.searchParams.delete('feuer')
-  houseLink.href = destination.href
 }
 
 const fireSteps = {
@@ -65,7 +53,7 @@ const fireSteps = {
 
 function refresh() {
   const state = session.snapshot
-  markers.update(state, session.lesson, session.fireEnabled)
+  markers.update(state, session.lesson)
   setButton(pause, session.paused ? 'play' : 'pause', session.paused ? 'Weiter' : 'Pause')
   pause.disabled = !ready || !state.source || session.trialFinished
   restart.disabled = !ready
@@ -73,7 +61,6 @@ function refresh() {
   sound.innerHTML = icon(alarm.enabled ? 'sound' : 'muted')
   sound.title = alarm.enabled ? 'Alarmton ausschalten' : 'Alarmton einschalten'
   updateAlarm()
-  settings.disabled = !ready
   lesson.disabled = !ready
   lesson.setAttribute('aria-expanded', String(Boolean(session.stage)))
   app.classList.toggle('learning', Boolean(session.stage))
@@ -118,28 +105,21 @@ function openPanel(kind: PanelKind) {
   if (modal) return
   modal = true
   updateAlarm()
-  showPanel(kind, {
-    fireEnabled: session.fireEnabled,
-    onFireChange(enabled) {
-      setFireEnabled(enabled)
-      resetViewAfterRestart()
-    },
-    onClose(selected) {
-      modal = false
-      if (selected) {
-        session.beginLesson(selected)
-        if (selected === 'fire') {
-          const room = ROOMS.find((room) => room.id === 'living')
-          if (room) scene?.focusFloor(room.floor, (room.minX + room.maxX) / 2)
-          announce('Beobachte das Feuer am Fernseher und die Decke darüber.')
-        } else {
-          scene?.resetView()
-          announce('Erster Versuch mit offener Wohnungstür.')
-        }
-      } else if (kind === 'result' || kind === 'fireResult') endLesson()
-      refresh()
-      if (selected) element('trial-next').focus({ preventScroll: true })
-    },
+  showPanel(kind, (selected) => {
+    modal = false
+    if (selected) {
+      session.beginLesson(selected)
+      if (selected === 'fire') {
+        const room = ROOMS.find((room) => room.id === 'living')
+        if (room) scene?.focusFloor(room.floor, (room.minX + room.maxX) / 2)
+        announce('Beobachte das Feuer am Fernseher und die Decke darüber.')
+      } else {
+        scene?.resetView()
+        announce('Erster Versuch mit offener Wohnungstür.')
+      }
+    } else if (kind === 'result' || kind === 'fireResult') endLesson()
+    refresh()
+    if (selected) element('trial-next').focus({ preventScroll: true })
   })
 }
 
@@ -152,7 +132,7 @@ function activate(id: string) {
     announce(door.label + (session.snapshot.doors[door.id] ? ' offen.' : ' geschlossen.'))
   } else if (source) {
     if (!session.selectSource(source.id)) return
-    announce(`${session.fireEnabled ? 'Feuerversuch' : 'Rauchversuch'} gestartet. ${source.label}.`)
+    announce(`${source.label}. Der Brandversuch startet.`)
   }
   refresh()
 }
@@ -172,18 +152,13 @@ element('trial-next').onclick = () => {
 }
 element('trial-end').onclick = endLesson
 element('help').onclick = () => openPanel('help')
-settings.onclick = () => openPanel('settings')
-lesson.onclick = () => (session.stage ? endLesson() : openPanel(session.fireEnabled ? 'lessons' : 'intro'))
+lesson.onclick = () => (session.stage ? endLesson() : openPanel('lessons'))
 pause.onclick = () => {
   session.togglePause()
   refresh()
 }
 restart.onclick = () => {
   session.restart()
-  resetViewAfterRestart()
-}
-
-function resetViewAfterRestart() {
   scene?.resetView()
   announce('Haus zurückgesetzt. Alle Räume sind rauchfrei.')
   refresh()
@@ -224,7 +199,7 @@ async function start() {
       const signature = alarms.map((d) => d.id).join(',')
       if (signature !== detectorState) {
         detectorState = signature
-        markers.update(state, session.lesson, session.fireEnabled)
+        markers.update(state, session.lesson)
         if (alarms.length) announce(`Rauch erkannt. ${alarms.map((d) => d.label).join(', ')}.`)
       }
       updateAlarm()

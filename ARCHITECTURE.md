@@ -2,14 +2,14 @@
 
 ## Runtime and boundaries
 
-The application is a static, German-language TypeScript client built with Vite. A small entry point resolves the query string and dynamically imports the dashboard, house or triangle. Native document navigation supports bookmarks, history and deployment under a relative base path. The root loads two local WebP previews. A module requests its own Three.js scene and GLB only after entry. The brand house defaults to the small layout. Legacy house-only links and the one-time fire-mode parameter still enter the house. An explicit module takes precedence. Each page load creates its own camera, markers and simulation. The application has no account system, API, analytics or persistent student records. Reloading starts a clean exploration. Only the repository link in the adult help section navigates off site, after deliberate activation.
+The application is a static, German-language TypeScript client built with Vite. A small entry point resolves the query string and dynamically imports the dashboard, house or triangle. Native document navigation supports bookmarks, history and deployment under a relative base path. The root loads two local WebP previews. A module requests its own Three.js scene and GLB only after entry. The brand house defaults to the small layout. Legacy house-only links, including links with the old `feuer` parameter, still open the house. An explicit module takes precedence. Each page load creates its own camera, markers and simulation. The application has no account system, API, analytics or persistent student records. Reloading starts a clean exploration. Only the repository link in the adult help section navigates off site, after deliberate activation.
 
 ## Modules and data flow
 
 | Module | Responsibility |
 | --- | --- |
 | `src/simulation` | House topology, source locations, detector elevations, deterministic smoke transport and optional compartment fire development. Independent of the DOM, Three.js and frame rate. |
-| `src/ui` | German learning activities, settings, native dialog, marker buttons, icons and experiment state. |
+| `src/ui` | German learning activities, native dialog, marker buttons, icons and experiment state. |
 | `src/scene` | Orthographic camera, physical-object hit testing, indicator projection, lighting, smoke volumes and visible flames. |
 | `src/main.ts` and `src/navigation.ts` | Resolve the module and load its entry point. |
 | `src/dashboard.ts` | Native lesson links with scene previews and a short explanation. |
@@ -19,7 +19,7 @@ The application is a static, German-language TypeScript client built with Vite. 
 
 Selecting a source starts a run with the current door settings. The session locks that choice until reset and the marker overlay hides the other sources. Selecting the active source preserves the current run and its pause state. A door change updates connectivity while retaining the existing upper layers. The animation clock advances the active simulation and passes an immutable snapshot to the renderer. The renderer projects interaction anchors to viewport coordinates. The DOM uses those positions for keyboard- and touch-accessible controls. Pause, an open help dialog and a backgrounded page suspend the teaching clock. A guided activity owns a second simulation instance and restores the original experiment on exit. Both trial arms share the same source, initial conditions and observation time, apart from the living-room door setting.
 
-Both house sizes share the simulation rules, coefficients, settings and learning activities. Layout data defines the geometry, room connections, fixtures and controls. Geometry can affect when an observation occurs. Changes to smoke and fire behaviour should be verified in both layouts. Free fire tests exercise every selectable source with the default fire setup and with its room doors deliberately closed.
+Both house sizes share the simulation rules, coefficients, settings and learning activities. Layout data defines the geometry, room connections, fixtures and controls. Geometry can affect when an observation occurs. Changes to smoke and fire behaviour should be verified in both layouts. Free-exploration tests exercise local flames for each selectable source in both layouts.
 
 ## Triangle and stove
 
@@ -31,7 +31,7 @@ A guided session retains the free control position, camera angle and animation p
 
 ## Smoke model
 
-Each room and landing tracks the volume, tracer mass and warmth of an upper layer above a lower air zone. Both houses use the same sustained source profile when fire is off. The plume develops at the initial rate for the first seven model seconds, then the delivery rate increases linearly to twice its initial peak by second 16 and holds there. Emissions reach the layer after the rise from the source to the local ceiling. As a source room fills, the remaining air limits further layer growth. The gas already in a full source room gradually approaches the concentration and warmth of the source mixture. The sloped roof changes both the rise distance and the volume above a given layer height.
+Each room and landing tracks the volume, tracer mass and warmth of an upper layer above a lower air zone. Free exploration and the guided door comparison use the same sustained source profile in both houses. The plume develops at the initial rate for the first seven model seconds, then the delivery rate increases linearly to twice its initial peak by second 16 and holds there. Emissions reach the layer after the rise from the source to the local ceiling. As a source room fills, the remaining air limits further layer growth. The gas already in a full source room gradually approaches the concentration and warmth of the source mixture. The sloped roof changes both the rise distance and the volume above a given layer height.
 
 The first arriving plume sets the origin of a ceiling current. Its footprint expands with warmth and available gas volume. A doorway starts to carry upper-layer gas when the current reaches it and the layer extends below the lintel. Flow grows with doorway width and submerged depth and is reduced by opposing flow from the receiving room. Closed doors permit small leakage. Each landing must receive the current before it can carry smoke farther up the stairwell. The simulation tracks entrainment and cooling. Each fixed 1/30-s step computes transfers from the same starting state. Competing openings share the available donor volume and the receiver's free capacity. Only accepted gas carries tracer and heat out of a donor. The cumulative tracer generated by the source equals the inventory in the house plus the tracer lost through the exterior entrance.
 
@@ -47,11 +47,11 @@ The renderer reads each ceiling current's origin, reach and remaining rise dista
 
 The shader draws a short, contrasting plume at the object from the first frame of a selection. Its tip rises with the simulation clock, while the layer above receives smoke after the modeled travel time. The shader clips smoke to the rooms, openings and roof and depth-tests each slice against furniture. Exponential attenuation accumulates along the view path. Local smoke concentration controls the grey tone, while a shared noise texture animates the interface and variations within dense smoke.
 
-## Optional compartment fire
+## Fire at the source and room fire development
 
-`SmokeSimulation.setFireEnabled` enables or clears a fire in the selected source compartment. `LearningSession` prepares the same free fire experiment in either layout. It keeps existing open connections and supplies one open door for each selectable source room that would otherwise start closed. Changing the fire setting restarts the session and resets the camera, just like the restart button. Both actions restore the current door preset. Selecting a source keeps all door positions. The door-comparison lesson uses its own smoke-only instance.
+Selecting a source in either house starts smoke and a local flame together. Free exploration uses the layout’s initial doors on entry and after reset. The door comparison uses the same local fire at the television for both trials. The guided room-fire lesson creates a separate simulation with compartment fire development and an open apartment door.
 
-The fire model advances on the same fixed clock as gas transport. Burning consumes the room’s available air, and open connections supply air according to the adjoining compartment. Local growth and secondary burning determine plume delivery, and air depletion increases the soot yield. The depth and warmth of the gas layer influence gas flaming and radiant heating. Exposed contents accumulate heat over time. Sufficient heating and air availability allow rapid secondary burning. These quantities use normalized classroom units. The model has no material-specific ignition predictions.
+In the room-fire lesson, the compartment fire model advances on the same fixed clock as gas transport. Burning consumes the room’s available air, and open connections supply air according to the adjoining compartment. Local growth and secondary burning determine plume delivery, and air depletion increases the soot yield. The depth and warmth of the gas layer influence gas flaming and radiant heating. Exposed contents accumulate heat over time. Sufficient heating and air availability allow rapid secondary burning. These quantities use normalized classroom units. The model has no material-specific ignition predictions.
 
 The immutable snapshot exposes local flame strength, flaming in the upper layer and secondary involvement in the source room. The guided fire activity stops when gas flames and then secondary flames reach visible intensities. Skipping ahead advances the same model to the observation. Ending the activity restores the free experiment and its pause state.
 

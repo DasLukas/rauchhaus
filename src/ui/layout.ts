@@ -22,11 +22,11 @@ export function mountLayout(host: HTMLElement) {
         <h1 class="brand"><img src="${import.meta.env.BASE_URL}haus.svg" alt="" /><span>Brandhaus</span></h1>
       </div>
       <nav class="house-picker" aria-label="Haus auswählen">${houseChoice('klein', 'Kleines Haus')}${houseChoice('gross', 'Großes Haus')}</nav>
-      <nav class="learning-tools" aria-label="Lernen, Hilfe und Einstellungen">${control('lesson', 'bulb', 'Lernimpuls', true)}${control('help', 'help', 'Hilfe', true)}${control('settings', 'settings', 'Einstellungen', true)}</nav>
+      <nav class="learning-tools" aria-label="Lernen und Hilfe">${control('lesson', 'bulb', 'Lernimpuls', true)}${control('help', 'help', 'Hilfe', true)}</nav>
     </header>
     <section class="stage" aria-label="Das Haus erkunden">
       <div id="viewport"></div>
-      <div id="markers" aria-label="Rauchquellen, Türen und Rauchwarnmelder"></div>
+      <div id="markers" aria-label="Brandherde, Türen und Rauchwarnmelder"></div>
       <div id="load-state" role="status"><span class="spinner"></span><span>Das Haus wird aufgebaut …</span></div>
       <div id="trial" class="trial-bar" role="region" aria-label="Lernimpuls" hidden>
         <div class="trial-copy"><strong id="trial-name"></strong><span id="trial-hint"></span></div>

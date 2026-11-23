@@ -469,51 +469,6 @@ nav,
   font-size: 17px;
   line-height: 1.5;
 }
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  min-height: 52px;
-  margin-top: 12px;
-  cursor: pointer;
-}
-.setting-row strong {
-  font-size: 19px;
-}
-.setting-row input {
-  appearance: none;
-  display: flex;
-  align-items: center;
-  flex: none;
-  width: 52px;
-  height: 30px;
-  margin: 0;
-  border: 2px solid currentColor;
-  border-radius: 18px;
-  background: var(--paper);
-  color: var(--ink);
-  cursor: pointer;
-}
-.setting-row input::before {
-  content: "";
-  width: 20px;
-  height: 20px;
-  margin-inline: 3px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.setting-row input:checked {
-  justify-content: flex-end;
-  background: var(--teal);
-  border-color: var(--teal);
-  color: white;
-}
-@media (forced-colors: active) {
-  .setting-row input {
-    appearance: auto;
-  }
-}
 .lesson-choices {
   display: grid;
   gap: 10px;

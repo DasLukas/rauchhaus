@@ -20,7 +20,6 @@ export async function mount() {
   return {
     fireObservation(phase) {
       const lesson = new LearningSession()
-      lesson.setFireEnabled(true)
       lesson.beginLesson('fire')
       scene.focusFloor(1, -2.9)
       if (phase === 'local') lesson.tick(2)
@@ -37,14 +36,12 @@ export async function mount() {
     },
     freeFire(sourceId) {
       const session = new LearningSession()
-      session.setFireEnabled(true)
       session.selectSource(sourceId)
       const source = HOUSE.classroomSources.find((item) => item.id === sourceId)
       const room = HOUSE.rooms.find((item) => item.id === source.room)
       scene.focusFloor(room.floor, (room.minX + room.maxX) / 2)
-      // Freeze the first visibly developed fire with its own smoke and doors.
-      while (session.snapshot.elapsed < 60 && session.snapshot.fire.involvement < 0.65) session.tick(1)
-      observation = session.snapshot
+      // Inspect the source before the descending smoke layer obscures it.
+      observation = session.tick(2)
       return observation.fire.phase
     },
     gasFrame(offset, deep) {

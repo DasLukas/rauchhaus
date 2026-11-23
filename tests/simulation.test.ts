@@ -33,12 +33,11 @@ function outsideLiving(snapshot: SimulationSnapshot): number {
   return mass(snapshot) - snapshot.rooms.living.smokeMass
 }
 
-describe.each(['klein', 'gross'] as const)('optional compartment fire in %s', (variant) => {
+describe.each(['klein', 'gross'] as const)('compartment fire in %s', (variant) => {
   const house = getHouse(variant)
 
   it('shows a local flame, ceiling flames and finally secondary flames within one demonstration', () => {
-    const sim = new SmokeSimulation(house)
-    sim.setFireEnabled(true)
+    const sim = new SmokeSimulation(house, 'compartment')
     expect(sim.snapshot().fire).toBeNull()
     sim.setDoor('d1', true)
     sim.start('s_tv')
@@ -68,8 +67,7 @@ describe.each(['klein', 'gross'] as const)('optional compartment fire in %s', (v
     const room = house.rooms.find((item) => item.id === 'living')
     const tv = house.sources.find((item) => item.id === 's_tv')
     if (!room || !tv) throw new Error('Missing TV demonstration in the living room')
-    const sim = new SmokeSimulation(house)
-    sim.setFireEnabled(true)
+    const sim = new SmokeSimulation(house, 'compartment')
     sim.setDoor('d1', true)
     sim.start(tv.id)
     while (sim.snapshot().elapsed < 30 && (sim.snapshot().fire?.rollover ?? 0) < 0.45)
@@ -88,9 +86,8 @@ describe.each(['klein', 'gross'] as const)('optional compartment fire in %s', (v
   })
 
   it('limits burning when the source room has exhausted its local air', () => {
-    const sim = new SmokeSimulation(house)
+    const sim = new SmokeSimulation(house, 'compartment')
     for (const door of house.doors) sim.setDoor(door.id, false)
-    sim.setFireEnabled(true)
     sim.start('s_tv')
     sim.advance(7)
     const early = sim.snapshot().fire?.sourceIntensity
@@ -103,8 +100,7 @@ describe.each(['klein', 'gross'] as const)('optional compartment fire in %s', (v
   })
 
   it('can show ceiling flames without progressing to a fully involved room', () => {
-    const sim = new SmokeSimulation(house)
-    sim.setFireEnabled(true)
+    const sim = new SmokeSimulation(house, 'compartment')
     sim.setDoor('d1', true)
     sim.start('s_tv')
     while (sim.snapshot().elapsed < 25 && (sim.snapshot().fire?.rollover ?? 0) < 0.45)
@@ -115,33 +111,20 @@ describe.each(['klein', 'gross'] as const)('optional compartment fire in %s', (v
     expect(sim.snapshot().fire).toMatchObject({ phase: 'local', rollover: 0, involvement: 0 })
   })
 
-  it('can switch combustion during a smoky run and starts fresh when the source changes', () => {
-    const sim = new SmokeSimulation(house)
+  it('starts a fresh compartment fire after changing the source or resetting', () => {
+    const sim = new SmokeSimulation(house, 'compartment')
+    sim.setDoor('d1', true)
     sim.start('s_tv')
-    sim.advance(50)
-    const smoky = sim.snapshot()
-    expect(smoky.fire).toBeNull()
-    sim.setFireEnabled(true)
-    const lit = sim.snapshot()
-    expect(lit).toEqual({ ...smoky, fire: lit.fire, sourceStrength: lit.sourceStrength })
-    expect(lit.fire).toMatchObject({ phase: 'local', involvement: 0, rollover: 0 })
-    sim.setFireEnabled(true)
-    expect(sim.snapshot()).toBe(lit)
-    sim.advance(2)
-    const warmed = sim.snapshot()
-    expect(warmed.producedMass).toBeGreaterThanOrEqual(lit.producedMass)
-    sim.setFireEnabled(false)
-    expect(sim.snapshot().fire).toBeNull()
-    expect(sim.snapshot().rooms).toEqual(warmed.rooms)
-    expect(sim.snapshot().elapsed).toBe(warmed.elapsed)
-    sim.setFireEnabled(true)
-    sim.advance(3)
+    const first = sim.snapshot().fire
+    sim.advance(40)
+    expect(sim.snapshot().fire?.phase).toBe('flashover')
     sim.start('s_desk')
-    expect(sim.snapshot().fire).toEqual(lit.fire)
+    expect(sim.snapshot().fire).toEqual(first)
+    expect(sim.snapshot().producedMass).toBe(0)
     sim.reset()
     expect(sim.snapshot().fire).toBeNull()
     sim.start('s_tv')
-    expect(sim.snapshot().fire).toEqual(lit.fire)
+    expect(sim.snapshot().fire).toEqual(first)
   })
 })
 

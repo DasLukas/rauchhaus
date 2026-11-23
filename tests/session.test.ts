@@ -74,71 +74,37 @@ describe('free exploration', () => {
 describe.each(['klein', 'gross'] as const)('free fire experiments in the %s house', (variant) => {
   const house = getHouse(variant)
 
-  it.each(house.classroomSources)('reaches flashover at $label from the fire preset and respects closed doors', (source) => {
-    const roomDoors = house.doors.filter((door) => door.rooms.includes(source.room))
-    const ventilated = new LearningSession(house)
-    ventilated.setFireEnabled(true)
-    expect(roomDoors.some((door) => ventilated.snapshot.doors[door.id])).toBe(true)
-    ventilated.selectSource(source.id)
-    expect(ventilated.snapshot.fire?.phase).toBe('local')
-    let sawGasFlames = false
-    for (let second = 0; second < 45; second++) {
-      const fire = ventilated.tick(1).fire
-      if (fire?.phase === 'rollover' && fire.rollover >= 0.45) sawGasFlames = true
-      if (fire?.phase === 'flashover') break
-    }
-    expect(sawGasFlames).toBe(true)
-    expect(ventilated.snapshot.fire?.phase).toBe('flashover')
-    expect(ventilated.tick(5).fire?.involvement).toBeGreaterThan(0.65)
-
-    const closed = new LearningSession(house)
-    closed.setFireEnabled(true)
-    for (const door of roomDoors) {
-      if (closed.snapshot.doors[door.id]) closed.toggleDoor(door.id)
-    }
-    closed.selectSource(source.id)
-    const limited = closed.tick(60)
-    expect(limited.rooms[source.room].smokeMass).toBeGreaterThan(0)
-    expect(limited.fire).toMatchObject({ phase: 'local', involvement: 0 })
-  })
-
-  it('keeps manual doors across source changes and restores the preset on mode change or restart', () => {
+  it.each(house.classroomSources)('keeps flames at $label while smoke spreads according to the doors', (source) => {
     const session = new LearningSession(house)
-    const smokeDoors = session.snapshot.doors
-    session.setFireEnabled(true)
-    const fireDoors = session.snapshot.doors
-    expect(fireDoors.d3).toBe(true)
-    for (const door of house.doors.filter((item) => item.initiallyOpen)) {
-      expect(fireDoors[door.id]).toBe(true)
+    expect(session.snapshot.fire).toBeNull()
+    // Even an open source room keeps a local fire in the free experiment.
+    for (const door of house.doors.filter((door) => door.rooms.includes(source.room))) {
+      if (!session.snapshot.doors[door.id]) session.toggleDoor(door.id)
     }
-    session.setFireEnabled(false)
-    expect(session.snapshot.doors).toEqual(smokeDoors)
-
-    session.toggleDoor('d0')
-    session.setFireEnabled(true)
-    expect(session.snapshot.doors).toEqual(fireDoors)
-    session.toggleDoor('d3')
-    session.selectSource('s_tv')
-    expect(session.snapshot.doors.d3).toBe(false)
+    const doors = session.snapshot.doors
+    session.selectSource(source.id)
+    const fire = session.snapshot.fire
+    expect(fire).toMatchObject({ phase: 'local', rollover: 0, involvement: 0 })
+    expect(fire?.sourceIntensity).toBeGreaterThan(0)
+    const developed = session.tick(60)
+    expect(developed.rooms[source.room].smokeMass).toBeGreaterThan(0)
+    expect(developed.fire).toEqual(fire)
+    expect(developed.doors).toEqual(doors)
     session.restart()
-    expect(session.fireEnabled).toBe(true)
-    expect(session.snapshot.source).toBeNull()
-    expect(session.snapshot.doors).toEqual(fireDoors)
-    session.selectSource('s_attic')
-    expect(session.tick(45).fire?.phase).toBe('flashover')
-    session.setFireEnabled(false)
-    expect(session.snapshot.doors).toEqual(smokeDoors)
+    expect(session.snapshot.fire).toBeNull()
+    for (const door of house.doors) expect(session.snapshot.doors[door.id]).toBe(door.initiallyOpen)
   })
 })
 
 describe('guided door comparison', () => {
-  it('compares the same source at the same time, with just one initial door position changed', () => {
-    const session = new LearningSession()
+  it.each(['klein', 'gross'] as const)('compares the same local fire with one door changed in %s', (variant) => {
+    const session = new LearningSession(getHouse(variant))
     session.beginLesson()
     const openStart = session.snapshot
     expect(session.stage).toBe('open')
     expect(openStart.source).toBe('s_tv')
     expect(openStart.doors.d1).toBe(true)
+    expect(openStart.fire).toMatchObject({ phase: 'local', rollover: 0, involvement: 0 })
     session.toggleDoor('d1')
     session.selectSource('s_stove')
     expect(session.snapshot).toBe(openStart)
@@ -163,6 +129,8 @@ describe('guided door comparison', () => {
     session.finishTrial()
     const closedEnd = session.snapshot
     expect(closedEnd.elapsed).toBe(openEnd.elapsed)
+    expect(openEnd.fire).toEqual(openStart.fire)
+    expect(closedEnd.fire).toEqual(openStart.fire)
     expect(openEnd.rooms.stair1.opacity).toBeGreaterThan(closedEnd.rooms.stair1.opacity)
     session.nextTrial()
     expect(session.stage).toBe('compare')
@@ -213,33 +181,11 @@ describe('guided door comparison', () => {
   )
 })
 
-describe('optional fire lesson', () => {
-  it('starts in smoke mode and keeps the selected option across a house reset', () => {
-    const session = new LearningSession()
-    session.beginLesson('fire')
-    expect(session.stage).toBeNull()
-    expect(session.fireEnabled).toBe(false)
-    session.selectSource('s_tv')
-    session.tick(12)
-    session.togglePause()
-    session.setFireEnabled(true)
-    expect(session.snapshot.source).toBeNull()
-    expect(session.snapshot.elapsed).toBe(0)
-    expect(session.snapshot.producedMass).toBe(0)
-    expect(session.paused).toBe(false)
-    session.restart()
-    expect(session.fireEnabled).toBe(true)
-    expect(session.snapshot.source).toBeNull()
-    expect(session.snapshot.fire).toBeNull()
-    session.selectSource('s_tv')
-    expect(session.snapshot.fire?.phase).toBe('local')
-  })
-
+describe('guided fire development', () => {
   it.each(['klein', 'gross'] as const)(
     'halts at visible fire in the gas layer and on room contents in the %s house',
     (variant) => {
       const session = new LearningSession(getHouse(variant))
-      session.setFireEnabled(true)
       session.selectSource('s_tv')
       session.tick(5)
       const free = session.snapshot
@@ -271,33 +217,23 @@ describe('optional fire lesson', () => {
     },
   )
 
-  it.each(['fire', 'doors'] as const)('resets the %s lesson and paused free experiment when fire is disabled', (lesson) => {
+  it.each(['fire', 'doors'] as const)('can return to a paused free experiment or restart from the %s lesson', (lesson) => {
     const session = new LearningSession()
     const initial = session.snapshot
-    session.setFireEnabled(true)
     session.toggleDoor('d1')
     session.selectSource('s_washer')
     session.tick(6.41)
     session.togglePause()
+    const paused = session.snapshot
     session.beginLesson(lesson)
     session.finishTrial()
-    session.setFireEnabled(false)
+    session.endLesson()
+    expect(session.snapshot).toBe(paused)
+    expect(session.paused).toBe(true)
+    session.beginLesson(lesson)
+    session.restart()
     expect(session.stage).toBeNull()
     expect(session.snapshot).toEqual(initial)
     expect(session.paused).toBe(false)
-  })
-
-  it('keeps the matched door comparison available with the setting enabled', () => {
-    const session = new LearningSession()
-    session.setFireEnabled(true)
-    session.beginLesson()
-    expect(session.stage).toBe('open')
-    session.finishTrial()
-    expect(session.snapshot.elapsed).toBe(OBSERVATION_SECONDS)
-    expect(session.snapshot.fire).toBeNull()
-    session.nextTrial()
-    expect(session.stage).toBe('closed')
-    session.endLesson()
-    expect(session.fireEnabled).toBe(true)
   })
 })

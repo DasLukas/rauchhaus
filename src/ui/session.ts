@@ -16,8 +16,6 @@ export const OBSERVATION_SECONDS = 40
 /** Owns the free experiment and an isolated simulation for each guided lesson. */
 export class LearningSession {
   private readonly free: SmokeSimulation
-  private readonly firePresetDoors = new Set<DoorId>()
-  private fireOption = false
   private example: SmokeSimulation | null = null
   private freeWasPaused = false
   stage: LessonStage | null = null
@@ -26,27 +24,7 @@ export class LearningSession {
 
   constructor(private readonly house = HOUSE) {
     this.free = new SmokeSimulation(house)
-    // Give each selectable source room one open connection in the fire preset.
-    // Reuse an existing opening when two sources share a room or a door.
-    for (const { room } of house.classroomSources) {
-      const doors = house.doors.filter((door) => door.rooms.includes(room))
-      if (doors[0] && !doors.some((door) => door.initiallyOpen || this.firePresetDoors.has(door.id))) {
-        this.firePresetDoors.add(doors[0].id)
-      }
-    }
     this.snapshot = this.free.snapshot()
-  }
-
-  get fireEnabled() {
-    return this.fireOption
-  }
-
-  /** Restart the house in the selected mode when the setting changes. */
-  setFireEnabled(enabled: boolean) {
-    if (this.fireOption === enabled) return
-    this.fireOption = enabled
-    this.free.setFireEnabled(enabled)
-    this.restart()
   }
 
   get fireObservation(): FireObservation | null {
@@ -106,17 +84,11 @@ export class LearningSession {
     this.snapshot = this.free.snapshot()
   }
 
-  private applyFreeDoorPreset() {
-    for (const door of this.house.doors) {
-      this.free.setDoor(door.id, door.initiallyOpen || (this.fireOption && this.firePresetDoors.has(door.id)))
-    }
-  }
-
-  /** Restore the empty house and the selected mode's initial doors, and leave any lesson. */
+  /** Restore the empty house and its initial doors, and leave any lesson. */
   restart() {
     this.endLesson()
     this.free.reset()
-    this.applyFreeDoorPreset()
+    for (const door of this.house.doors) this.free.setDoor(door.id, door.initiallyOpen)
     this.paused = false
     this.snapshot = this.free.snapshot()
   }
@@ -150,14 +122,13 @@ export class LearningSession {
 
   /** Start a separate television experiment, preserving the current free scenario. */
   beginLesson(lesson: Lesson = 'doors') {
-    if (this.stage || (lesson === 'fire' && !this.fireEnabled)) return
+    if (this.stage) return
     this.freeWasPaused = this.paused
-    this.example = new SmokeSimulation(this.house)
+    this.example = new SmokeSimulation(this.house, lesson === 'fire' ? 'compartment' : 'local')
     if (lesson === 'doors') {
       this.startTrial('open')
       return
     }
-    this.example.setFireEnabled(true)
     this.example.setDoor('d1', true)
     this.example.start('s_tv')
     this.stage = 'rollover'

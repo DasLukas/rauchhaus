@@ -2,6 +2,7 @@ import { bindLessonHint } from '../ui/lesson-hint'
 import { element } from '../ui/dom'
 import { bindFullscreen } from '../ui/fullscreen'
 import { icon } from '../ui/icons'
+import { lessonHelp } from '../ui/lesson-help'
 import { STOVE_START_ANGLE } from './experiment'
 import { mountInstrument } from './instrument'
 import { TriangleSession } from './lesson'
@@ -12,9 +13,7 @@ const helpContent = `
     <h2 id="triangle-help-title">So geht’s</h2>
     <button type="button" class="close compact" aria-label="Schließen" data-close>${icon('close')}</button>
   </header>
-  <p>Zieh den Knopf oder wähle einen Punkt im Dreieck. Ziehst du ihn vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff.</p>
-  <p>Zieh seitlich über die Scheibe, um den Ofen zu drehen.</p>
-  <p>Im <strong>Lernimpuls</strong> testest du Sauerstoff, Wärme und Brennstoff.</p>
+  ${lessonHelp('verbrennungsdreieck')}
   <button class="action" type="button" data-close>Verstanden</button>`
 
 /** Mount the movable triangle and its optional guided wood-combustion comparisons. */

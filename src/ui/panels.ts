@@ -8,13 +8,11 @@ const closeButton = `<button class="close compact" data-close type="button" aria
 const help = `
   <header class="sheet-heading"><h2 id="sheet-title">So geht’s</h2>${closeButton}</header>
   <ul class="help-list">
-    <li><i class="key source">${icon('smoke')}</i><div><strong>Versuch starten</strong><p>Tippe auf ein oranges Rauchzeichen. Dort beginnt das Feuer.</p></div></li>
-    <li><i class="key door">${icon('door')}</i><div><strong>Tür auf, Tür zu</strong><p>Tippe auf die Tür oder ihr türkisfarbenes Zeichen.</p></div></li>
-    <li><i class="key neutral">${icon('house')}</i><div><strong>Näher hinschauen</strong><p>Tippe auf eine Etage. Verschiebe das Bild mit dem Finger. Das Hauszeichen zeigt wieder alle Etagen.</p></div></li>
+    <li><i class="key source">${icon('smoke')}</i><div><strong>Versuch starten</strong><p>Wähle ein oranges Rauchzeichen. Dort beginnt das Feuer.</p></div></li>
+    <li><i class="key door">${icon('door')}</i><div><strong>Tür auf, Tür zu</strong><p>Wähle die Tür oder ihr türkisfarbenes Zeichen.</p></div></li>
+    <li><i class="key neutral">${icon('house')}</i><div><strong>Näher hinschauen</strong><p>Wähle eine Etage. Ziehe das Bild mit der Maus oder dem Finger. Auch die Pfeiltasten verschieben es. Das Hauszeichen zeigt alle Etagen.</p></div></li>
     <li><i class="key neutral">${icon('alarm')}</i><div><strong>Rauchmelder entdecken</strong><p>Bei Rauch blinkt er rot. Schalte den Ton ein. Sein Piepen kann dich auch nachts wecken.</p></div></li>
   </ul>
-  <details><summary>Für Erwachsene</summary><p>Das Modell zeigt die Rauchentwicklung im Zeitraffer. Daraus lassen sich keine sicheren Fluchtzeiten ableiten.</p>
-  <p><strong>Tastatur</strong><br>Tab wählt, Eingabe oder Leertaste bestätigt. Die Pfeiltasten drehen das Haus oder verschieben die Nahansicht. 1 bis 4 wählen die Etage.${HOUSE_VARIANT === 'gross' ? ' 0 zeigt den Keller.' : ''} Pos1 zeigt das ganze Haus.</p><p><a href="https://github.com/DasLukas/rauchhaus" target="_blank" rel="noopener">Projekt, Quellen und Lizenzen</a></p></details>
   <button type="button" class="action" data-close>Verstanden</button>`
 
 const intro = `

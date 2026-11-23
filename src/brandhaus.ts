@@ -51,8 +51,8 @@ const fireSteps = {
   },
   flashover: {
     name: '2 von 2 · Im ganzen Zimmer',
-    prompt: HOUSE_VARIANT === 'klein' ? 'Was steigt über dem Sofa auf?' : 'Was steigt über dem Sessel auf?',
-    observation: 'Jetzt brennt es im ganzen Zimmer.',
+    prompt: HOUSE_VARIANT === 'klein' ? 'Was siehst du über dem Sofa, bevor es brennt?' : 'Was siehst du über dem Sessel, bevor er brennt?',
+    observation: 'Jetzt brennen auch Möbel weiter weg vom Fernseher.',
     next: 'Versuch besprechen',
   },
 }
@@ -81,7 +81,7 @@ function refresh() {
   restart.disabled = !ready
   sound.setAttribute('aria-pressed', String(alarm.enabled))
   sound.innerHTML = icon(alarm.enabled ? 'sound' : 'muted')
-  sound.title = alarm.enabled ? 'Alarmton ausschalten' : 'Alarmton einschalten'
+  sound.title = alarm.enabled ? 'Alarmton im Modell ausschalten' : 'Alarmton im Modell einschalten'
   updateAlarm()
   lesson.disabled = !ready
   lesson.setAttribute('aria-expanded', String(Boolean(session.stage)))
@@ -139,7 +139,7 @@ function openPanel(kind: PanelKind) {
       if (selected === 'fire') {
         const room = ROOMS.find((room) => room.id === 'living')
         if (room) scene?.focusFloor(room.floor, (room.minX + room.maxX) / 2)
-        announce('Schau über den brennenden Fernseher.')
+        announce('Schau im Modell über den brennenden Fernseher.')
       } else {
         scene?.resetView()
         announce('Die Wohnungstür ist offen. Wohin zieht der Rauch?')

@@ -169,7 +169,7 @@ async function verifyFire(page, fixture, house) {
   const regions = await jambPatches(page, house === 'gross' ? 'd0l' : 'd0', 'd1', {
     upperRoom: ['d1', -width, halfHeight, width, halfHeight],
   })
-  await fixture.evaluate((f) => f.gasFrame(0, false))
+  await fixture.evaluate((f) => f.gasFrame())
   const gas = await flamePixels(page, fixture, local, undefined, regions)
   assert.ok(gas.regionPixels.upperRoom > 50,
     `Expected visible gas flames in the upper living room away from the TV in ${house}, saw ${gas.regionPixels.upperRoom} pixels`)
@@ -264,12 +264,15 @@ async function verifyLivingRoomSurfaces(page, fixture) {
 }
 
 async function verifyGasSequence(page, fixture, source, house) {
+  // Real lessons vary their bursts. This interval of one repeatable sequence
+  // contains isolated left and right pockets, a pair, and gaps between bursts.
+  const burstSeed = 42
   const frames = []
   for (let step = 0; step <= 16; step++) {
-    const offset = step * 0.34
-    await fixture.evaluate((f, offset) => f.gasFrame(offset, false), offset)
+    const frame = { elapsed: 13 + step * 0.34, burstSeed }
+    await fixture.evaluate((f, frame) => f.gasFrame(frame), frame)
     const pixels = await flamePixels(page, fixture, source)
-    frames.push({ offset, ...pixels })
+    frames.push({ elapsed: frame.elapsed, ...pixels })
   }
   const visible = frames.filter((frame) => frame.count >= 45)
   assert.ok(visible.length >= 3, `Several gas flame observations should be visible in ${house}`)
@@ -289,7 +292,8 @@ async function verifyGasSequence(page, fixture, source, house) {
     `Gas flames should go out locally and reappear elsewhere in ${house}`,
   )
   const brightest = visible.reduce((a, b) => a.count > b.count ? a : b)
-  await fixture.evaluate((f, offset) => f.gasFrame(offset, true), brightest.offset)
+  await fixture.evaluate((f, frame) => f.gasFrame(frame),
+    { elapsed: brightest.elapsed, burstSeed, deep: true })
   const low = await flamePixels(page, fixture, source)
   assert.ok(!low.count || low.bottom <= source.bottom + 10, `Gas flames should stay above the floor in ${house}`)
   console.log(`Verified moving gas flames in ${house} across ${frames.length} frames.`)

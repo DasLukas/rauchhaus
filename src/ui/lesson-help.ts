@@ -2,14 +2,14 @@ import { icon } from './icons'
 
 const instructions = {
   brandhaus: {
-    explore: 'Wähle ein oranges Rauchzeichen. Öffne und schließe Türen. Wohin zieht der Rauch? Mit dem Lautsprecher schaltest du den Alarmton ein.',
+    explore: 'Wähle im Modell ein oranges Rauchzeichen. Die Flamme bleibt bei diesem Versuch am selben Ort. Öffne oder schließe eine Tür im Modell. Wohin zieht der Rauch?',
     view: 'Wähle eine Etage. Verschiebe das Bild mit Maus, Finger oder Pfeiltasten. Das Hauszeichen zeigt wieder alle Etagen.',
-    lesson: 'Wähle „Lernimpuls“ und dann einen Versuch zu Rauch oder Feuer.',
+    lesson: 'Wähle „Lernimpuls“ und dann einen Versuch zu Rauch oder Feuer. Erkennt ein Melder im Modell Rauch, blinkt er rot. Mit dem Lautsprecher schaltest du den Modellton ein.',
   },
   verbrennungsdreieck: {
-    explore: 'Zieh den Knopf oder wähle einen Punkt im Dreieck. Ziehst du ihn vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff. In der Mitte siehst du wieder das Feuer vom Anfang.',
+    explore: 'Tippe ins Dreieck oder zieh den Knopf. In der Mitte siehst du das Holzfeuer vom Anfang. Zieh den Knopf von dort zur Ecke links unten. So siehst du, was bei weniger Sauerstoff passiert.',
     view: 'Zieh mit der Maus oder dem Finger seitlich über die Ofenscheibe. Auch die Pfeiltasten links und rechts drehen den Ofen.',
-    lesson: 'Wähle „Lernimpuls“. Dort testest du nacheinander Sauerstoff, Wärme und Brennstoff.',
+    lesson: 'Wähle „Lernimpuls“. Holz ist der Brennstoff. Damit es mit Flammen brennt, muss es heiß genug sein und Sauerstoff aus der Luft bekommen.',
   },
 } as const
 

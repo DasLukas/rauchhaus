@@ -45,7 +45,7 @@ export async function mount() {
       observation = session.tick(2)
       return observation.fire.phase
     },
-    gasFrame(offset, deep) {
+    gasFrame({ elapsed = rolloverStop.elapsed, burstSeed = rolloverStop.fire.burstSeed, deep = false } = {}) {
       // Hold the room and ventilation at the lesson stop so each paired image
       // isolates gas emission. Move the interface down for the floor regression.
       let rooms = rolloverStop.rooms
@@ -56,8 +56,8 @@ export async function mount() {
       observation = {
         ...rolloverStop,
         rooms,
-        elapsed: rolloverStop.elapsed + offset,
-        fire: { ...rolloverStop.fire, sourceIntensity: 0, involvement: 0 },
+        elapsed,
+        fire: { ...rolloverStop.fire, burstSeed, sourceIntensity: 0, involvement: 0 },
       }
     },
     showSurfaceFlamesOnly() {

@@ -114,7 +114,7 @@ export class Markers {
         const selected = snapshot.source === id
         if (selected !== e.on) e.glyph.innerHTML = icon(selected ? 'check' : 'smoke')
         e.on = selected
-        label += e.on ? ' · Versuch läuft' : ' · Versuch starten'
+        label += e.on ? ' · gewählte Brandstelle' : ' · Versuch starten'
         e.view.setAttribute('aria-pressed', String(e.on))
       } else {
         e.on = snapshot.detectors[id as keyof typeof snapshot.detectors]

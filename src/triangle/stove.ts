@@ -182,7 +182,7 @@ export async function createStove(
         fire.scale.copy(fireScale)
         fire.scale.x *= 0.48 + 0.52 * flame
         fire.scale.y *= flame
-        glow = Math.max(residual, Math.sqrt(flame)) * availability.heat * availability.fuel
+        glow = Math.max(residual, reading.emberGlow)
         coals.visible = glow > 0.025
         for (const [material, original] of emission) {
           material.emissiveIntensity = original.strength * glow

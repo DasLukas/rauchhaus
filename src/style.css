@@ -473,6 +473,7 @@ nav,
 }
 #sheet:has(.scene-comparison) {
   width: min(720px, calc(100% - 28px));
+  max-height: 90dvh;
 }
 .scene-comparison {
   display: grid;

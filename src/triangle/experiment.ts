@@ -26,6 +26,8 @@ export interface TriangleReading {
   readonly state: 'steady' | 'weak' | 'out'
   /** Visible flame height relative to the burning log at the centre. */
   readonly flame: number
+  /** Visible glow of the remaining wood under the selected conditions. */
+  readonly emberGlow: number
 }
 
 function clamp(value: number): number {
@@ -103,11 +105,15 @@ export function readTriangle(input: TrianglePoint): TriangleReading {
   const sustained = clamp((minimum - extinction) / (weakThreshold - extinction))
   const nearCentre = clamp((minimum - weakThreshold) / (0.98 - weakThreshold))
   const flame = weakHeight * sustained + (1 - weakHeight) * nearCentre
+  // Hot char can continue glowing after visible flames have gone out. These are
+  // display settings for the comparison, not ignition or extinction measurements.
+  const emberGlow = Math.sqrt(clamp((minimum - 0.05) / 0.95))
   return {
     point,
     availability,
     limitingFactor: sustained === 1 ? null : least,
     state: sustained === 1 ? 'steady' : sustained === 0 ? 'out' : 'weak',
     flame,
+    emberGlow,
   }
 }

@@ -93,6 +93,14 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   assert.equal(await page.locator('canvas').count(), 0)
   assert.deepEqual([...modules], [])
   await capture('dashboard-desktop')
+  await page.getByRole('link', { name: 'Fachquellen' }).click()
+  const sources = page.getByRole('dialog', { name: 'Fachquellen' })
+  await sources.getByRole('heading', { name: 'Verhalten bei einem Wohnungsbrand' }).waitFor()
+  await sources.getByRole('heading', { name: 'Rauch und Feuer im Brandhaus' }).waitFor()
+  await sources.getByRole('heading', { name: 'Holzfeuer im Verbrennungsdreieck' }).waitFor()
+  await sources.getByRole('button', { name: 'Schließen' }).click()
+  await sources.waitFor({ state: 'hidden' })
+  await page.waitForURL((url) => !url.hash)
   await triangleLink.click()
   const readyStove = page.locator('.stove-window:has(.stove-load[hidden]) canvas')
   await readyStove.waitFor()
@@ -152,6 +160,7 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
     `The smaller-flames caption must show visibly shorter flames (${weakHeight}/${fullHeight} px)`)
   await page.mouse.click(board.x + board.width * .875, board.y + board.height * .93)
   assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
+  assert.match(await page.locator('.observation-copy:visible').textContent(), /noch heiß/)
   const cooled = await scene()
   const cdp = await page.context().newCDPSession(page)
   try {
@@ -163,6 +172,7 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
     await cdp.detach()
   }
   assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
+  assert.match(await page.locator('.observation-copy:visible').textContent(), /Asche.*heiß/s)
   const spent = await scene()
   assert.ok(await renderedDifference(page, cooled, spent) > 100,
     'The ash residue should look different from the intact, cooled log')

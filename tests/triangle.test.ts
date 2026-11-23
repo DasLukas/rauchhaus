@@ -66,6 +66,14 @@ describe('triangle control', () => {
     expect(guided.flame).toBeLessThan(base.flame)
   })
 
+  it.each(factors)('can show glowing wood without flames before %s runs out', (factor) => {
+    const glowing = readTriangle(factorPoint(factor, 0.9))
+    expect(glowing.flame).toBe(0)
+    expect(glowing.emberGlow).toBeGreaterThan(0)
+    expect(glowing.emberGlow).toBeLessThan(readTriangle(TRIANGLE_CENTER).emberGlow)
+    expect(readTriangle(factorPoint(factor, 1)).emberGlow).toBe(0)
+  })
+
   it('keeps the same orthogonal endpoint on a slanted edge when the pointer leaves the control', () => {
     const leftMidpoint = { x: 0.25, y: TRIANGLE_HEIGHT / 2 }
     const outside = { x: leftMidpoint.x - TRIANGLE_HEIGHT * 0.2, y: leftMidpoint.y - 0.1 }

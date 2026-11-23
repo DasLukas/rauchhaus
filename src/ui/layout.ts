@@ -22,7 +22,7 @@ export function mountLayout(host: HTMLElement) {
         <h1 class="brand"><img src="${import.meta.env.BASE_URL}haus.svg" alt="" /><span>Brandhaus</span></h1>
       </div>
       <nav class="house-picker" aria-label="Haus auswählen">${houseChoice('klein', 'Kleines Haus')}${houseChoice('gross', 'Großes Haus')}</nav>
-      <nav class="learning-tools" aria-label="Lernen und Hilfe">${control('lesson', 'bulb', 'Lernimpuls', true)}${control('help', 'help', 'Hilfe', true)}</nav>
+      <nav class="learning-tools" aria-label="Lernen und Hilfe">${control('lesson', 'bulb', 'Lernimpuls')}${control('help', 'help', 'Hilfe', true)}</nav>
     </header>
     <section class="stage" aria-label="Das Haus erkunden">
       <div id="viewport"></div>

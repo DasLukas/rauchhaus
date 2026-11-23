@@ -1,5 +1,6 @@
 import { createHouseScene, type HouseScene } from './scene'
 import { CLASSROOM_SOURCES, DETECTORS, DOORS, FLOORS, HOUSE_VARIANT, ROOMS } from './simulation'
+import { pageForSearch } from './navigation'
 import { AlarmSound } from './ui/alarm'
 import { element } from './ui/dom'
 import { bindFullscreen } from './ui/fullscreen'
@@ -26,6 +27,22 @@ const trial = element('trial')
 const pause = element<HTMLButtonElement>('pause')
 const restart = element<HTMLButtonElement>('restart')
 const lesson = element<HTMLButtonElement>('lesson')
+const previousPage = document.referrer ? new URL(document.referrer) : null
+const fromApp = previousPage?.origin === arrival.origin &&
+  new URL('.', previousPage).href === new URL('.', arrival).href
+const previousModule = fromApp ? pageForSearch(previousPage.search) : null
+const hintKey = 'brandhaus-lesson-hint'
+function updateLessonHint() {
+  let highlight = previousModule === 'dashboard'
+  try {
+    const state = sessionStorage.getItem(hintKey)
+    highlight = state !== 'started' && (highlight || (previousModule === 'brandhaus' && state === 'pending'))
+    if (highlight) sessionStorage.setItem(hintKey, 'pending')
+  } catch { /* The hint also works for this visit when storage is unavailable. */ }
+  lesson.classList.toggle('highlight-bulb', highlight)
+}
+updateLessonHint()
+window.addEventListener('pageshow', updateLessonHint)
 const loading = element('load-state')
 let scene: HouseScene | undefined
 let modal = false
@@ -109,6 +126,10 @@ function openPanel(kind: PanelKind) {
     modal = false
     if (selected) {
       session.beginLesson(selected)
+      lesson.classList.remove('highlight-bulb')
+      try {
+        sessionStorage.setItem(hintKey, 'started')
+      } catch { /* The highlight has already stopped for this visit. */ }
       if (selected === 'fire') {
         const room = ROOMS.find((room) => room.id === 'living')
         if (room) scene?.focusFloor(room.floor, (room.minX + room.maxX) / 2)
@@ -223,6 +244,7 @@ async function start() {
 }
 void start().catch(showError)
 if (import.meta.hot) import.meta.hot.dispose(() => {
+  window.removeEventListener('pageshow', updateLessonHint)
   document.removeEventListener('visibilitychange', updateAlarm)
   unbindFullscreen()
   alarm.dispose()

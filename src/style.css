@@ -638,6 +638,15 @@ nav,
     font-size: 14px;
   }
 }
+@media (prefers-reduced-motion: no-preference) {
+  #lesson.highlight-bulb:enabled svg {
+    animation: lesson-bulb-glow 3s ease-in-out infinite;
+  }
+  @keyframes lesson-bulb-glow {
+    0%, 65%, 100% { transform: scale(1); }
+    32% { transform: scale(1.14); filter: drop-shadow(0 0 4px #eead33); }
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;

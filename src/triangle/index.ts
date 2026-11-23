@@ -1,6 +1,7 @@
 import { element } from '../ui/dom'
 import { bindFullscreen } from '../ui/fullscreen'
 import { icon } from '../ui/icons'
+import { STOVE_START_ANGLE } from './experiment'
 import { mountInstrument } from './instrument'
 import { predictionLabels, type Prediction, TriangleSession } from './lesson'
 import './lesson.css'
@@ -10,18 +11,21 @@ const helpContent = `
     <h2 id="triangle-help-title">So geht’s</h2>
     <button type="button" class="close compact" aria-label="Schließen" data-close>${icon('close')}</button>
   </header>
-  <p>Zieh den Knopf im Dreieck oder tippe auf einen Punkt. Je weiter du dich von einer Seite entfernst, desto weniger bekommt das Feuer von dieser Zutat.</p>
-  <p>Vergleiche das Bild im Ofen mit dem Start in der Mitte. Mit „Lernimpuls“ kannst du die drei Seiten nacheinander untersuchen.</p>
+  <p>Zieh den Knopf im Dreieck oder tippe auf einen Punkt. Bewegst du ihn zum Beispiel vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff.</p>
+  <p>Zieh seitlich über die Ofenscheibe, um den Ofen von einer anderen Seite zu sehen. Mit „Lernimpuls“ kannst du die drei Seiten des Dreiecks nacheinander untersuchen.</p>
   <details><summary>Für Erwachsene</summary>
     <p>Die Mitte steht für genügend Wärme, Sauerstoff und Brennstoff. Die Abstände sind Modellwerte. Das Dreieck gibt keine Mengenverhältnisse für einen echten Brand an.</p>
     <p>Jede Einstellung zeigt dasselbe Holz unter den gewählten Bedingungen. Die Ausgangsszene enthält bereits brennendes Holz. Die Rückkehr zur Mitte zeigt diesen Ausgangszustand erneut.</p>
-    <p>Mit der Tabulatortaste erreichst du den Knopf. Die Pfeiltasten verschieben ihn, Pos1 bringt ihn zurück in die Mitte. Am Ofen schwenken die Pfeile nach links und rechts die Ansicht.</p>
+    <p>Beim Erhitzen setzt Holz brennbare Gase frei. Am Ende des Brennstoffversuchs liefert der verkohlte Rest zu wenig Gas für eine Flamme. Holzkohle kann bei genügend Wärme und Sauerstoff weiterglühen.</p>
+    <p>Mit der Tabulatortaste erreichst du den Knopf. Die Pfeiltasten verschieben ihn, Pos1 bringt ihn zurück in die Mitte.</p>
   </details>
   <button class="action" type="button" data-close>Verstanden</button>`
 
 function predictionPicture(choice: Prediction) {
   const wood =
     '<path d="m6 23 23-3 6 3-1 6-24 2-4-3z" fill="#ac6b42"/><path d="m7 24 5 2-1 5-5-3z" fill="#eabd7d"/><path d="m15 26 13-2" stroke="#6a472f" stroke-width="1.4" stroke-linecap="round"/>'
+  const charcoal =
+    '<path d="m6 25 8-2 5 1 8-3 7 2 2 4-6 2-15 2-9-2z" fill="#383432"/><path d="m10 25 4 1-2 3m10-6 2 2-3 3m8-5 2 1" fill="none" stroke="#999088" stroke-width="1.5" stroke-linecap="round"/>'
   const flame =
     '<path d="M18 22c-5-2-5-6-3-10 1 2 2 3 3 3-1-4 4-7 3-13 7 6 11 15 4 20z" fill="#dc601f"/><path d="M19 22c-2-3 3-5 3-9 4 5 4 8 1 9z" fill="#ffd354"/>'
   const fire =
@@ -30,26 +34,24 @@ function predictionPicture(choice: Prediction) {
       : choice === 'weak'
         ? `<g transform="translate(11 12) scale(.5)">${flame}</g>`
         : ''
-  return `<svg viewBox="0 0 42 35" aria-hidden="true" focusable="false"><rect x="1" y="2" width="40" height="31" rx="5" fill="#f4e5cb"/><path d="M2 31h38" stroke="#846e51" stroke-width="2"/>${fire}${choice === 'empty' ? '' : wood}</svg>`
+  return `<svg viewBox="0 0 42 35" aria-hidden="true" focusable="false"><rect x="1" y="2" width="40" height="31" rx="5" fill="#f4e5cb"/><path d="M2 31h38" stroke="#846e51" stroke-width="2"/>${fire}${choice === 'charred' ? charcoal : wood}</svg>`
 }
 
 /** Mount the movable triangle and its optional guided wood-combustion comparisons. */
 export function mountTriangle(root: HTMLElement) {
   root.innerHTML = `
     <header class="topbar triangle-topbar">
-      <a class="pill triangle-overview" href="./" aria-label="Zur Übersicht" title="Zur Übersicht">${icon('overview')}<span>Übersicht</span></a>
+      <div class="triangle-identity">
+        <a class="pill compact" href="./" aria-label="Zur Übersicht" title="Zur Übersicht">${icon('overview')}</a>
+        <h1 class="brand" id="triangle-title"><svg viewBox="0 0 32 32" fill="none" stroke-width="4.5" stroke-linecap="round" aria-hidden="true"><path d="M16 4 3 27" stroke="#e36d4e"/><path d="M3 27h26" stroke="#e9a620"/><path d="M29 27 16 4" stroke="#008c84"/></svg>Verbrennungsdreieck</h1>
+      </div>
       <nav aria-label="Lernen und Hilfe">
-        <button class="pill" id="triangle-lesson" type="button">${icon('bulb')}<span>Lernimpuls</span></button>
+        <button class="pill" id="triangle-lesson" type="button" aria-label="Lernimpuls" title="Lernimpuls">${icon('bulb')}<span>Lernimpuls</span></button>
         <button class="pill compact" id="triangle-help" type="button" aria-label="Hilfe" title="Hilfe">${icon('help')}</button>
       </nav>
     </header>
     <div class="triangle-workspace">
-      <header class="triangle-heading">
-        <h1 id="triangle-title">Das Verbrennungsdreieck</h1>
-        <p>Was braucht Holz zum Brennen?</p>
-      </header>
       <div id="triangle-instrument"></div>
-      <p id="triangle-hint" class="triangle-hint">Zieh den Knopf von einer Seite weg. Dann bekommt das Feuer weniger davon.</p>
       <section id="triangle-study" aria-labelledby="triangle-study-heading" hidden>
         <div class="triangle-study-copy">
           <span id="triangle-progress"></span>
@@ -124,7 +126,6 @@ export function mountTriangle(root: HTMLElement) {
     study.dataset.factor = comparison.factor
     lesson.disabled = !free
     pause.hidden = !free
-    element('triangle-hint').hidden = !free
     const pauseLabel = session.paused ? 'Weiter' : 'Pause'
     pause.innerHTML = `${icon(session.paused ? 'play' : 'pause')}<span>${pauseLabel}</span>`
     pause.setAttribute('aria-label', pauseLabel)
@@ -162,7 +163,7 @@ export function mountTriangle(root: HTMLElement) {
         'Auflösung ansehen',
       ],
       result: [
-        'Das Holz ist der Brennstoff. Seine Flammen brennen weiter, solange genügend Brennstoff, Wärme und Sauerstoff aus der Luft zusammenkommen.',
+        'Holz ist der Brennstoff. Seine Flammen brauchen auch Wärme und Sauerstoff. Das kalte Holz blieb braun. Am Ende der Brennzeit blieb ein dunkler Rest mit aschgrauen Streifen. Verkohltes Holz kann noch glühen.',
         'Weiter entdecken',
       ],
     }[phase]
@@ -210,7 +211,7 @@ export function mountTriangle(root: HTMLElement) {
   lesson.onclick = () => {
     restorePlayback = instrument.capturePlayback()
     session.begin(instrument.getViewAngle())
-    instrument.setViewAngle(0)
+    instrument.setViewAngle(STOVE_START_ANGLE)
     refresh()
     heading.focus()
     announceStage()
@@ -221,7 +222,7 @@ export function mountTriangle(root: HTMLElement) {
       return
     }
     session.next()
-    instrument.setViewAngle(0)
+    instrument.setViewAngle(STOVE_START_ANGLE)
     refresh()
     announceStage()
     if (session.phase === 'explore') {
@@ -236,7 +237,7 @@ export function mountTriangle(root: HTMLElement) {
   element('triangle-restart').onclick = () => {
     session.restart()
     restorePlayback = undefined
-    instrument.setViewAngle(0)
+    instrument.setViewAngle(STOVE_START_ANGLE)
     refresh()
     announcer.textContent = 'Das Holz brennt wieder. Der Knopf liegt in der Mitte.'
   }

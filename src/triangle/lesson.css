@@ -5,13 +5,19 @@
   gap: clamp(8px, 1.5vh, 18px);
 }
 
-.triangle-topbar .triangle-overview {
-  font-weight: 850;
+.triangle-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.triangle-topbar .triangle-overview svg {
-  width: 24px;
-  height: 24px;
+.triangle-identity #triangle-title {
+  white-space: nowrap;
+}
+
+#triangle-title svg {
+  width: 1.18em;
+  height: 1.18em;
 }
 
 .triangle-workspace {
@@ -22,35 +28,6 @@
   width: min(1400px, 100%);
   margin-inline: auto;
   padding-inline: clamp(12px, 3.3vw, 48px);
-}
-
-.triangle-heading,
-.triangle-hint {
-  text-align: center;
-}
-
-.triangle-heading h1 {
-  margin: 0;
-  font-size: clamp(2rem, 4.3vw, 4rem);
-  font-weight: 950;
-  letter-spacing: -0.045em;
-  line-height: 1.04;
-  overflow-wrap: anywhere;
-}
-
-.triangle-heading p {
-  margin: 6px 0 0;
-  font-size: clamp(1.05rem, 2.2vw, 1.65rem);
-  font-weight: 800;
-}
-
-.triangle-hint {
-  margin: 0 auto;
-  max-width: 55ch;
-  font-size: clamp(1rem, 1.75vw, 1.38rem);
-  line-height: 1.35;
-  font-weight: 750;
-  text-wrap: balance;
 }
 
 #triangle-study {
@@ -148,18 +125,8 @@
 }
 
 @media (min-width: 900px) {
-  .triangle-topbar {
-    position: absolute;
-    inset: max(10px, env(safe-area-inset-top)) 0 auto;
-  }
   .triangle-workspace {
     margin-block: auto;
-  }
-  .triangle-heading {
-    padding-inline: 180px;
-  }
-  .triangle-hint {
-    max-width: 70ch;
   }
   #triangle-instrument {
     width: min(100%, max(680px, calc(230dvh - 680px)));
@@ -179,6 +146,23 @@
     align-items: stretch;
     padding: 14px;
   }
+  .triangle-topbar nav {
+    gap: 4px;
+  }
+  .triangle-identity {
+    gap: 4px;
+  }
+  #triangle-title {
+    padding: 8px 10px;
+    font-size: clamp(17px, 5vw, 24px);
+  }
+  #triangle-lesson {
+    min-width: 48px;
+    padding: 8px;
+  }
+  #triangle-lesson span {
+    display: none;
+  }
   .triangle-study-actions {
     justify-content: space-between;
   }
@@ -188,14 +172,34 @@
   }
 }
 
+@media (max-width: 440px) {
+  #triangle-title svg {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  .triangle-topbar {
+    padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right));
+  }
+  .triangle-topbar,
+  .triangle-identity,
+  .triangle-topbar nav {
+    gap: 2px;
+  }
+  .triangle-topbar .pill,
+  #triangle-lesson {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px;
+  }
+  #triangle-title {
+    padding-inline: 7px;
+    font-size: 16px;
+  }
+}
+
 @media (max-height: 560px) and (orientation: landscape) {
-  .triangle-heading h1 {
-    font-size: 1.65rem;
-  }
-  .triangle-heading p,
-  .triangle-hint {
-    font-size: 1rem;
-  }
   .triangle-workspace {
     gap: 6px;
   }

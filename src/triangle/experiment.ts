@@ -7,6 +7,8 @@ export interface TrianglePoint {
 export type TriangleFactor = 'heat' | 'oxygen' | 'fuel'
 export const TRIANGLE_HEIGHT = Math.sqrt(3) / 2
 export const TRIANGLE_CENTER: TrianglePoint = { x: 0.5, y: (2 * TRIANGLE_HEIGHT) / 3 }
+/** The annotated starting view shows the door, top and right exterior of the stove. */
+export const STOVE_START_ANGLE = (16 * Math.PI) / 180
 
 // A factor is least available at the vertex opposite its labelled side.
 const opposite: Record<TriangleFactor, TrianglePoint> = {

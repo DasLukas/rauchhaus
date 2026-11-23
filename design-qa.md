@@ -1,17 +1,17 @@
 # Learning module design review
 
-The [approved wood-stove concept](docs/konzept-verbrennungsdreieck-holzscheit.png) and the [implemented free experiment](docs/verbrennungsdreieck.webp) both show a centred control and a burning log at 1448 × 1086. The implementation was captured in Chrome at 1448 × 1086 CSS pixels with a device scale factor of 1.
+The [wood-stove concept](docs/konzept-verbrennungsdreieck-holzscheit.png) sets the scene for the [interactive experiment](docs/verbrennungsdreieck.webp). Both place the movable triangle beside a single burning log. The annotated tablet view guided the camera angle and the latest changes to the controls.
 
-## Desktop comparison
+## The free experiment
 
-The single knob sits at equal distances from the three labelled sides. The side colours, thermometer, air and wood symbols, cream controls, rounded Nunito lettering and blue background carry across from the concept and the Brandhaus interface. The live view uses a slightly elevated camera: the upper casting and the depth of the firebox stay visible during horizontal orbit. The dashboard, learning lightbulb, pause and fullscreen controls are available alongside the experiment.
+The framed module title sits in the same toolbar as the Brandhaus title. Each coloured side has a large pictogram above its name. Colours continue into the triangle from their respective edges, and the dotted guides track the knob as it moves. In the centre, all three conditions are sufficient.
 
-The stove window was reviewed separately in the frontal and turned positions. The first rendering gave the refractory bricks nearly uniform light and the camera offered few depth cues. The final housing has a darker lining, directional shadows and warm internal light. The final close-up shows the curved flame tips, ember seams and the log’s cut end across the permitted orbit. The initial turn arrows were hard to identify as controls. The final arrows sit in cream buttons on either side of the camera label.
+The starting camera shows the stove door, top and right side. Children turn the stove by dragging directly on it. With keyboard focus on the stove, Left and Right turn it and Home restores the starting view. Help and the guided lesson explain the interaction on demand.
 
-## Responsive layout and interactions
+The fuel comparison changes the appearance of the full log resting on the grate. The wood darkens and an ash-grey grain becomes visible at the end of the comparison. Moving away from heat instead leaves cooled, brown wood. The guided activity uses these distinct appearances in its prediction pictures and observations.
 
-The two classroom activities fit side by side on desktop and stack on a narrow screen. The previews are stills taken from the lesson scenes. The triangle appears above the stove on a narrow portrait screen. At 390 × 844 the free experiment now fits its complete toolbar. An earlier resize capture repeated part of the header at the foot of the image. After removing unnecessary clipping and tightening spacing, fresh captures showed the hint and reset controls in their intended positions. The longer guided lesson scrolls vertically; the prediction options and actions respond to taps.
+## Responsive layout and checks
 
-Chrome checks covered mobile and tablet viewports, touch input, keyboard control, dragging along the oxygen guide, camera reset, live animation, reduced motion, prediction and discussion, and returning to the free experiment. The full browser suite also exercised the two Brandhaus layouts and their guided activities. Testing on physical tablets and in Safari remains open.
+The dashboard tiles use stills from the lessons. On a wide screen the triangle and stove share a row. On a narrow portrait screen the stove follows the triangle, and the guided prediction and discussion panels can scroll into view.
 
-final result: passed
+The Chrome checks cover the annotated 1024 × 768 viewport, portrait tablet and phone layouts, touch and keyboard input, direct camera orbit, the Blender flame animation, reduced motion, the guided comparisons and restoration of the free experiment. The Brandhaus browser suite exercises both house layouts and their guided activities. Physical tablet and Safari checks are still open.

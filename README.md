@@ -6,9 +6,9 @@ Two German, touch-first fire science activities for primary-school children aged
 
 ## Verbrennungsdreieck
 
-Open `?modul=verbrennungsdreieck`. Drag the knob or tap a point in the triangle. Moving farther from an edge reduces the corresponding condition. In the centre all three are sufficient. The thermometer stands for heat, the wind symbol for oxygen and the log for fuel. The adjacent stove shows the effect on wood, flame and glow. Swipe the stove sideways, use its arrow buttons, or focus it and use the arrow keys for a small change in viewing angle. With the knob focused, arrow keys move it and Home centres it.
+Open `?modul=verbrennungsdreieck`. Drag the knob or tap a point in the triangle. Moving farther from an edge reduces the corresponding condition. In the centre all three are sufficient. The thermometer stands for heat, the wind symbol for oxygen and the log for fuel. The adjacent stove shows the effect on wood, flame and glow. The stove starts at a slight angle so its front and right side are visible. Drag directly on the stove or focus it and use the left and right arrow keys to look around. Home restores its starting view. With the knob focused, arrow keys move it and Home centres it.
 
-Choose **Lernimpuls** to compare oxygen, heat and fuel in turn. Children can tap a picture to predict the outcome or discuss it aloud before observing. The oxygen trial compares a smaller flame with the loss of visible flames. The remaining trials distinguish a cold log from exhausted fuel. Each trial starts with the same burning specimen. **Beobachtung zeigen** reaches the same observation as moving the knob by hand. Closing the lesson restores the free experiment, including the viewing angle and pause state.
+Choose **Lernimpuls** to compare oxygen, heat and fuel in turn. Children can tap a picture to predict the outcome or discuss it aloud before observing. The oxygen trial compares a smaller flame with the loss of visible flames. The remaining trials distinguish a cooled, brown log from a dark, charred log. Lowering the remaining fuel progressively chars the visible surface while preserving the size and position of the log. Each trial starts with the same burning specimen. **Beobachtung zeigen** reaches the same observation as moving the knob by hand. Closing the lesson restores the free experiment, including the viewing angle and pause state.
 
 ![The triangular control beside a burning log in the 3D stove](docs/verbrennungsdreieck.webp)
 
@@ -106,6 +106,7 @@ In the large house, start the ground-floor kettle and open its apartment door. S
 - The renderer attenuates background light exponentially along a sightline, following the slice rendering approach in section 4.3.1 of the [NIST Smokeview technical reference](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1017-2.pdf).
 - [Fire Safety Research Institute’s full-scale open/closed door comparison](https://fsri.org/program-update/close-you-doze-series-after)
 - [German Fire Services Association and vfdb guidance](https://www.feuerwehrverband.de/app/uploads/2020/05/DFV_vfdb_Fachempfehlung_Verhalten_Brandfall_2019b.pdf)
+- The stove lesson distinguishes the flame from the solid char that can continue glowing after the flame goes out. [USDA Forest Products Laboratory, Wood Handbook, chapter 17](https://research.fs.usda.gov/download/treesearch/7146.pdf).
 - [Hardy et al. on guided exploration in primary science education](https://www.uni-muenster.de/imperia/md/content/didaktik_des_sachunterrichts/dokumente/literaturmoeller/article.pdf). The study concerned floating and sinking. The prediction, observation and comparison sequence applies that instructional approach here.
 
 ## Licensing

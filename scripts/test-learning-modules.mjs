@@ -12,7 +12,10 @@ async function renderedDifference(page, first, second) {
       canvas.width = 120
       canvas.height = 96
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+      // Compare only the scene, independent of the browser's keyboard focus outline.
+      const inset = 6
+      ctx.drawImage(image, inset, inset, image.width - 2 * inset, image.height - 2 * inset,
+        0, 0, canvas.width, canvas.height)
       return ctx.getImageData(0, 0, canvas.width, canvas.height).data
     }))
     let changed = 0
@@ -44,14 +47,16 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   assert.deepEqual([...modules], [])
   await capture('dashboard-desktop')
   await triangleLink.click()
-  const controls = page.locator('.stove-camera')
-  await controls.waitFor()
+  const readyStove = page.locator('.stove-window:has(.stove-load[hidden]) canvas')
+  await readyStove.waitFor()
+  assert.equal(await page.getByRole('heading', { name: 'Verbrennungsdreieck', exact: true }).count(), 1)
+  assert.equal(await page.locator('.stove-camera, #triangle-hint').count(), 0)
   assert.match(await page.title(), /Verbrennungsdreieck/)
   assert.deepEqual([...modules], ['holzofen.glb'])
   await page.goBack()
   await triangleLink.waitFor()
   await page.goForward()
-  await controls.waitFor()
+  await readyStove.waitFor()
   const instrument = page.locator('.triangle-instrument')
   const knob = page.locator('.triangle-knob')
   const stove = page.locator('.stove-canvas')
@@ -66,16 +71,13 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   assert.ok(await renderedDifference(page, moving, await scene()) > 10, 'The exported flame animation should change shape over time')
   await button('Pause').click()
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await stove.press('Home')
   const centre = await scene()
   await capture('verbrennungsdreieck-desktop')
   await stove.press('ArrowRight')
-  await button('Ofen von vorne zeigen').waitFor()
   assert.ok(await renderedDifference(page, centre, await scene()) > 150, 'Camera orbit must change the rendered stove')
   await stove.press('Home')
-  await button('Ofen von vorne zeigen').waitFor({ state: 'hidden' })
   const restoredDifference = await renderedDifference(page, centre, await scene())
-  assert.ok(restoredDifference < 5, `Home should restore the front view (${restoredDifference} changed pixels)`)
+  assert.ok(restoredDifference < 5, `Home should restore the initial three-quarter view (${restoredDifference} changed pixels)`)
 
   const box = await stove.boundingBox()
   const x = box.x + box.width * .4
@@ -84,9 +86,9 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   await page.mouse.down()
   await page.mouse.move(x + 110, y, { steps: 5 })
   await page.mouse.up()
-  await button('Ofen von vorne zeigen').waitFor()
+  assert.ok(await renderedDifference(page, centre, await scene()) > 150, 'Dragging the stove must orbit the camera')
   await capture('ofen-geschwenkt')
-  await button('Ofen von vorne zeigen').click()
+  await stove.press('Home')
   for (let i = 0; i < 5; i++) await knob.press('ArrowUp')
   assert.equal(await instrument.getAttribute('data-fire-state'), 'weak')
   await knob.press('Home')
@@ -94,6 +96,9 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
 
   const board = await page.locator('.triangle-board').boundingBox()
   const tip = { x: board.x + board.width / 2, y: board.y + board.height * .045 }
+  await page.mouse.click(board.x + board.width * .875, board.y + board.height * .93)
+  assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
+  const cooled = await scene()
   const cdp = await page.context().newCDPSession(page)
   try {
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
@@ -104,8 +109,12 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
     await cdp.detach()
   }
   assert.equal(await instrument.getAttribute('data-fire-state'), 'out')
-  assert.ok(await renderedDifference(page, centre, await scene()) > 100, 'The fuel-depleted specimen must visibly lose wood and flames')
-  await button('Ofen nach links schwenken').click()
+  const spent = await scene()
+  assert.ok(await renderedDifference(page, cooled, spent) > 100,
+    'The unlit log should look different when fuel is spent than when it is just cold')
+  await capture('ofen-verkohlt')
+  await stove.press('ArrowLeft')
+  const beforeLesson = await scene()
   const originalPosition = await knob.getAttribute('style')
 
   const study = page.locator('#triangle-study')
@@ -156,21 +165,28 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   assert.equal(await study.isHidden(), true)
   assert.equal(await knob.getAttribute('style'), originalPosition)
   assert.equal(await button('Weiter').isVisible(), true)
-  assert.equal(await button('Ofen von vorne zeigen').isVisible(), true)
+  assert.ok(await renderedDifference(page, beforeLesson, await scene()) < 5, 'Leaving the lesson must restore the charred log and camera angle')
   await button('Neu starten').click()
   await button('Hilfe').click()
   await page.getByText('Für Erwachsene', { exact: true }).click()
   await page.keyboard.press('Escape')
-  for (const [width, height] of [[820, 1180], [390, 844]]) {
+  for (const [width, height] of [[1024, 768], [820, 1180], [390, 844]]) {
     await page.setViewportSize({ width, height })
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    const labels = page.locator('.triangle-label')
+    assert.equal(await labels.count(), 3)
+    assert.ok(await labels.evaluateAll((items) => items.every((label) => {
+      const icon = label.querySelector('svg').getBoundingClientRect()
+      const name = label.querySelector('span').getBoundingClientRect()
+      return icon.height >= 24 && icon.bottom <= name.top + 1
+    })), 'Each factor should have a large pictogram above its name')
     await capture(`verbrennungsdreieck-${width}`)
     await page.getByRole('link', { name: 'Zur Übersicht' }).click()
     await triangleLink.waitFor()
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     await capture(`dashboard-${width}`)
     await triangleLink.click()
-    await controls.waitFor()
+    await readyStove.waitFor()
   }
   await page.getByRole('link', { name: 'Zur Übersicht' }).click()
   await triangleLink.waitFor()

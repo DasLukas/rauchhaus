@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { factorPoint, readTriangle, TRIANGLE_CENTER } from '../src/triangle/experiment'
+import {
+  factorPoint,
+  readTriangle,
+  STOVE_START_ANGLE,
+  TRIANGLE_CENTER,
+} from '../src/triangle/experiment'
 import { TriangleSession } from '../src/triangle/lesson'
 
 describe('guided wood comparisons', () => {
@@ -31,7 +36,7 @@ describe('guided wood comparisons', () => {
     session.begin(0)
     expect(session.guide).toBeNull()
     session.next()
-    const firstTarget = factorPoint('oxygen', .65)
+    const firstTarget = factorPoint('oxygen', 0.65)
     expect(session.guide).toEqual({ from: TRIANGLE_CENTER, to: firstTarget })
     session.showObservation()
     expect(session.guide).toBeNull()
@@ -83,7 +88,7 @@ describe('guided wood comparisons', () => {
     const session = new TriangleSession()
     session.begin(0)
     expect(session.prediction).toBeNull()
-    session.choose('empty')
+    session.choose('charred')
     expect(session.prediction).toBeNull()
     session.choose('steady')
     session.choose('weak')
@@ -91,11 +96,11 @@ describe('guided wood comparisons', () => {
     expect(session.position).toEqual(TRIANGLE_CENTER)
     session.choose('weak')
     expect(session.prediction).toBeNull()
-    session.choose('dark')
+    session.choose('wood')
     session.next()
     session.choose('steady')
     session.showObservation()
-    expect(session.prediction).toBe('dark')
+    expect(session.prediction).toBe('wood')
     expect(readTriangle(session.position).state).toBe('weak')
     session.next()
     session.showObservation()
@@ -103,12 +108,17 @@ describe('guided wood comparisons', () => {
     session.next()
     expect(session.comparison.factor).toBe('heat')
     expect(session.prediction).toBeNull()
-    expect(session.comparison.choices).toContain('dark')
+    expect(session.comparison.choices).toEqual(expect.arrayContaining(['wood', 'charred']))
     session.next()
     session.showObservation()
     session.next()
     expect(session.comparison.factor).toBe('fuel')
-    expect(session.comparison.choices).toContain('empty')
+    expect(session.comparison.choices).toEqual(expect.arrayContaining(['wood', 'charred']))
+    session.choose('charred')
+    session.next()
+    session.showObservation()
+    expect(session.prediction).toBe('charred')
+    expect(session.stop.observation).toContain('verkohlten Rest')
   })
 
   it('continues the second oxygen comparison from the weaker flame without changing the other two factors', () => {
@@ -159,7 +169,7 @@ describe('guided wood comparisons', () => {
     session.restart()
     expect(session.phase).toBe('free')
     expect(session.position).toEqual(TRIANGLE_CENTER)
-    expect(session.viewAngle).toBe(0)
+    expect(session.viewAngle).toBe(STOVE_START_ANGLE)
     expect(session.paused).toBe(false)
   })
 })

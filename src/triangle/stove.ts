@@ -1,14 +1,15 @@
 import {
   AnimationMixer,
-  Box3,
-  type Color,
+  Color,
   DirectionalLight,
   type Group,
   HemisphereLight,
   LoadingManager,
+  type Material,
   Mesh,
   MeshStandardMaterial,
   NeutralToneMapping,
+  type Object3D,
   OrthographicCamera,
   PCFShadowMap,
   PointLight,
@@ -17,7 +18,7 @@ import {
 } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { releaseMeshes } from '../scene/dispose'
-import type { TriangleReading } from './experiment'
+import { STOVE_START_ANGLE, type TriangleReading } from './experiment'
 
 /** Horizontal orbit is intentionally limited to keep the glass, log and flames in view. */
 export const STOVE_ORBIT_LIMIT = Math.PI / 9
@@ -28,6 +29,62 @@ export interface StoveView {
   setAngle(radians: number): void
   capturePlayback(): () => void
   dispose(): void
+}
+
+/**
+ * Bind the authored wood surfaces to the remaining fuel. Preserve each grain/bark tone as
+ * it darkens and develops a thin ash finish. Materials also used by the stove are isolated.
+ */
+export function bindWoodFinish(model: Object3D, wood: Object3D): (available: number) => void {
+  const timber = new Set<Mesh>()
+  wood.traverse((object) => {
+    if (object instanceof Mesh) timber.add(object)
+  })
+  const outside = new Set<Material>()
+  model.traverse((object) => {
+    if (object instanceof Mesh && !timber.has(object)) {
+      for (const material of [object.material].flat()) outside.add(material)
+    }
+  })
+  const copies = new Map<MeshStandardMaterial, MeshStandardMaterial>()
+  const finishes = new Map<MeshStandardMaterial, { fresh: Color; char: Color; ash: Color }>()
+  function prepare(source: Material): Material {
+    if (!(source instanceof MeshStandardMaterial)) return source
+    let material = source
+    if (outside.has(source)) {
+      material = copies.get(source) ?? source.clone()
+      copies.set(source, material)
+    }
+    if (!finishes.has(material)) {
+      const fresh = material.color.clone()
+      const lightness = 0.2126 * fresh.r + 0.7152 * fresh.g + 0.0722 * fresh.b
+      const charcoal = 0.013 + 0.15 * lightness
+      const ash = 0.026 + 0.64 * lightness
+      finishes.set(material, {
+        fresh,
+        char: new Color(charcoal * 1.1, charcoal, charcoal * 0.96),
+        ash: new Color(ash * 1.05, ash, ash * 0.94),
+      })
+    }
+    return material
+  }
+  for (const part of timber) {
+    part.material = Array.isArray(part.material)
+      ? part.material.map(prepare)
+      : prepare(part.material)
+  }
+  let previousFuel = -1
+  return (available) => {
+    if (available === previousFuel) return
+    previousFuel = available
+    const char = Math.min(1, (1 - available) / 0.7)
+    const ash = Math.max(0, 1 - available / 0.4)
+    for (const [material, finish] of finishes)
+      material.color
+        .copy(finish.fresh)
+        .lerp(finish.char, char)
+        .lerp(finish.ash, ash * ash)
+  }
 }
 
 /**
@@ -123,7 +180,6 @@ export async function createStove(
     const flames = root.getObjectByName('Flames')
     if (!wood || !embers || !flames || !asset.animations.length)
       throw new Error('The stove model is missing wood, embers, flames or its Blender animation.')
-    const fuel = wood
     const coals = embers
     const fire = flames
     root.traverse((object) => {
@@ -137,13 +193,8 @@ export async function createStove(
         if (object instanceof Mesh) object.castShadow = object.receiveShadow = false
       })
     renderer.shadowMap.needsUpdate = true
-    const woodScale = fuel.scale.clone()
-    const emberScale = coals.scale.clone()
+    const setWoodFinish = bindWoodFinish(root, wood)
     const fireScale = fire.scale.clone()
-    const woodRestY = fuel.position.y
-    const emberRestY = coals.position.y
-    const fireRestY = fire.position.y
-    const woodBase = new Box3().setFromObject(fuel, true).min.y
     const emission = new Map<MeshStandardMaterial, { strength: number; baseColor: Color }>()
     coals.traverse((object) => {
       if (!(object instanceof Mesh)) return
@@ -161,7 +212,7 @@ export async function createStove(
     let reading = initial
     let paused = false
     let lost = false
-    let angle = 0
+    let angle = STOVE_START_ANGLE
     let previous = 0
     let residual = 0
     let glow = 0
@@ -182,21 +233,12 @@ export async function createStove(
       if (cooling) residual = Math.max(0, residual - dt / 4)
       if (dirty || animate || cooling) {
         const { flame, availability } = reading
-        const woodAmount = Math.sqrt(availability.fuel)
-        // Keep shrinking wood on the grate and the flame origin on the wood.
-        const descent = (woodRestY - woodBase) * (1 - woodAmount)
-        fuel.visible = woodAmount > 0.025
-        fuel.position.y = woodRestY - descent
-        fuel.scale.copy(woodScale).multiplyScalar(woodAmount)
-        coals.position.y = emberRestY - descent
-        coals.scale.copy(emberScale).multiplyScalar(woodAmount)
+        setWoodFinish(availability.fuel)
         fire.visible = flame > 0
-        fire.position.y = fuel.position.y + (fireRestY - woodRestY) * woodAmount
         fire.scale.copy(fireScale)
-        fire.scale.x *= woodAmount * (0.48 + 0.52 * flame)
-        fire.scale.y *= Math.sqrt(flame) * woodAmount
-        fire.scale.z *= woodAmount
-        glow = Math.max(residual, Math.sqrt(flame)) * availability.heat * woodAmount
+        fire.scale.x *= 0.48 + 0.52 * flame
+        fire.scale.y *= Math.sqrt(flame)
+        glow = Math.max(residual, Math.sqrt(flame)) * availability.heat * availability.fuel
         coals.visible = glow > 0.025
         for (const [material, original] of emission) {
           material.emissiveIntensity = original.strength * glow
@@ -267,7 +309,7 @@ export async function createStove(
         if (event.altKey || event.ctrlKey || event.metaKey) return
         if (event.key === 'ArrowLeft') setAngle(angle - 0.09)
         else if (event.key === 'ArrowRight') setAngle(angle + 0.09)
-        else if (event.key === 'Home') setAngle(0)
+        else if (event.key === 'Home') setAngle(STOVE_START_ANGLE)
         else return
         event.preventDefault()
       },
@@ -300,11 +342,9 @@ export async function createStove(
     observer = new ResizeObserver(resize)
     observer.observe(host)
     resize()
-    setAngle(0)
+    setAngle(STOVE_START_ANGLE)
     return {
       setReading(next) {
-        if (reading.availability.fuel !== next.availability.fuel)
-          renderer.shadowMap.needsUpdate = true
         if (reading.state !== 'out' && next.state === 'out' && next.limitingFactor === 'oxygen')
           residual = Math.max(0.2, glow)
         else if (next.state !== 'out' || next.limitingFactor !== 'oxygen') residual = 0

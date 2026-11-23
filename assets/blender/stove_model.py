@@ -1,8 +1,8 @@
 """Create the cast-iron stove, split firewood and independently dimmable ember seams.
 
 Build in native Blender coordinates, with the viewing glass facing negative Y.
-Only the Fuel and Embers groups use a moving origin. All wood detail shares
-that origin so a fuel change can resize the entire split log about its centre.
+The Fuel and Embers groups share a fixed origin at the centre of the log.
+The renderer changes the wood finish and ember glow as fuel is consumed.
 """
 
 from math import cos, exp, pi, radians, sin
@@ -323,7 +323,7 @@ def ember_seams(parent):
 
 
 def build_stove() -> None:
-    """Add a stove casing, removable split log and independently visible embers to the active scene."""
+    """Add the stove casing, fixed split log and independently dimmable embers to the active scene."""
     cabinet(group("Stove"))
     timber(group("Fuel", LOG_CENTER))
     ember_seams(group("Embers", LOG_CENTER))

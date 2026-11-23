@@ -1,6 +1,7 @@
 import {
   constrainPoint,
   factorPoint,
+  STOVE_START_ANGLE,
   TRIANGLE_CENTER,
   type TriangleFactor,
   type TrianglePoint,
@@ -11,8 +12,8 @@ export type TrianglePhase = 'free' | 'predict' | 'explore' | 'discuss' | 'transf
 export const predictionLabels = {
   steady: 'Große Flammen',
   weak: 'Kleinere Flammen',
-  dark: 'Holz ohne Flammen',
-  empty: 'Kein Holz, keine Flammen',
+  wood: 'Braunes Holz ohne Flammen',
+  charred: 'Dunkler Rest ohne Flammen',
 } as const
 
 export type Prediction = keyof typeof predictionLabels
@@ -36,7 +37,7 @@ const comparisons: readonly Comparison[] = [
     factor: 'oxygen',
     title: 'Weniger Sauerstoff',
     prediction: 'Was siehst du wohl, wenn das Holz etwas weniger Sauerstoff bekommt?',
-    choices: ['steady', 'weak', 'dark'],
+    choices: ['steady', 'weak', 'wood'],
     observations: [
       {
         deficiency: 0.65,
@@ -46,8 +47,7 @@ const comparisons: readonly Comparison[] = [
       },
       {
         deficiency: 1,
-        direction:
-          'Folge dem Pfeil weiter bis zur Ecke. Was passiert jetzt mit Flammen und Glut?',
+        direction: 'Folge dem Pfeil weiter bis zur Ecke. Was passiert jetzt mit Flammen und Glut?',
         observation:
           'Die Flammen sind aus. Das heiße Holz kann noch kurz nachglühen. Was war beim ersten Stopp anders?',
       },
@@ -57,14 +57,14 @@ const comparisons: readonly Comparison[] = [
     factor: 'heat',
     title: 'Weniger Wärme',
     prediction:
-      'Das Holz brennt wieder wie am Anfang. Was siehst du im Ofen, wenn das Holz ganz abkühlt?',
-    choices: ['dark', 'steady', 'empty'],
+      'Wieder sehen wir dasselbe Stück Holz. Wie sieht es ohne die nötige Wärme zum Brennen aus?',
+    choices: ['wood', 'steady', 'charred'],
     observations: [
       {
         deficiency: 1,
         direction: 'Bewege den Knopf vom Thermometer weg. Schau auf das Holz und auf die Flammen.',
         observation:
-          'Das Holz liegt noch im Ofen. Es ist zu kühl, um weiterzubrennen. Woran siehst du das?',
+          'Das braune Holz liegt noch im Ofen. Es ist zum Brennen zu kühl. Woran siehst du das?',
       },
     ],
   },
@@ -72,14 +72,14 @@ const comparisons: readonly Comparison[] = [
     factor: 'fuel',
     title: 'Weniger Brennstoff',
     prediction:
-      'Wieder brennt dasselbe Holzscheit. Wie sieht der Ofen aus, wenn der Brennstoff ganz aufgebraucht ist?',
-    choices: ['dark', 'empty', 'weak'],
+      'Wieder brennt dasselbe Stück Holz. Was bleibt davon übrig, wenn am Ende der Brennzeit die Flammen erlöschen?',
+    choices: ['wood', 'charred', 'weak'],
     observations: [
       {
         deficiency: 1,
         direction: 'Finde den Weg für weniger Brennstoff. Beobachte Holz und Flammen.',
         observation:
-          'Das Holz ist aufgebraucht und die Flammen sind aus. Was ist anders als beim Versuch mit weniger Wärme?',
+          'Jetzt siehst du einen dunklen, verkohlten Rest mit aschgrauen Streifen. Er gibt zu wenig brennbares Gas für Flammen ab. Wie sah das kalte Holz aus?',
       },
     ],
   },
@@ -94,7 +94,7 @@ export class TriangleSession {
   private guidedPoint = TRIANGLE_CENTER
   private freePoint = TRIANGLE_CENTER
   private freePaused = false
-  private freeAngle = 0
+  private freeAngle = STOVE_START_ANGLE
 
   get comparison() {
     return comparisons[this.index]
@@ -112,7 +112,10 @@ export class TriangleSession {
   get guide() {
     if (this.phase !== 'explore' || this.comparison.factor !== 'oxygen') return null
     return {
-      from: factorPoint('oxygen', this.comparison.observations[this.stopIndex - 1]?.deficiency ?? 0),
+      from: factorPoint(
+        'oxygen',
+        this.comparison.observations[this.stopIndex - 1]?.deficiency ?? 0,
+      ),
       to: factorPoint('oxygen', this.stop.deficiency),
     }
   }
@@ -221,11 +224,11 @@ export class TriangleSession {
     this.phase = 'free'
   }
 
-  /** Restore the initial free experiment, including a centred camera. */
+  /** Restore the initial free experiment and the default viewing angle. */
   restart() {
     this.phase = 'free'
     this.freePoint = TRIANGLE_CENTER
     this.freePaused = false
-    this.freeAngle = 0
+    this.freeAngle = STOVE_START_ANGLE
   }
 }

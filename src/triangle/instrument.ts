@@ -2,6 +2,7 @@ import {
   closestOnSide,
   constrainPoint,
   readTriangle,
+  STOVE_START_ANGLE,
   TRIANGLE_CENTER,
   TRIANGLE_HEIGHT,
   type TriangleFactor,
@@ -17,7 +18,6 @@ const SIDE = 494
 const LEFT = (WIDTH - SIDE) / 2
 const TOP = 20
 const BASE = TOP + SIDE * TRIANGLE_HEIGHT
-const ORBIT_STEP = Math.PI / 18
 
 const labels: Record<TriangleFactor, string> = {
   heat: 'Wärme',
@@ -25,12 +25,13 @@ const labels: Record<TriangleFactor, string> = {
   fuel: 'Brennstoff',
 }
 const symbols = {
-  heat: '<path fill="#fff9ec" stroke="#193b4d" stroke-width="2.4" d="M10 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0Z"/><path d="M13 7v10" stroke="#d35736" stroke-width="2.5" stroke-linecap="round"/><circle cx="13" cy="18" r="2.7" fill="#d35736"/>',
+  heat: '<path d="M10 17.9V5.4a3.9 3.9 0 0 1 7.8 0v12.5a6.8 6.8 0 1 1-7.8 0Z" fill="#fff3dd" stroke="#313b48" stroke-width="2.2"/><path d="M13.9 7.6v15.1" stroke="#d74e2c" stroke-width="3" stroke-linecap="round"/><circle cx="13.9" cy="23.4" r="4.1" fill="#df5631"/><path d="M20.6 6h4m-4 4H23m-2.4 4h4" fill="none" stroke="#9b4631" stroke-width="1.7" stroke-linecap="round"/>',
   oxygen:
-    '<g fill="none" stroke="#007a91" stroke-width="2.2" stroke-linecap="round"><path d="M2 8.5h12.5c3.7 0 3.8-5.8.4-5.8-1.6 0-2.4.8-2.7 1.8M4.5 12.5h15.1c3.6 0 3.7 4.8.6 5.4M2 16.5h8.5c3.5 0 3.9 5 .7 5.2"/></g>',
-  fuel: '<path d="m3 10 12.8-5.8 4.4 2.3.4 8.2L8.2 21l-5.7-2.9z" fill="#9e6135" stroke="#68452d" stroke-width="1.3" stroke-linejoin="round"/><path d="m3.4 10.3 5 2.6 11.5-5.8-4.3-2.2z" fill="#edb96c"/><path d="m2.9 10.4 5.5 2.7L8 20.4l-5.2-2.7Z" fill="#f6ce89"/><path d="m10.3 15 7.2-3.6m-6.8 6.5 5.5-2.8M4.4 13.6l1.9.9-.1 2.9" fill="none" stroke="#86552f" stroke-width="1.1" stroke-linecap="round"/>',
+    '<g fill="none" stroke="#057990" stroke-width="2.7" stroke-linecap="round"><path d="M3 11h13.8c5 0 5.1-7.5.5-7.5-2.2 0-3.3 1.1-3.7 2.5M6.3 16h18.2c5 0 5.1 6.5.7 6.5-1.8 0-2.8-.8-3.3-1.8M3 20.7h10c4.6 0 4.9 7 .7 7-1.7 0-2.7-.7-3.2-1.8"/></g>',
+  fuel: '<path d="m4.2 14.2 16-8.6c3.6-1.9 7.5.4 9 5.1 1.4 4.1.6 7.3-2.3 8.9L11 27.8Z" fill="#965633" stroke="#633e2a" stroke-width="1.5" stroke-linejoin="round"/><path d="m4.2 14.2 16-8.6c2.8-1.4 5.1-.6 6.8 1.6l-16 9Z" fill="#e4a85c"/><path d="M4.2 14.2c2.9-1.6 6.9.9 8.3 5.3 1.4 4.3.2 7.8-2.5 8.6-2.8.9-5.9-1.1-7.2-5.2-1.3-4-.8-7.4 1.4-8.7Z" fill="#f5ca85" stroke="#70472c" stroke-width="1.5"/><g fill="none" stroke="#9d622f" stroke-width="1.3" stroke-linecap="round"><path d="M5.8 17.3c2.4-.6 4.7 3 4.2 6.7-.2 1.8-1.8 2.3-3.2 1.2M6.8 19.4c1.1.5 1.5 1.8 1.4 3"/><path d="m15.1 18.5 10.5-5.7m-9.7 9.1 10.3-5.6" stroke="#673e2b"/></g>',
 }
 const factors = ['heat', 'oxygen', 'fuel'] as const
+const factorColors = { heat: '#f47753', oxygen: '#22af9e', fuel: '#e8aa29' }
 
 function designPoint(point: TrianglePoint): TrianglePoint {
   return { x: LEFT + point.x * SIDE, y: TOP + point.y * SIDE }
@@ -40,18 +41,33 @@ function boardMarkup(): string {
   const tip = `${WIDTH / 2},${TOP}`
   const left = `${LEFT},${BASE}`
   const right = `${WIDTH - LEFT},${BASE}`
+  const outline = `M${tip} L${left} L${right}Z`
+  const centre = designPoint(TRIANGLE_CENTER)
+  // Equal colour intensities lie on lines parallel to the relevant side.
+  const gradients = factors.map((factor) => {
+    const edge = designPoint(closestOnSide(TRIANGLE_CENTER, factor))
+    return `<linearGradient id="field-${factor}" gradientUnits="userSpaceOnUse" x1="${edge.x}" y1="${edge.y}" x2="${centre.x}" y2="${centre.y}" color="${factorColors[factor]}">
+      <stop stop-color="currentColor" stop-opacity=".52"/><stop offset=".38" stop-color="currentColor" stop-opacity=".24"/><stop offset=".72" stop-color="currentColor" stop-opacity=".075"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+    </linearGradient>`
+  }).join('')
+  const label = (factor: TriangleFactor) => `<span class="triangle-label label-${factor}"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">${symbols[factor]}</svg><span>${labels[factor]}</span></span>`
   return `
-    <div class="triangle-board" role="group" aria-label="Das Verbrennungsdreieck">
+    <div class="triangle-control" role="group" aria-label="Das Verbrennungsdreieck">
+      <div class="triangle-board">
       <svg class="triangle-pad" viewBox="0 0 ${WIDTH} ${HEIGHT}" aria-hidden="true" focusable="false">
         <defs>
           <marker id="triangle-study-arrow" markerUnits="userSpaceOnUse" markerWidth="25" markerHeight="25" refX="20" refY="12" viewBox="0 0 24 24" orient="auto">
             <path d="M3 3 20 12 3 21l4-9z" fill="#184666" stroke="#fff9ec" stroke-width="2" stroke-linejoin="round"/>
           </marker>
-          <linearGradient id="triangle-paper" x2=".85" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#fffaf0"/><stop offset=".65" stop-color="#fff2d8"/><stop offset="1" stop-color="#fae5c1"/></linearGradient>
+          ${gradients}
           <linearGradient id="triangle-coral" x2=".85" y2=".65"><stop stop-color="#ff9472"/><stop offset="1" stop-color="#ed684a"/></linearGradient>
           <linearGradient id="triangle-teal" x2="1" y2="1"><stop stop-color="#24c8b8"/><stop offset="1" stop-color="#079e95"/></linearGradient>
         </defs>
-        <path d="M${tip} L${left} L${right}Z" fill="url(#triangle-paper)"/>
+        <path d="${outline}" fill="#fff9e9"/>
+        ${factors.map((factor) => `<path d="${outline}" fill="url(#field-${factor})"/>`).join('')}
+        <g class="triangle-contours">
+          ${[0.80, 0.58].map((size) => `<path d="${outline}" transform="translate(${centre.x} ${centre.y}) scale(${size}) translate(${-centre.x} ${-centre.y})"/>`).join('')}
+        </g>
         <g class="triangle-guides">${factors.map((factor) => `<line data-guide="${factor}"/>`).join('')}</g>
         <g fill="none" stroke-width="15" stroke-linecap="round">
           <path d="M${tip} L${left}" stroke="url(#triangle-coral)"/>
@@ -60,32 +76,31 @@ function boardMarkup(): string {
         </g>
         <path id="triangle-study-guide" marker-end="url(#triangle-study-arrow)" hidden/>
       </svg>
-      ${factors.map((factor) => `<span class="triangle-label label-${factor}"><svg viewBox="0 0 25 25" aria-hidden="true" focusable="false">${symbols[factor]}</svg>${labels[factor]}</span>`).join('')}
+      ${label('heat')}${label('oxygen')}
       <button class="triangle-knob" type="button" aria-label="Knopf im Verbrennungsdreieck" aria-describedby="triangle-key-help triangle-observation">
         <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3v26M3 16h26M12 7l4-4 4 4m0 18-4 4-4-4M7 12l-4 4 4 4m18 0 4-4-4-4"/></svg>
       </button>
       <span id="triangle-key-help" class="sr-only">Tippe auf eine Stelle im Dreieck oder benutze die Pfeiltasten. Pos1 oder die Eingabetaste bringt den Knopf zur Mitte.</span>
+      </div>
+      ${label('fuel')}
     </div>`
 }
 
 function observation(reading: TriangleReading): [string, string] {
   if (reading.state === 'steady')
     return ['Das Holz brennt.', 'Über dem glühenden Holz steigen Flammen auf.']
+  if (reading.limitingFactor === 'fuel') {
+    if (reading.state === 'weak')
+      return ['Die Flammen sind kleiner.', 'Das Scheit wird dunkler. Ein Teil des Holzes ist schon verbrannt.']
+    return ['Die Flammen sind aus.', 'Auf dem verkohlten Rest liegt graue Asche.']
+  }
   if (reading.state === 'weak')
     return [
       'Die Flammen sind kleiner.',
       `Es ist weniger ${labels[reading.limitingFactor ?? 'oxygen']} verfügbar.`,
     ]
-  if (reading.limitingFactor === 'fuel') {
-    return [
-      'Die Flammen sind aus.',
-      reading.availability.fuel < 0.001
-        ? 'Das brennbare Holz ist aufgebraucht.'
-        : 'Es ist kaum noch brennbares Holz übrig.',
-    ]
-  }
   if (reading.limitingFactor === 'heat')
-    return ['Die Flammen sind aus.', 'Das Holz ist zu kühl, um weiterzubrennen.']
+    return ['Die Flammen sind aus.', 'Das braune Holz ist noch da. Es ist zu kühl zum Weiterbrennen.']
   return [
     'Die Flammen sind aus.',
     'Der Sauerstoff reicht nicht mehr zum Weiterbrennen der Flammen.',
@@ -119,13 +134,7 @@ export function mountInstrument(
       <div class="stove-window">
         <div class="stove-load" role="status"><span>Der Ofen wird aufgebaut …</span><button class="pill" type="button" hidden>Erneut laden</button></div>
       </div>
-      <div class="stove-camera" role="group" aria-label="Ofenansicht">
-        <button type="button" class="pill compact stove-turn" data-turn="-1" aria-label="Ofen nach links schwenken"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
-        <span>Ofen schwenken</span>
-        <button type="button" class="pill compact stove-turn" data-turn="1" aria-label="Ofen nach rechts schwenken"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg></button>
-        <button class="pill stove-front" type="button" aria-label="Ofen von vorne zeigen" hidden>Von vorne</button>
-      </div>
-      <span id="stove-camera-help" class="sr-only">Mit einem Finger seitlich ziehen oder die Pfeiltasten links und rechts nutzen. Pos1 zeigt den Ofen von vorne.</span>
+      <span id="stove-camera-help" class="sr-only">Mit einem Finger seitlich ziehen oder die Pfeiltasten links und rechts nutzen. Pos1 zeigt die Startansicht.</span>
       <figcaption id="triangle-observation" aria-live="polite" aria-atomic="true">
         <strong></strong><span></span>
       </figcaption>
@@ -149,13 +158,11 @@ export function mountInstrument(
   const load = find<HTMLElement>('.stove-load')
   const loadText = find<HTMLElement>('.stove-load span')
   const retry = find<HTMLButtonElement>('.stove-load button')
-  const cameraControls = find<HTMLElement>('.stove-camera')
-  const front = find<HTMLButtonElement>('.stove-front')
   const events = new AbortController()
   const listeners = { signal: events.signal }
   let reading = readTriangle(TRIANGLE_CENTER)
   let stove: StoveView | undefined
-  let angle = 0
+  let angle = STOVE_START_ANGLE
   let paused = false
   let activePointer: number | null = null
   let offset = { x: 0, y: 0 }
@@ -247,44 +254,23 @@ export function mountInstrument(
     },
     listeners,
   )
-  function recordAngle(value: number): void {
-    angle = value
-    front.hidden = Math.abs(value) < 0.001
-  }
   function setViewAngle(value: number): void {
-    if (stove) stove.setAngle(value)
-    else recordAngle(value)
+    angle = value
+    stove?.setAngle(value)
   }
-  for (const button of cameraControls.querySelectorAll<HTMLButtonElement>('[data-turn]')) {
-    button.addEventListener(
-      'click',
-      () => setViewAngle(angle + Number(button.dataset.turn) * ORBIT_STEP),
-      listeners,
-    )
-  }
-  front.addEventListener(
-    'click',
-    () => {
-      setViewAngle(0)
-      viewer.querySelector('canvas')?.focus({ preventScroll: true })
-    },
-    listeners,
-  )
   async function loadStove(): Promise<void> {
     load.hidden = false
     loadText.textContent = 'Der Ofen wird aufgebaut …'
     retry.hidden = true
-    cameraControls.hidden = true
     try {
       const module = await import('./stove')
       stove = await module.createStove(viewer, reading, events.signal, (value) => {
-        if (stove) recordAngle(value)
+        if (stove) angle = value
       })
       stove.setReading(reading)
       stove.setPaused(paused)
       stove.setAngle(angle)
       load.hidden = true
-      cameraControls.hidden = false
     } catch {
       if (events.signal.aborted) return
       loadText.textContent =

@@ -6,10 +6,17 @@
   width: min(100%, 1380px);
   margin-inline: auto;
 }
+.triangle-control {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+  container-type: inline-size;
+}
 .triangle-board {
   position: relative;
   min-width: 0;
   width: 100%;
+  margin-top: clamp(6px, 2.5cqw, 17px);
   aspect-ratio: 640 / 478;
   container-type: inline-size;
   user-select: none;
@@ -21,6 +28,13 @@
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 4px 2px #175a6329);
+}
+.triangle-contours {
+  fill: none;
+  stroke: #977f57;
+  stroke-width: 1.6;
+  opacity: 0.22;
+  pointer-events: none;
 }
 .triangle-guides {
   fill: none;
@@ -49,32 +63,61 @@
 }
 .triangle-label {
   display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 0.32em;
-  padding: 0.3em 0.6em;
+  gap: 0.10em;
+  padding: 0.25em 0.47em 0.33em;
   border: 1px solid #ffffffc2;
-  border-radius: 100px;
-  font-size: clamp(13px, 3.9cqw, 29px);
+  border-radius: 0.91em;
+  font-size: clamp(12px, 3.55cqw, 25px);
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.035em;
   pointer-events: none;
 }
 .triangle-label svg {
-  width: 1.32em;
-  height: 1.32em;
+  width: 2.02em;
+  height: 2.02em;
 }
-.label-heat {
-  left: 22%;
-  top: 47%;
-}
+.label-heat,
 .label-oxygen {
-  left: 79%;
-  top: 47%;
+  top: 38.5%;
+  transform: translateY(-50%);
+}
+.label-heat { right: 76%; }
+.label-oxygen { left: 76%; }
+.triangle-label::before {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+  opacity: 0.64;
+}
+.label-heat::before,
+.label-oxygen::before {
+  top: 50%;
+  height: 2px;
+  width: 11.2cqw;
+}
+.label-heat::before {
+  left: 100%;
+  background: #c2644b;
+}
+.label-oxygen::before {
+  right: 100%;
+  background: #167e77;
 }
 .label-fuel {
+  position: relative;
+  transform: none;
+  margin-top: max(5px, 2cqw);
+}
+.label-fuel::before {
+  width: 2px;
+  height: calc(4.7cqw + max(5px, 2cqw));
+  bottom: 100%;
   left: 50%;
-  top: 93.5%;
+  background: #ba8626;
 }
 .triangle-knob {
   display: grid;
@@ -91,6 +134,7 @@
     0 5px 9px #3c433748;
   cursor: grab;
   touch-action: none;
+  z-index: 1;
 }
 .triangle-knob svg {
   width: 55%;
@@ -109,6 +153,7 @@
   min-width: 0;
   width: 100%;
   margin: 0;
+  gap: clamp(4px, 1.1vw, 14px);
 }
 .stove-window {
   position: relative;
@@ -146,35 +191,6 @@
   text-align: center;
   font-weight: 800;
 }
-.stove-camera {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  margin: 0 0 7px;
-  font-size: clamp(12px, 1.3vw, 16px);
-  font-weight: 750;
-}
-.stove-turn,
-.stove-front {
-  min-height: 44px;
-  min-width: 44px;
-  border-radius: 28px;
-}
-.stove-turn {
-  width: 44px;
-  height: 44px;
-  padding: 9px;
-}
-.stove-turn svg {
-  width: 21px;
-  height: 21px;
-}
-.stove-front {
-  padding-inline: 14px;
-  font-size: inherit;
-}
 #triangle-observation {
   display: grid;
   gap: 3px;
@@ -198,17 +214,14 @@
     justify-items: center;
     gap: 12px;
   }
-  .triangle-board {
-    max-width: 410px;
+  .triangle-control {
+    width: min(100%, 410px);
   }
   .stove-observation {
     max-width: 340px;
   }
   .stove-window {
     width: min(78%, 240px);
-  }
-  .stove-camera {
-    margin-block: -1px 2px;
   }
 }
 @media (max-height: 560px) and (orientation: landscape) {
@@ -218,9 +231,6 @@
   }
   .stove-window {
     max-width: 255px;
-  }
-  .stove-camera {
-    margin-bottom: 0;
   }
   #triangle-observation {
     font-size: 13px;
@@ -237,5 +247,8 @@
   }
   .triangle-guides {
     stroke: CanvasText;
+  }
+  .triangle-contours {
+    display: none;
   }
 }

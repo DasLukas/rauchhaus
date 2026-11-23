@@ -7,20 +7,23 @@ function fraction(seed: number): number {
   return ((bits ^ (bits >>> 15)) >>> 0) / 0x100000000
 }
 
-/**
- * Sample one transient patch of flaming gas at a given demonstration time.
- * The seed belongs to the source and time slot. Positions are room fractions.
- * Strength fades to zero between bursts and is independent of the model's
- * ventilation- and heat-dependent gas-flaming intensity.
- */
-export function sampleGasFlame(elapsed: number, source: SourceId) {
+/** A burst has one or two pockets, with a common bright interval for the observation stop. */
+export function sampleGasBursts(elapsed: number, source: SourceId, sequence: number) {
   const slotDuration = 1.55
   const slot = Math.floor(elapsed / slotDuration)
-  let seed = slot
+  let seed = sequence + slot
   for (let i = 0; i < source.length; i++) seed = Math.imul(seed, 31) + source.charCodeAt(i)
-  const start = 0.04 + 0.34 * fraction(seed)
-  const duration = 0.70 + 0.45 * fraction(seed + 1)
-  const progress = Math.min(1, Math.max(0, (elapsed - slot * slotDuration - start) / duration))
-  const strength = progress > 0 && progress < 1 ? Math.sin(Math.PI * progress) ** 2 : 0
-  return { progress, strength, x: fraction(seed + 2), z: fraction(seed + 3) }
+  const start = 0.04 + 0.25 * fraction(seed)
+  const duration = 0.86 + 0.24 * fraction(seed + 1)
+  const count = fraction(seed + 2) < 0.5 ? 1 : 2
+  const firstBand = fraction(seed + 3) < 0.5 ? 0 : 1
+  return Array.from({ length: count }, (_, i) => {
+    const age = elapsed - slot * slotDuration - start - 0.06 * i
+    const progress = Math.min(1, Math.max(0, age / duration))
+    const strength = age > 0 && age < duration ? Math.min(1, 1.25 * Math.sin(Math.PI * progress) ** 2) : 0
+    return {
+      progress, strength, band: (firstBand + i) % 2,
+      x: fraction(seed + 4 + 2 * i), z: fraction(seed + 5 + 2 * i),
+    }
+  })
 }

@@ -5,48 +5,45 @@ import {
   type SourceId,
   type SimulationSnapshot,
 } from '../simulation'
-import { sampleGasFlame } from '../simulation/gas-flame'
+import { sampleGasBursts } from '../simulation/gas-flame'
 
 export type FireObservation = 'rollover' | 'flashover'
 export type LessonStage = 'open' | 'closed' | 'compare' | FireObservation | 'fire-result'
 export type Lesson = 'doors' | 'fire'
-// Allow the layer to become visible one landing above the television.
-export const OBSERVATION_SECONDS = 40
+// Stop both door trials when the open-door smoke layer covers much of the upper stairwell.
+export const OBSERVATION_SECONDS = 50
+
+// Find the observation times for this house and this run's flame sequence.
+function fireObservationTimes(simulation: SmokeSimulation) {
+  simulation.start('s_tv')
+  let rollover = 0
+  while (simulation.snapshot().elapsed < 60) {
+    simulation.advance(0.2)
+    const { elapsed, fire } = simulation.snapshot()
+    if (!fire) continue
+    if (!rollover && fire.rollover >= 0.45 &&
+        sampleGasBursts(elapsed, 's_tv', fire.burstSeed).every((burst) => burst.strength >= 0.88)) {
+      rollover = elapsed
+    }
+    if (rollover && fire.involvement >= 0.65) return { rollover, flashover: elapsed }
+  }
+  throw new Error('Fire lesson did not reach both observation points')
+}
 
 /** Owns the free experiment and an isolated simulation for each guided lesson. */
 export class LearningSession {
   private readonly free: SmokeSimulation
-  private readonly firePresetDoors = new Set<DoorId>()
-  private fireOption = false
   private example: SmokeSimulation | null = null
-  private freeWasPaused = false
+  outgassingSnapshot: SimulationSnapshot | null = null
+  private fireStops: Record<FireObservation, number> | null = null
+  showingOutgassing = false
   stage: LessonStage | null = null
   paused = false
   snapshot: SimulationSnapshot
 
   constructor(private readonly house = HOUSE) {
     this.free = new SmokeSimulation(house)
-    // Give each selectable source room one open connection in the fire preset.
-    // Reuse an existing opening when two sources share a room or a door.
-    for (const { room } of house.classroomSources) {
-      const doors = house.doors.filter((door) => door.rooms.includes(room))
-      if (doors[0] && !doors.some((door) => door.initiallyOpen || this.firePresetDoors.has(door.id))) {
-        this.firePresetDoors.add(doors[0].id)
-      }
-    }
     this.snapshot = this.free.snapshot()
-  }
-
-  get fireEnabled() {
-    return this.fireOption
-  }
-
-  /** Restart the house in the selected mode when the setting changes. */
-  setFireEnabled(enabled: boolean) {
-    if (this.fireOption === enabled) return
-    this.fireOption = enabled
-    this.free.setFireEnabled(enabled)
-    this.restart()
   }
 
   get fireObservation(): FireObservation | null {
@@ -71,20 +68,23 @@ export class LearningSession {
   /** Advances visible teaching time. Suspended tabs never need to catch up. */
   tick(seconds: number): SimulationSnapshot {
     if (this.paused || !this.snapshot.source || !Number.isFinite(seconds) || seconds <= 0) return this.snapshot
+    const dt = Math.min(seconds, (this.stopTime ?? Infinity) - this.active.playbackTime)
     if (this.fireObservation) {
       // Sample the same visible state on a skip and during ordinary playback.
-      let remaining = Math.min(seconds, 60)
+      let remaining = Math.min(dt, 60)
       while (remaining > 0 && !this.trialFinished) {
         const step = Math.min(remaining, 0.25)
         this.active.advance(step)
         this.snapshot = this.active.snapshot()
+        const fire = this.snapshot.fire
+        if (!this.outgassingSnapshot && fire && fire.outgassing >= 0.85 && fire.involvement === 0) {
+          this.outgassingSnapshot = this.snapshot
+        }
         remaining -= step
       }
       if (this.trialFinished) this.paused = true
       return this.snapshot
     }
-    const doorTrial = this.stage === 'open' || this.stage === 'closed'
-    const dt = doorTrial ? Math.min(seconds, OBSERVATION_SECONDS - this.snapshot.elapsed) : seconds
     if (dt > 0) this.active.advance(dt)
     this.snapshot = this.active.snapshot()
     if (this.trialFinished) this.paused = true
@@ -106,17 +106,14 @@ export class LearningSession {
     this.snapshot = this.free.snapshot()
   }
 
-  private applyFreeDoorPreset() {
-    for (const door of this.house.doors) {
-      this.free.setDoor(door.id, door.initiallyOpen || (this.fireOption && this.firePresetDoors.has(door.id)))
-    }
-  }
-
-  /** Restore the empty house and the selected mode's initial doors, and leave any lesson. */
+  /** Restore the empty house and its initial doors, and leave any lesson. */
   restart() {
-    this.endLesson()
+    this.outgassingSnapshot = null
+    this.showingOutgassing = false
+    this.stage = null
+    this.example = null
     this.free.reset()
-    this.applyFreeDoorPreset()
+    for (const door of this.house.doors) this.free.setDoor(door.id, door.initiallyOpen)
     this.paused = false
     this.snapshot = this.free.snapshot()
   }
@@ -126,39 +123,37 @@ export class LearningSession {
       this.paused = !this.paused
   }
 
-  get trialFinished() {
-    const fire = this.snapshot.fire
-    switch (this.stage) {
-      case 'rollover':
-        // Hold a visible tongue for discussion during the intermittent gas burning.
-        return Boolean(
-          fire && fire.rollover >= 0.45 && this.snapshot.source &&
-          sampleGasFlame(this.snapshot.elapsed, this.snapshot.source).strength >= 0.8,
-        )
-      case 'flashover':
-        return Boolean(fire && fire.involvement >= 0.65)
-      case 'open':
-      case 'closed':
-        return this.snapshot.elapsed >= OBSERVATION_SECONDS
-      case 'compare':
-      case 'fire-result':
-        return true
-      default:
-        return false
-    }
+  private get stopTime(): number | null {
+    if (this.stage === 'open' || this.stage === 'closed') return OBSERVATION_SECONDS
+    return this.fireObservation && this.fireStops ? this.fireStops[this.fireObservation] : null
   }
 
-  /** Start a separate television experiment, preserving the current free scenario. */
+  get trialProgress(): number | null {
+    const end = this.stopTime
+    if (end === null) return null
+    const start = this.stage === 'flashover' ? this.fireStops?.rollover ?? 0 : 0
+    return Math.min(1, (this.active.playbackTime - start) / (end - start))
+  }
+
+  get trialFinished() {
+    const end = this.stopTime
+    return end === null
+      ? this.stage === 'compare' || this.stage === 'fire-result'
+      : this.snapshot.elapsed >= end
+  }
+
+  /** Start a separate television experiment, starting from the lesson’s initial conditions. */
   beginLesson(lesson: Lesson = 'doors') {
-    if (this.stage || (lesson === 'fire' && !this.fireEnabled)) return
-    this.freeWasPaused = this.paused
-    this.example = new SmokeSimulation(this.house)
+    if (this.stage) return
+    this.example = lesson === 'fire'
+      ? new SmokeSimulation(this.house, 'compartment', Math.floor(Math.random() * 0x100000000))
+      : new SmokeSimulation(this.house, 'local')
     if (lesson === 'doors') {
       this.startTrial('open')
       return
     }
-    this.example.setFireEnabled(true)
     this.example.setDoor('d1', true)
+    this.fireStops = fireObservationTimes(this.example)
     this.example.start('s_tv')
     this.stage = 'rollover'
     this.paused = false
@@ -178,6 +173,15 @@ export class LearningSession {
   finishTrial() {
     if (!this.stage || this.trialFinished) return
     this.paused = false
+    if (this.stage === 'flashover' && !this.snapshot.fire?.involvement) {
+      this.showingOutgassing = true
+      // Seek into the outgassing preview, then let ordinary playback show ignition.
+      for (let i = 0; i < 240 && (this.snapshot.fire?.outgassing ?? 0) < 0.85; i++) {
+        this.tick(0.25)
+        if (this.snapshot.fire?.involvement) break
+      }
+      return
+    }
     this.tick(60)
   }
 
@@ -197,10 +201,6 @@ export class LearningSession {
   }
 
   endLesson() {
-    if (!this.stage) return
-    this.stage = null
-    this.example = null
-    this.paused = this.freeWasPaused
-    this.snapshot = this.free.snapshot()
+    if (this.stage) this.restart()
   }
 }

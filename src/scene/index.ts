@@ -59,6 +59,7 @@ export interface HouseScene {
   focusFloor(floor: number, x?: number): void
   /** Restore the original cutaway view and yaw. */
   resetView(): void
+  captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement
   /** Stop animation, detach event handlers and release graphics resources. */
   dispose(): void
 }
@@ -137,7 +138,7 @@ export async function createHouseScene(
   canvas.setAttribute('role', 'group')
   canvas.setAttribute(
     'aria-label',
-    'Das Brandhaus im Schnitt. Mit einem Finger schwenken, auf ein Stockwerk tippen oder die beschrifteten Bedienelemente nutzen.',
+    'Brandhaus im Schnitt. Wähle ein Stockwerk, um es zu vergrößern. Mit den Pfeiltasten bewegst du die Ansicht.',
   )
   host.append(canvas)
   const scene = new Scene()
@@ -235,6 +236,33 @@ export async function createHouseScene(
         projections.push({ id, x, y, visible })
       }
       callbacks.onProject(projections)
+    }
+
+    function captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement {
+      const image = document.createElement('canvas')
+      image.width = 540
+      image.height = 360
+      const view = new HouseCamera()
+      view.resize(image.width, image.height)
+      const room = ROOMS.find((room) => room.id === roomId)
+      if (room) view.focus(room.floor, (room.minX + room.maxX) / 2)
+      view.update(0, true)
+
+      // Skipping to the result can precede the next animation frame. Apply the
+      // final smoke and door positions before copying the WebGL drawing buffer.
+      smoke?.update(snapshot, reducedMotion.matches)
+      for (const { id, object, angle, rest } of hinges) {
+        const rotation = snapshot.doors[id] ? angle : 0
+        object.quaternion.copy(rest)
+        object.rotateOnAxis(axis, rotation)
+        opening.set(id, rotation)
+      }
+      renderer.shadowMap.needsUpdate = true
+      renderer.render(scene, view.camera)
+      image.getContext('2d')?.drawImage(canvas, 0, 0, image.width, image.height)
+      renderer.render(scene, camera.camera)
+      forceRender = true
+      return image
     }
 
     function resize(): void {
@@ -460,7 +488,7 @@ export async function createHouseScene(
     resizeObserver.observe(host)
     resize()
     request = requestAnimationFrame(frame)
-    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, dispose }
+    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, captureRoom, dispose }
   } catch (error) {
     dispose()
     throw error

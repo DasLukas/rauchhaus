@@ -100,7 +100,7 @@ export class Markers {
     this.spaceTargets()
   }
 
-  update(snapshot: SimulationSnapshot, lesson: Lesson | null, fireEnabled = false) {
+  update(snapshot: SimulationSnapshot, lesson: Lesson | null) {
     this.sourceActive = snapshot.source !== null
     this.lesson = lesson
     for (const [id, e] of this.entries) {
@@ -114,8 +114,7 @@ export class Markers {
         const selected = snapshot.source === id
         if (selected !== e.on) e.glyph.innerHTML = icon(selected ? 'check' : 'smoke')
         e.on = selected
-        const startLabel = fireEnabled ? ' · Feuerversuch starten' : ' · Rauchversuch starten'
-        label += e.on ? ' · Versuch aktiv' : startLabel
+        label += e.on ? ' · Versuch läuft' : ' · Versuch starten'
         e.view.setAttribute('aria-pressed', String(e.on))
       } else {
         e.on = snapshot.detectors[id as keyof typeof snapshot.detectors]

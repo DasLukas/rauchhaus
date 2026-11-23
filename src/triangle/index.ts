@@ -1,6 +1,8 @@
+import { bindLessonHint } from '../ui/lesson-hint'
 import { element } from '../ui/dom'
 import { bindFullscreen } from '../ui/fullscreen'
 import { icon } from '../ui/icons'
+import { lessonHelp } from '../ui/lesson-help'
 import { STOVE_START_ANGLE } from './experiment'
 import { mountInstrument } from './instrument'
 import { TriangleSession } from './lesson'
@@ -11,15 +13,7 @@ const helpContent = `
     <h2 id="triangle-help-title">So geht’s</h2>
     <button type="button" class="close compact" aria-label="Schließen" data-close>${icon('close')}</button>
   </header>
-  <p>Hier ist Holz der Brennstoff. Der Sauerstoff kommt aus der Luft.</p>
-  <p>Zieh den Knopf im Dreieck oder tippe auf einen Punkt. Ziehst du ihn vom Luftzeichen weg, bekommt das Feuer weniger Sauerstoff. In der Mitte siehst du wieder das Feuer vom Anfang.</p>
-  <p>Zieh seitlich über die Ofenscheibe, um den Ofen zu drehen. Mit „Lernimpuls“ startest du drei kurze Versuche.</p>
-  <details><summary>Für Erwachsene</summary>
-    <p>Die Mitte steht für genügend Wärme, Sauerstoff und Brennstoff. Die Abstände sind Modellwerte. Das Dreieck gibt keine Mengenverhältnisse für einen echten Brand an.</p>
-    <p>Jeder Versuch beginnt mit einem brennenden Stück Holz. Der Knopf wechselt zwischen Vergleichsbildern. Beim Brennstoff zeigt er, wie viel Holz schon verbrannt ist.</p>
-    <p>Heißes Holz setzt brennbare Gase frei. Diese brennen in der Flamme. Holzkohle kann danach ohne Flamme weiterglühen. Bei vollständigem Ausbrand bleibt Asche zurück.</p>
-    <p>Mit der Tabulatortaste erreichst du den Knopf. Die Pfeiltasten verschieben ihn, Pos1 bringt ihn zurück in die Mitte.</p>
-  </details>
+  ${lessonHelp('verbrennungsdreieck')}
   <button class="action" type="button" data-close>Verstanden</button>`
 
 /** Mount the movable triangle and its optional guided wood-combustion comparisons. */
@@ -58,6 +52,7 @@ export function mountTriangle(root: HTMLElement) {
 
   const session = new TriangleSession()
   const lesson = element<HTMLButtonElement>('triangle-lesson')
+  const hint = bindLessonHint(lesson, 'verbrennungsdreieck')
   const next = element<HTMLButtonElement>('triangle-next')
   const nextLabel = element('triangle-next-label')
   const end = element<HTMLButtonElement>('triangle-end')
@@ -139,6 +134,7 @@ export function mountTriangle(root: HTMLElement) {
     }
     restorePlayback = instrument.capturePlayback()
     session.begin(instrument.getViewAngle())
+    hint.started()
     presentStage()
   }
   next.onclick = () => {
@@ -169,6 +165,7 @@ export function mountTriangle(root: HTMLElement) {
       document.removeEventListener('visibilitychange', updatePlayback)
       dialog.removeEventListener('close', updatePlayback)
       unbindFullscreen()
+      hint.dispose()
       instrument.dispose()
     })
 }

@@ -138,11 +138,9 @@ export async function verifySmoke(page) {
       await verifyFire(page, fixture, house)
       const source = house === 'gross' ? 's_kettle' : 's_stove'
       const phase = await fixture.evaluate((f, id) => f.freeFire(id), source)
-      assert.equal(phase, 'flashover', `Free experiment at ${source} should reach flashover in ${house}`)
-      await rendered(page, `freier-versuch-${house}-flashover`)
-      await fixture.evaluate((f) => f.showSurfaceFlamesOnly())
-      const surfaces = await flamePixels(page, fixture)
-      assert.ok(surfaces.count > 80, `Furnishings should visibly burn through the smoke at ${source} in ${house} (${surfaces.count} pixels)`)
+      assert.equal(phase, 'local', `Free experiment at ${source} should show a local fire in ${house}`)
+      const flame = await flamePixels(page, fixture, null, `freier-versuch-${house}-brandherd`)
+      assert.ok(flame.count > 45, `Local flames should be visible at ${source} in ${house} (${flame.count} pixels)`)
     } finally {
       await fixture.dispose()
     }

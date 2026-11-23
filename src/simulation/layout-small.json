@@ -3,14 +3,14 @@
   "roof": {"floor": 3, "ridgeY": 11, "slope": 0.39},
   "floors": [
     {"level": 0, "label": "Erdgeschoss", "landing": "stair0"},
-    {"level": 1, "label": "1. Obergeschoss", "landing": "stair1"},
-    {"level": 2, "label": "2. Obergeschoss", "landing": "stair2"},
+    {"level": 1, "label": "1. Stock", "landing": "stair1"},
+    {"level": 2, "label": "2. Stock", "landing": "stair2"},
     {"level": 3, "label": "Dachgeschoss", "landing": "stair3"}
   ],
   "rooms": [
     {"id": "stair0", "label": "Treppenhaus · Erdgeschoss", "floor": 0, "minX": 1.5, "maxX": 4.3},
-    {"id": "stair1", "label": "Treppenhaus · 1. Obergeschoss", "floor": 1, "minX": 1.5, "maxX": 4.3},
-    {"id": "stair2", "label": "Treppenhaus · 2. Obergeschoss", "floor": 2, "minX": 1.5, "maxX": 4.3},
+    {"id": "stair1", "label": "Treppenhaus · 1. Stock", "floor": 1, "minX": 1.5, "maxX": 4.3},
+    {"id": "stair2", "label": "Treppenhaus · 2. Stock", "floor": 2, "minX": 1.5, "maxX": 4.3},
     {"id": "stair3", "label": "Treppenhaus · Dachgeschoss", "floor": 3, "minX": 1.5, "maxX": 4.3},
     {"id": "kitchen", "label": "Küche im Erdgeschoss", "floor": 0, "minX": -4.3, "maxX": -1.4},
     {"id": "dining", "label": "Esszimmer im Erdgeschoss", "floor": 0, "minX": -1.4, "maxX": 1.5},
@@ -21,13 +21,13 @@
   ],
   "doors": [
     {"id": "d0", "label": "Wohnungstür · Erdgeschoss", "floor": 0, "rooms": ["dining", "stair0"], "x": 1.5, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": false},
-    {"id": "d1", "label": "Wohnungstür · 1. Obergeschoss", "floor": 1, "rooms": ["living", "stair1"], "x": 1.5, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": false},
-    {"id": "d2", "label": "Wohnungstür · 2. Obergeschoss", "floor": 2, "rooms": ["playroom", "stair2"], "x": 1.5, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": false},
+    {"id": "d1", "label": "Wohnungstür · 1. Stock", "floor": 1, "rooms": ["living", "stair1"], "x": 1.5, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": false},
+    {"id": "d2", "label": "Wohnungstür · 2. Stock", "floor": 2, "rooms": ["playroom", "stair2"], "x": 1.5, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": false},
     {"id": "d3", "label": "Wohnungstür · Dachgeschoss", "floor": 3, "rooms": ["attic", "stair3"], "x": 1.5, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": false},
     {"id": "i0", "label": "Tür zwischen Küche und Esszimmer", "floor": 0, "rooms": ["kitchen", "dining"], "x": -1.4, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": true},
     {"id": "i2", "label": "Tür zwischen Kinder- und Schlafzimmer", "floor": 2, "rooms": ["sleep2", "playroom"], "x": -1.4, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": 1.570796326795, "initiallyOpen": true}
   ],
-  "exteriorDoor": {"id": "entry", "label": "Haustür ins Freie", "floor": 0, "room": "stair0", "x": 4.3, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": -1.570796326795, "initiallyOpen": false},
+  "exteriorDoor": {"id": "entry", "label": "Haustür", "floor": 0, "room": "stair0", "x": 4.3, "hingeZ": 1.8, "latchZ": 0.86, "height": 1.9, "openAngle": -1.570796326795, "initiallyOpen": false},
   "sourceMarkers": {
     "s_stove": [-3.98, 1.25, -1.82],
     "s_tv": [-1.95, 3.59, -1.82],
@@ -41,12 +41,12 @@
     {"id": "s_attic", "room": "attic", "label": "Leselampe", "position": [-0.43, 8.36, -1.04]}
   ],
   "detectors": [
-    {"id": "m_stair3", "room": "stair3", "label": "Rauchwarnmelder oben im Treppenraum", "position": [1.85, 10.138, 1.9]},
-    {"id": "m_kitchen", "room": "kitchen", "label": "Rauchwarnmelder in der Küche", "position": [-2.85, 2.13, 1.9]},
-    {"id": "m_dining", "room": "dining", "label": "Rauchwarnmelder im Esszimmer", "position": [0.05, 2.13, 1.9]},
-    {"id": "m_living", "room": "living", "label": "Rauchwarnmelder im Wohnzimmer", "position": [-1.4, 4.53, 1.9]},
-    {"id": "m_sleep2", "room": "sleep2", "label": "Rauchwarnmelder im Schlafzimmer im zweiten Stock", "position": [-2.85, 6.93, 1.9]},
-    {"id": "m_playroom", "room": "playroom", "label": "Rauchwarnmelder im Kinderzimmer", "position": [0.05, 6.93, 1.9]},
-    {"id": "m_attic", "room": "attic", "label": "Rauchwarnmelder in der Dachwohnung", "position": [-1.1, 10.431, 1.9]}
+    {"id": "m_stair3", "room": "stair3", "label": "Rauchmelder oben im Treppenhaus", "position": [1.85, 10.138, 1.9]},
+    {"id": "m_kitchen", "room": "kitchen", "label": "Rauchmelder in der Küche", "position": [-2.85, 2.13, 1.9]},
+    {"id": "m_dining", "room": "dining", "label": "Rauchmelder im Esszimmer", "position": [0.05, 2.13, 1.9]},
+    {"id": "m_living", "room": "living", "label": "Rauchmelder im Wohnzimmer", "position": [-1.4, 4.53, 1.9]},
+    {"id": "m_sleep2", "room": "sleep2", "label": "Rauchmelder im Schlafzimmer, 2. Stock", "position": [-2.85, 6.93, 1.9]},
+    {"id": "m_playroom", "room": "playroom", "label": "Rauchmelder im Kinderzimmer", "position": [0.05, 6.93, 1.9]},
+    {"id": "m_attic", "room": "attic", "label": "Rauchmelder in der Dachwohnung", "position": [-1.1, 10.431, 1.9]}
   ]
 }

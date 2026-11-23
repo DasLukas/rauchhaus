@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
 import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
+import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
 
@@ -157,8 +158,21 @@ async function verifyFire(page, fixture, house) {
   const { local, rollover, flashover } = observations
   console.log(`Visible flame pixels in ${house}:`, observations)
   assert.ok(local.count > 45, 'The source should have a visible local flame')
-  assert.ok(rollover.upperRemote > 50, 'Gas flames should be visible above and away from the TV')
   assert.ok(flashover.lowerRemote > rollover.lowerRemote + 80, 'Additional flames should reach furnishings below the TV and away from it')
+
+  // The door marker sits halfway up the living room at its right edge. The gas
+  // burns along the smoke interface, which can descend below the TV flame tip.
+  const layout = house === 'gross' ? largeHouse : smallHouse
+  const living = layout.rooms.find((room) => room.id === 'living')
+  const width = living.maxX - living.minX
+  const halfHeight = layout.dimensions.clearHeight / 2
+  const regions = await jambPatches(page, house === 'gross' ? 'd0l' : 'd0', 'd1', {
+    upperRoom: ['d1', -width, halfHeight, width, halfHeight],
+  })
+  await fixture.evaluate((f) => f.gasFrame(0, false))
+  const gas = await flamePixels(page, fixture, local, undefined, regions)
+  assert.ok(gas.regionPixels.upperRoom > 50,
+    `Expected visible gas flames in the upper living room away from the TV in ${house}, saw ${gas.regionPixels.upperRoom} pixels`)
   if (house === 'klein') await verifyLivingRoomSurfaces(page, fixture)
 
   await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -193,7 +207,6 @@ async function flamePixels(page, fixture, source, name, regions = {}) {
     let right = 0
     let top = on.height
     let bottom = 0
-    let upperRemote = 0
     let lowerRemote = 0
     const columns = new Array(Math.ceil(on.width / 16)).fill(0)
     const thickness = new Uint16Array(on.width)
@@ -210,24 +223,23 @@ async function flamePixels(page, fixture, source, name, regions = {}) {
       right = Math.max(right, x)
       top = Math.min(top, y)
       bottom = Math.max(bottom, y)
-      if (source && (x < source.left - 10 || x > source.right + 10)) {
-        if (y < (source.top + source.bottom) / 2) upperRemote++
-        if (y > source.bottom + 10) lowerRemote++
-      }
       columns[Math.floor(x / 16)]++
       thickness[x]++
+      count++
+      // A supplied source bounds the TV flame. Only count remote observations outside it.
+      if (source && x >= source.left - 10 && x <= source.right + 10) continue
+      if (source && y > source.bottom + 10) lowerRemote++
       for (const [name, box] of boxes) {
         if (x >= box.x && x < box.x + box.width && y >= box.y && y < box.y + box.height)
           regionPixels[name]++
       }
-      count++
     }
     const litColumns = columns.flatMap((pixels, column) => pixels >= 15 ? [column] : [])
     // Column occupancy measures local luminous thickness even where a tongue bends.
     const sections = thickness.filter((pixels) => pixels > 0).sort()
     const bodyThickness = sections[Math.floor(sections.length * 0.75)] ?? 0
     const thicknessRatio = count ? bodyThickness / (right - left + 1) : 0
-    return { count, left, right, top, bottom, upperRemote, lowerRemote, litColumns, regionPixels, thicknessRatio }
+    return { count, left, right, top, bottom, lowerRemote, litColumns, regionPixels, thicknessRatio }
   }, { images: [flames.toString('base64'), smoke.toString('base64')], source, regions })
 }
 

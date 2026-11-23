@@ -68,7 +68,7 @@ export class LearningSession {
   /** Advances visible teaching time. Suspended tabs never need to catch up. */
   tick(seconds: number): SimulationSnapshot {
     if (this.paused || !this.snapshot.source || !Number.isFinite(seconds) || seconds <= 0) return this.snapshot
-    const dt = Math.min(seconds, (this.stopTime ?? Infinity) - this.snapshot.elapsed)
+    const dt = Math.min(seconds, (this.stopTime ?? Infinity) - this.active.playbackTime)
     if (this.fireObservation) {
       // Sample the same visible state on a skip and during ordinary playback.
       let remaining = Math.min(dt, 60)
@@ -132,7 +132,7 @@ export class LearningSession {
     const end = this.stopTime
     if (end === null) return null
     const start = this.stage === 'flashover' ? this.fireStops?.rollover ?? 0 : 0
-    return Math.min(1, (this.snapshot.elapsed - start) / (end - start))
+    return Math.min(1, (this.active.playbackTime - start) / (end - start))
   }
 
   get trialFinished() {

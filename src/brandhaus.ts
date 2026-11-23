@@ -26,7 +26,7 @@ const markerLayer = element('markers')
 const trial = element('trial')
 const nextButton = element<HTMLButtonElement>('trial-next')
 const progressBar = element('trial-progress')
-let lastPercent = -1
+let lastProgress: number | null = null
 const pause = element<HTMLButtonElement>('pause')
 const restart = element<HTMLButtonElement>('restart')
 const lesson = element<HTMLButtonElement>('lesson')
@@ -59,14 +59,17 @@ const fireSteps = {
 
 function updateTrialTimer() {
   const progress = session.trialProgress
-  const percent = progress === null || progress >= 1 ? -1 : Math.floor(progress * 100)
-  if (percent === lastPercent) return
-  lastPercent = percent
-  nextButton.classList.toggle('timed', percent >= 0)
-  progressBar.hidden = percent < 0
-  if (percent >= 0) {
-    nextButton.style.setProperty('--timer-offset', String(1 - percent / 100))
-    progressBar.setAttribute('aria-valuenow', String(percent))
+  if (progress === lastProgress) return
+  lastProgress = progress
+  const running = progress !== null && progress < 1
+  nextButton.classList.toggle('timed', running)
+  progressBar.hidden = !running
+  if (running) {
+    nextButton.style.setProperty('--timer-offset', String(1 - progress))
+    const percent = String(Math.floor(progress * 100))
+    if (progressBar.getAttribute('aria-valuenow') !== percent) {
+      progressBar.setAttribute('aria-valuenow', percent)
+    }
   }
 }
 

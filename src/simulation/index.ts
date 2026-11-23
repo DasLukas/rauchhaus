@@ -332,6 +332,11 @@ export class SmokeSimulation {
     }
   }
 
+  /** Playback time, including the fraction of a tick already shown to the viewer. */
+  get playbackTime(): number {
+    return this.ticks * TICK + this.remainder
+  }
+
   /** Empties the building, retaining every selected door position. */
   reset(): void {
     for (const bounds of this.house.rooms) {

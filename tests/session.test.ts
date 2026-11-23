@@ -97,6 +97,23 @@ describe.each(['klein', 'gross'] as const)('free fire experiments in the %s hous
 })
 
 describe('guided door comparison', () => {
+  it('moves the timer between simulation ticks and holds it while paused', () => {
+    const session = new LearningSession()
+    session.beginLesson()
+    for (let frame = 1; frame <= 3; frame++) {
+      session.tick(1 / 120)
+      expect(session.trialProgress).toBeCloseTo(frame / 120 / OBSERVATION_SECONDS, 10)
+    }
+    const progress = session.trialProgress
+    session.togglePause()
+    session.tick(1)
+    expect(session.trialProgress).toBe(progress)
+    session.finishTrial()
+    expect(session.trialProgress).toBe(1)
+    session.nextTrial()
+    expect(session.trialProgress).toBe(0)
+  })
+
   it.each(['klein', 'gross'] as const)('compares the same local fire with one door changed in %s', (variant) => {
     const session = new LearningSession(getHouse(variant))
     session.beginLesson()

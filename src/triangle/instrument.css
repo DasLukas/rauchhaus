@@ -1,0 +1,236 @@
+.triangle-instrument {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(12px, 2.6vw, 48px);
+  width: min(100%, 1380px);
+  margin-inline: auto;
+}
+.triangle-control {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+  container-type: inline-size;
+}
+.triangle-board {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  margin-top: clamp(6px, 2.5cqw, 17px);
+  aspect-ratio: 640 / 478;
+  container-type: inline-size;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.triangle-pad {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 2px #175a6329);
+}
+.triangle-contours {
+  fill: none;
+  stroke: #977f57;
+  stroke-width: 1.6;
+  opacity: 0.22;
+  pointer-events: none;
+}
+.triangle-guides {
+  fill: none;
+  stroke: #7b8279;
+  stroke-dasharray: 5 7;
+  stroke-width: 2.8;
+  opacity: 0.66;
+}
+#triangle-study-guide {
+  fill: none;
+  stroke: #184666;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 15 8;
+  pointer-events: none;
+}
+.triangle-label,
+.triangle-knob {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow:
+    0 2px 0 #48717a45,
+    0 4px 12px #2e5e6e24;
+}
+.triangle-label {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.10em;
+  padding: 0.25em 0.47em 0.33em;
+  border: 1px solid #ffffffc2;
+  border-radius: 0.91em;
+  font-size: clamp(12px, 3.55cqw, 25px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  pointer-events: none;
+}
+.triangle-label svg {
+  width: 2.02em;
+  height: 2.02em;
+}
+.label-heat,
+.label-oxygen {
+  top: 38.5%;
+  transform: translateY(-50%);
+}
+.label-heat { right: 68%; }
+.label-oxygen { left: 68%; }
+.label-fuel {
+  position: relative;
+  transform: none;
+  margin-top: -2.7cqw;
+}
+.triangle-knob {
+  display: grid;
+  place-items: center;
+  width: clamp(46px, 13cqw, 92px);
+  aspect-ratio: 1;
+  padding: 0;
+  border: clamp(3px, 0.75cqw, 5px) solid #058f89;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 25%, #fffdf0, #fff4d9 65%, #edd6af);
+  box-shadow:
+    inset 0 2px 0 #fffdfa,
+    0 3px 0 #157770,
+    0 5px 9px #3c433748;
+  cursor: grab;
+  touch-action: none;
+  z-index: 1;
+}
+.triangle-knob svg {
+  width: 55%;
+  height: 55%;
+}
+.triangle-knob:active {
+  cursor: grabbing;
+}
+.triangle-knob:disabled {
+  cursor: default;
+}
+.stove-observation {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  gap: clamp(4px, 1.1vw, 14px);
+}
+.stove-window {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.23;
+}
+.stove-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.stove-canvas:active {
+  cursor: grabbing;
+}
+.stove-canvas:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 1px;
+}
+.stove-load {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: 93%;
+  padding: 14px 20px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--control-shadow);
+  text-align: center;
+  font-weight: 800;
+}
+#triangle-observation {
+  display: grid;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.55em 1.05em;
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--control-shadow);
+  text-align: center;
+  font-size: clamp(14px, 1.55vw, 20px);
+  line-height: 1.3;
+}
+/* Stack all observations in one cell so wrapping never moves the stove. */
+.observation-copy {
+  grid-area: 1 / 1;
+  align-self: center;
+  display: grid;
+  gap: 3px;
+}
+.observation-copy[aria-hidden="true"] {
+  visibility: hidden;
+}
+#triangle-observation strong {
+  font-size: 1.25em;
+  font-weight: 900;
+}
+@media (max-width: 620px) and (orientation: portrait) {
+  .triangle-instrument {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 12px;
+  }
+  .triangle-control {
+    width: min(100%, 410px);
+  }
+  .stove-observation {
+    max-width: 340px;
+  }
+  .stove-window {
+    width: min(78%, 240px);
+  }
+}
+@media (max-height: 560px) and (orientation: landscape) {
+  .triangle-instrument {
+    max-width: min(100%, 810px);
+    gap: 12px;
+  }
+  .stove-window {
+    max-width: 255px;
+  }
+  #triangle-observation {
+    font-size: 13px;
+  }
+}
+@media (forced-colors: active) {
+  .triangle-label,
+  .triangle-knob,
+  #triangle-observation {
+    border: 2px solid ButtonText;
+  }
+  .triangle-pad path {
+    stroke: CanvasText;
+  }
+  .triangle-guides {
+    stroke: CanvasText;
+  }
+  .triangle-contours {
+    display: none;
+  }
+}

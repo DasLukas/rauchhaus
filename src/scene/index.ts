@@ -4,7 +4,6 @@ import {
   DirectionalLight,
   type Group,
   HemisphereLight,
-  type Material,
   MathUtils,
   Mesh,
   NeutralToneMapping,
@@ -13,7 +12,6 @@ import {
   Raycaster,
   Scene,
   SRGBColorSpace,
-  Texture,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -25,12 +23,14 @@ import {
   DOORS,
   type DoorId,
   HOUSE_VARIANT,
+  INFO_SPOTS,
   MODEL_FILENAME,
   ROOMS,
   type SimulationSnapshot,
   type SourceId,
 } from '../simulation'
 import { HouseCamera, pickedFloor } from './camera'
+import { releaseMeshes } from './dispose'
 import { addSkyClouds } from './sky'
 import { SmokeVolumes } from './smoke'
 
@@ -46,8 +46,10 @@ export interface SceneCallbacks {
   /** Advance the lesson clock by this amount and return its current snapshot. */
   onFrame(deltaSeconds: number): SimulationSnapshot
   /** Reposition accessible HTML controls whenever the camera or stage changes. */
-  onProject(markers: ProjectedMarker[]): void
-  /** The child tapped a physical door or source mesh. */
+  onProject(markers: ProjectedMarker[], floor: number | null): void
+  /** Only currently available controls participate in proximity and mesh picking. */
+  canActivate(id: string): boolean
+  /** Activate the selected marker, door leaf or source object. */
   onActivate(id: string): void
   onFloorChange?(floor: number | null): void
   onError?(error: Error): void
@@ -60,6 +62,7 @@ export interface HouseScene {
   focusFloor(floor: number, x?: number): void
   /** Restore the original cutaway view and yaw. */
   resetView(): void
+  captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement
   /** Stop animation, detach event handlers and release graphics resources. */
   dispose(): void
 }
@@ -93,24 +96,6 @@ function lighting(scene: Scene): void {
   scene.add(fill)
 }
 
-function releaseMeshes(root: Object3D): void {
-  const materials = new Set<Material>()
-  const textures = new Set<Texture>()
-  root.traverse((node) => {
-    if (!(node instanceof Mesh)) return
-    node.geometry.dispose()
-    const list = Array.isArray(node.material) ? node.material : [node.material]
-    for (const material of list) materials.add(material)
-  })
-  for (const material of materials) {
-    for (const value of Object.values(material)) {
-      if (value instanceof Texture) textures.add(value)
-    }
-    material.dispose()
-  }
-  for (const texture of textures) texture.dispose()
-}
-
 function readAnchors(model: Group) {
   const output = new Map<string, { position: Vector3; floor: number }>()
   const roomFloors = new Map(ROOMS.map((room) => [room.id, room.floor]))
@@ -124,6 +109,11 @@ function readAnchors(model: Group) {
     const floor = roomFloors.get(room)
     if (!anchor || floor === undefined) throw new Error(`Missing scene anchor for ${id}`)
     output.set(id, { position: anchor.getWorldPosition(new Vector3()), floor })
+  }
+  for (const spot of INFO_SPOTS) {
+    const floor = roomFloors.get(spot.room)
+    if (floor === undefined) throw new Error(`Missing room for ${spot.id}`)
+    output.set(spot.id, { position: new Vector3(...spot.position), floor })
   }
   return output
 }
@@ -156,7 +146,7 @@ export async function createHouseScene(
   canvas.setAttribute('role', 'group')
   canvas.setAttribute(
     'aria-label',
-    'Das Rauchhaus im Schnitt. Mit einem Finger schwenken, auf ein Stockwerk tippen oder die beschrifteten Bedienelemente nutzen.',
+    'Brandhaus im Schnitt. Wähle ein Stockwerk, um es zu vergrößern. Mit den Pfeiltasten bewegst du die Ansicht.',
   )
   host.append(canvas)
   const scene = new Scene()
@@ -253,7 +243,34 @@ export async function createHouseScene(
           (camera.floor === null || camera.floor === floor)
         projections.push({ id, x, y, visible })
       }
-      callbacks.onProject(projections)
+      callbacks.onProject(projections, camera.floor)
+    }
+
+    function captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement {
+      const image = document.createElement('canvas')
+      image.width = 540
+      image.height = 360
+      const view = new HouseCamera()
+      view.resize(image.width, image.height)
+      const room = ROOMS.find((room) => room.id === roomId)
+      if (room) view.focus(room.floor, (room.minX + room.maxX) / 2)
+      view.update(0, true)
+
+      // Skipping to the result can precede the next animation frame. Apply the
+      // final smoke and door positions before copying the WebGL drawing buffer.
+      smoke?.update(snapshot, reducedMotion.matches)
+      for (const { id, object, angle, rest } of hinges) {
+        const rotation = snapshot.doors[id] ? angle : 0
+        object.quaternion.copy(rest)
+        object.rotateOnAxis(axis, rotation)
+        opening.set(id, rotation)
+      }
+      renderer.shadowMap.needsUpdate = true
+      renderer.render(scene, view.camera)
+      image.getContext('2d')?.drawImage(canvas, 0, 0, image.width, image.height)
+      renderer.render(scene, camera.camera)
+      forceRender = true
+      return image
     }
 
     function resize(): void {
@@ -305,7 +322,7 @@ export async function createHouseScene(
       let closest: ProjectedMarker | undefined
       let distance = 18
       for (const marker of projections) {
-        if (!marker.visible || marker.id.startsWith('m_')) continue
+        if (!marker.visible || !callbacks.canActivate(marker.id)) continue
         const d = Math.hypot(marker.x - x, marker.y - y)
         if (d < distance) {
           closest = marker
@@ -323,14 +340,14 @@ export async function createHouseScene(
       let node: Object3D | null = hit.object
       while (node) {
         const doorId = doorIds.get(node)
-        if (doorId) {
+        if (doorId && callbacks.canActivate(doorId)) {
           callbacks.onActivate(doorId)
           return
         }
         node = node.parent
       }
       for (const [id, position] of positions) {
-        if (position.distanceToSquared(hit.point) < 0.36) {
+        if (position.distanceToSquared(hit.point) < 0.36 && callbacks.canActivate(id)) {
           callbacks.onActivate(id)
           return
         }
@@ -479,7 +496,7 @@ export async function createHouseScene(
     resizeObserver.observe(host)
     resize()
     request = requestAnimationFrame(frame)
-    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, dispose }
+    return { zoomBy: (factor) => camera.zoomBy(factor), focusFloor, resetView, captureRoom, dispose }
   } catch (error) {
     dispose()
     throw error

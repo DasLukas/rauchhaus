@@ -28,7 +28,7 @@ import {
   SOURCES,
   type SourceId,
 } from '../simulation'
-import { sampleGasFlame } from '../simulation/gas-flame'
+import { sampleGasBursts } from '../simulation/gas-flame'
 import { fireShader } from './fire'
 import { fuelSurfaces } from './fuels'
 
@@ -303,7 +303,8 @@ const fragmentShader = `
     float smokeDepth = extinction * textureDensity;
     float totalDepth = smokeDepth;
     #ifdef SHOW_FIRE
-    totalDepth += fire.x;
+    float wispDepth = inside ? surfaceWisps() : 0.0;
+    totalDepth += fire.x + wispDepth;
     #endif
     float alpha = 1.0 - exp(-totalDepth * pathLength * coverage);
     if (alpha < 0.0012) discard;
@@ -325,7 +326,7 @@ const fragmentShader = `
     // front and opaque depth-tested geometry still occlude the burning surface.
     float hot = clamp(fire.y / max(0.00001, fire.x), 0.0, 1.0);
     vec3 flameColor = mix(vec3(1.0, 0.06, 0.002), vec3(1.0, 0.88, 0.24), smoothstep(0.10, 0.95, hot));
-    color = (color * smokeDepth + flameColor * fire.x) / totalDepth;
+    color = (color * smokeDepth + flameColor * fire.x + vec3(0.60, 0.62, 0.61) * wispDepth) / totalDepth;
     #endif
     smokeColor = vec4(linearToOutputTexel(vec4(color, 1.0)).rgb, alpha);
   }
@@ -382,7 +383,9 @@ export class SmokeVolumes extends Group {
         source: { value: new Vector3() },
         strength: { value: 0 },
         fireAmounts: { value: new Vector3() },
-        gasBurst: { value: new Vector4() },
+        firstBurst: { value: new Vector4() },
+        secondBurst: { value: new Vector4() },
+        surfaceGas: { value: 0 },
         fuelSurfaces: { value: patches },
         flameTime: { value: 0 },
         openings: { value: portals.length ? portals : [new Vector4()] },
@@ -429,9 +432,19 @@ export class SmokeVolumes extends Group {
       if (fire && active) {
         u.fireAmounts.value.set(fire.sourceIntensity, fire.rollover, fire.involvement)
         u.flameTime.value = reducedMotion ? 0 : snapshot.elapsed
-        const burst = sampleGasFlame(snapshot.elapsed, active.id)
-        const z = room.minZ + (room.maxZ - room.minZ) * (0.60 + 0.32 * burst.z)
-        u.gasBurst.value.set(burst.x, z, burst.strength, reducedMotion ? 0.5 : burst.progress)
+        u.surfaceGas.value = fire.outgassing
+        if (fire.rollover > 0) {
+          const bursts = sampleGasBursts(snapshot.elapsed, active.id, fire.burstSeed)
+          // Reserve separate bands above the seating, clear of the detector and TV.
+          const centres = HOUSE_VARIANT === 'klein' ? [0.63, 0.79] : [0.19, 0.69]
+          u.secondBurst.value.z = 0
+          for (const [i, burst] of bursts.entries()) {
+            const x = centres[burst.band] + (burst.x - 0.5) * 0.075
+            const z = room.minZ + (room.maxZ - room.minZ) * (0.57 + 0.12 * burst.z)
+            const uniform = i === 0 ? u.firstBurst : u.secondBurst
+            uniform.value.set(x, z, burst.strength, reducedMotion ? 0.5 : burst.progress)
+          }
+        }
       }
       if (active && (u.strength.value > 0 || fire)) {
         const anchor = this.sourcePositions.get(active.id)

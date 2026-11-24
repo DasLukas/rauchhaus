@@ -1,7 +1,8 @@
 const glyphs = {
+  info: '<circle cx="12" cy="5.4" r="1.7" fill="currentColor" stroke="none"/><path d="M10 10h2v9m-2.3 0h4.7" stroke-width="2.6"/>',
+  overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   house: '<path d="M3 11.4 12 3l9 8.4M5.2 10v10.4h13.6V10"/><path d="M10 20v-6.4h4V20"/>',
   apartments: '<path d="M2 21h20M4 21V7h7V3h9v18M7.5 11h.1m-.1 4h.1M14 7h3m-3 4h3m-3 4h3m-3 6v-3h3v3"/>',
-  settings: '<path d="m9.3 3 .6-1h4.2l.6 2 1.6.9 2-.4 2.1 3.6-1.4 1.5v2l1.4 1.6-2.1 3.6-2-.4-1.6.9-.6 2H10l-.6-2-1.7-.9-2 .4-2.1-3.6L5 11.7v-2L3.6 8.1l2.1-3.6 2 .4 1.6-.9z" transform="translate(0 1)"/><circle cx="12" cy="12" r="3"/>',
   muted: '<path d="M3 9h4l5-4v14l-5-4H3zM16 9l6 6m0-6-6 6"/>',
   sound: '<path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
   bulb: '<g fill="#ffca43" stroke="#d98a20"><path d="M8.8 15.3C8.8 13.7 6.4 12.4 6.4 9a5.6 5.6 0 0 1 11.2 0c0 3.4-2.4 4.7-2.4 6.3Z" stroke-width="1.3"/><path d="M12 .6v1M2.5 7l1.3.5M20.2 7.5l1.3-.5M4.5 2.8l1 .9M18.6 3.7l1-.9" stroke-width="1.4"/></g><path d="M9 17h6m-5 2h4m-3 1.8h2" stroke-width="1.6"/>',

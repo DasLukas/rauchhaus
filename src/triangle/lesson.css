@@ -1,0 +1,167 @@
+#app[data-page="verbrennungsdreieck"] {
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
+  gap: clamp(8px, 1.5vh, 18px);
+}
+
+.triangle-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.triangle-identity #triangle-title {
+  white-space: nowrap;
+}
+
+#triangle-title svg {
+  width: 1.18em;
+  height: 1.18em;
+}
+
+.triangle-workspace {
+  display: grid;
+  align-content: center;
+  align-items: center;
+  gap: clamp(12px, 2vh, 24px);
+  width: min(1400px, 100%);
+  margin-inline: auto;
+  padding-inline: clamp(12px, 3.3vw, 48px);
+}
+
+/* The guide and toolbars take their natural space; the scene fits the remaining row. */
+#app[data-page="verbrennungsdreieck"].learning {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-content: stretch;
+  height: 100dvh;
+}
+.learning .triangle-workspace {
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: stretch;
+  align-content: stretch;
+  margin-block: 0;
+}
+.learning #triangle-instrument {
+  display: grid;
+  place-items: center;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  width: 100%;
+  /* Leave room for the round grip when its centre reaches a vertex. */
+  padding-block: 12px 6px;
+  container-type: size;
+}
+.learning .triangle-instrument {
+  width: min(100%, 190cqh, 1380px);
+}
+#triangle-study {
+  justify-self: center;
+  width: min(100%, 660px);
+  min-height: clamp(76px, 8.3vw, 86px);
+}
+#triangle-study .trial-copy {
+  flex: 1;
+  gap: 2px;
+  font-size: clamp(15px, 1.8vw, 19px);
+}
+#triangle-study-prompt {
+  max-width: none;
+  /* Reserve the wrapped lines so changing the instruction keeps the stove still. */
+  min-block-size: 2lh;
+  font-size: clamp(14px, 1.55vw, 17px);
+}
+#triangle-study .action,
+#triangle-study .close {
+  flex: none;
+}
+#triangle-study .action {
+  min-width: 6em;
+}
+
+@media (min-width: 900px) {
+  .triangle-workspace {
+    margin-block: auto;
+  }
+  #triangle-instrument {
+    width: min(100%, max(680px, calc(230dvh - 680px)));
+    justify-self: center;
+  }
+}
+
+@media (max-width: 650px) {
+  #app[data-page="verbrennungsdreieck"] {
+    row-gap: 8px;
+  }
+  .triangle-topbar nav {
+    gap: 4px;
+  }
+  .triangle-identity {
+    gap: 4px;
+  }
+  #triangle-title {
+    padding: 8px 10px;
+    font-size: clamp(17px, 5vw, 24px);
+  }
+  #triangle-lesson {
+    min-width: 48px;
+    padding: 8px;
+  }
+  #triangle-lesson span {
+    display: none;
+  }
+  .triangle-workspace {
+    padding-inline: 10px;
+    row-gap: 8px;
+  }
+}
+
+@media (max-width: 620px) and (orientation: portrait) {
+  .learning .triangle-instrument {
+    width: 100%;
+  }
+  .learning .triangle-control {
+    width: min(100%, 64cqh, 410px);
+  }
+  .learning .stove-window {
+    width: min(100%, 44cqh, 240px);
+  }
+}
+
+@media (max-width: 500px) {
+  #triangle-study-prompt { min-block-size: 3lh; }
+}
+@media (max-width: 440px) {
+  #triangle-title svg {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  #triangle-study-heading { min-block-size: 2lh; }
+  #triangle-study-prompt { min-block-size: 4lh; }
+  .triangle-topbar {
+    padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right));
+  }
+  .triangle-topbar,
+  .triangle-identity,
+  .triangle-topbar nav {
+    gap: 2px;
+  }
+  .triangle-topbar .pill,
+  #triangle-lesson {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px;
+  }
+  #triangle-title {
+    padding-inline: 7px;
+    font-size: 16px;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .triangle-workspace {
+    gap: 6px;
+  }
+}

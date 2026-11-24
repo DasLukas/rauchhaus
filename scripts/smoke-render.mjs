@@ -11,7 +11,8 @@ export async function mount() {
   const markers = new Markers(document.querySelector('#markers'), () => {})
   const scene = await createHouseScene(document.querySelector('#viewport'), {
     onFrame: () => observation ?? simulation.snapshot(),
-    onProject: (positions) => markers.project(positions),
+    onProject: (positions, floor) => markers.project(positions, floor),
+    canActivate: () => false,
     onActivate() {},
     onError(error) {
       throw error
@@ -20,7 +21,6 @@ export async function mount() {
   return {
     fireObservation(phase) {
       const lesson = new LearningSession()
-      lesson.setFireEnabled(true)
       lesson.beginLesson('fire')
       scene.focusFloor(1, -2.9)
       if (phase === 'local') lesson.tick(2)
@@ -29,6 +29,7 @@ export async function mount() {
         if (phase === 'flashover') {
           lesson.nextTrial()
           lesson.finishTrial()
+          lesson.tick(60)
         }
       }
       observation = lesson.snapshot
@@ -37,17 +38,15 @@ export async function mount() {
     },
     freeFire(sourceId) {
       const session = new LearningSession()
-      session.setFireEnabled(true)
       session.selectSource(sourceId)
       const source = HOUSE.classroomSources.find((item) => item.id === sourceId)
       const room = HOUSE.rooms.find((item) => item.id === source.room)
       scene.focusFloor(room.floor, (room.minX + room.maxX) / 2)
-      // Freeze the first visibly developed fire with its own smoke and doors.
-      while (session.snapshot.elapsed < 60 && session.snapshot.fire.involvement < 0.65) session.tick(1)
-      observation = session.snapshot
+      // Inspect the source before the descending smoke layer obscures it.
+      observation = session.tick(2)
       return observation.fire.phase
     },
-    gasFrame(offset, deep) {
+    gasFrame({ elapsed = rolloverStop.elapsed, burstSeed = rolloverStop.fire.burstSeed, deep = false } = {}) {
       // Hold the room and ventilation at the lesson stop so each paired image
       // isolates gas emission. Move the interface down for the floor regression.
       let rooms = rolloverStop.rooms
@@ -58,8 +57,8 @@ export async function mount() {
       observation = {
         ...rolloverStop,
         rooms,
-        elapsed: rolloverStop.elapsed + offset,
-        fire: { ...rolloverStop.fire, sourceIntensity: 0, involvement: 0 },
+        elapsed,
+        fire: { ...rolloverStop.fire, burstSeed, sourceIntensity: 0, involvement: 0 },
       }
     },
     showSurfaceFlamesOnly() {

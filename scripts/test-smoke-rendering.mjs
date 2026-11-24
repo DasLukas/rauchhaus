@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
 import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
+import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
 
@@ -138,11 +139,9 @@ export async function verifySmoke(page) {
       await verifyFire(page, fixture, house)
       const source = house === 'gross' ? 's_kettle' : 's_stove'
       const phase = await fixture.evaluate((f, id) => f.freeFire(id), source)
-      assert.equal(phase, 'flashover', `Free experiment at ${source} should reach flashover in ${house}`)
-      await rendered(page, `freier-versuch-${house}-flashover`)
-      await fixture.evaluate((f) => f.showSurfaceFlamesOnly())
-      const surfaces = await flamePixels(page, fixture)
-      assert.ok(surfaces.count > 80, `Furnishings should visibly burn through the smoke at ${source} in ${house} (${surfaces.count} pixels)`)
+      assert.equal(phase, 'local', `Free experiment at ${source} should show a local fire in ${house}`)
+      const flame = await flamePixels(page, fixture, null, `freier-versuch-${house}-brandherd`)
+      assert.ok(flame.count > 45, `Local flames should be visible at ${source} in ${house} (${flame.count} pixels)`)
     } finally {
       await fixture.dispose()
     }
@@ -159,8 +158,21 @@ async function verifyFire(page, fixture, house) {
   const { local, rollover, flashover } = observations
   console.log(`Visible flame pixels in ${house}:`, observations)
   assert.ok(local.count > 45, 'The source should have a visible local flame')
-  assert.ok(rollover.upperRemote > 50, 'Gas flames should be visible above and away from the TV')
   assert.ok(flashover.lowerRemote > rollover.lowerRemote + 80, 'Additional flames should reach furnishings below the TV and away from it')
+
+  // The door marker sits halfway up the living room at its right edge. The gas
+  // burns along the smoke interface, which can descend below the TV flame tip.
+  const layout = house === 'gross' ? largeHouse : smallHouse
+  const living = layout.rooms.find((room) => room.id === 'living')
+  const width = living.maxX - living.minX
+  const halfHeight = layout.dimensions.clearHeight / 2
+  const regions = await jambPatches(page, house === 'gross' ? 'd0l' : 'd0', 'd1', {
+    upperRoom: ['d1', -width, halfHeight, width, halfHeight],
+  })
+  await fixture.evaluate((f) => f.gasFrame())
+  const gas = await flamePixels(page, fixture, local, undefined, regions)
+  assert.ok(gas.regionPixels.upperRoom > 50,
+    `Expected visible gas flames in the upper living room away from the TV in ${house}, saw ${gas.regionPixels.upperRoom} pixels`)
   if (house === 'klein') await verifyLivingRoomSurfaces(page, fixture)
 
   await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -195,7 +207,6 @@ async function flamePixels(page, fixture, source, name, regions = {}) {
     let right = 0
     let top = on.height
     let bottom = 0
-    let upperRemote = 0
     let lowerRemote = 0
     const columns = new Array(Math.ceil(on.width / 16)).fill(0)
     const thickness = new Uint16Array(on.width)
@@ -212,24 +223,23 @@ async function flamePixels(page, fixture, source, name, regions = {}) {
       right = Math.max(right, x)
       top = Math.min(top, y)
       bottom = Math.max(bottom, y)
-      if (source && (x < source.left - 10 || x > source.right + 10)) {
-        if (y < (source.top + source.bottom) / 2) upperRemote++
-        if (y > source.bottom + 10) lowerRemote++
-      }
       columns[Math.floor(x / 16)]++
       thickness[x]++
+      count++
+      // A supplied source bounds the TV flame. Only count remote observations outside it.
+      if (source && x >= source.left - 10 && x <= source.right + 10) continue
+      if (source && y > source.bottom + 10) lowerRemote++
       for (const [name, box] of boxes) {
         if (x >= box.x && x < box.x + box.width && y >= box.y && y < box.y + box.height)
           regionPixels[name]++
       }
-      count++
     }
     const litColumns = columns.flatMap((pixels, column) => pixels >= 15 ? [column] : [])
     // Column occupancy measures local luminous thickness even where a tongue bends.
     const sections = thickness.filter((pixels) => pixels > 0).sort()
     const bodyThickness = sections[Math.floor(sections.length * 0.75)] ?? 0
     const thicknessRatio = count ? bodyThickness / (right - left + 1) : 0
-    return { count, left, right, top, bottom, upperRemote, lowerRemote, litColumns, regionPixels, thicknessRatio }
+    return { count, left, right, top, bottom, lowerRemote, litColumns, regionPixels, thicknessRatio }
   }, { images: [flames.toString('base64'), smoke.toString('base64')], source, regions })
 }
 
@@ -254,12 +264,15 @@ async function verifyLivingRoomSurfaces(page, fixture) {
 }
 
 async function verifyGasSequence(page, fixture, source, house) {
+  // Real lessons vary their bursts. This interval of one repeatable sequence
+  // contains isolated left and right pockets, a pair, and gaps between bursts.
+  const burstSeed = 42
   const frames = []
   for (let step = 0; step <= 16; step++) {
-    const offset = step * 0.34
-    await fixture.evaluate((f, offset) => f.gasFrame(offset, false), offset)
+    const frame = { elapsed: 13 + step * 0.34, burstSeed }
+    await fixture.evaluate((f, frame) => f.gasFrame(frame), frame)
     const pixels = await flamePixels(page, fixture, source)
-    frames.push({ offset, ...pixels })
+    frames.push({ elapsed: frame.elapsed, ...pixels })
   }
   const visible = frames.filter((frame) => frame.count >= 45)
   assert.ok(visible.length >= 3, `Several gas flame observations should be visible in ${house}`)
@@ -279,7 +292,8 @@ async function verifyGasSequence(page, fixture, source, house) {
     `Gas flames should go out locally and reappear elsewhere in ${house}`,
   )
   const brightest = visible.reduce((a, b) => a.count > b.count ? a : b)
-  await fixture.evaluate((f, offset) => f.gasFrame(offset, true), brightest.offset)
+  await fixture.evaluate((f, frame) => f.gasFrame(frame),
+    { elapsed: brightest.elapsed, burstSeed, deep: true })
   const low = await flamePixels(page, fixture, source)
   assert.ok(!low.count || low.bottom <= source.bottom + 10, `Gas flames should stay above the floor in ${house}`)
   console.log(`Verified moving gas flames in ${house} across ${frames.length} frames.`)

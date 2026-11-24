@@ -10,24 +10,28 @@ function houseChoice(variant: HouseVariant, label: string) {
   const glyph = icon(variant === 'klein' ? 'house' : 'apartments')
   const attrs = `class="pill compact" aria-label="${label}" title="${label}"`
   if (variant === HOUSE_VARIANT) return `<span ${attrs} role="img" aria-current="page">${glyph}</span>`
-  return `<a id="switch-house" ${attrs} href="?haus=${variant}">${glyph}</a>`
+  return `<a id="switch-house" ${attrs} href="?modul=brandhaus&amp;haus=${variant}">${glyph}</a>`
 }
 
 /** Builds the single-screen workspace and its native, keyboard-accessible controls. */
 export function mountLayout(host: HTMLElement) {
   host.innerHTML = `
     <header class="topbar">
-      <h1 class="brand"><img src="${import.meta.env.BASE_URL}haus.svg" alt="" /><span>Das Rauchhaus</span></h1>
+      <div class="house-identity">
+        <a class="pill compact" href="./" aria-label="Zur Übersicht" title="Zur Übersicht">${icon('overview')}</a>
+        <h1 class="brand"><img src="${import.meta.env.BASE_URL}haus.svg" alt="" /><span>Brandhaus</span></h1>
+      </div>
       <nav class="house-picker" aria-label="Haus auswählen">${houseChoice('klein', 'Kleines Haus')}${houseChoice('gross', 'Großes Haus')}</nav>
-      <nav class="learning-tools" aria-label="Lernen, Hilfe und Einstellungen">${control('lesson', 'bulb', 'Lernimpuls', true)}${control('help', 'help', 'Hilfe', true)}${control('settings', 'settings', 'Einstellungen', true)}</nav>
+      <nav class="learning-tools" aria-label="Lernen und Hilfe">${control('lesson', 'bulb', 'Lernimpuls')}${control('help', 'help', 'Hilfe', true)}</nav>
     </header>
     <section class="stage" aria-label="Das Haus erkunden">
       <div id="viewport"></div>
-      <div id="markers" aria-label="Rauchquellen, Türen und Rauchwarnmelder"></div>
-      <div id="load-state" role="status"><span class="spinner"></span><span>Das Haus wird aufgebaut …</span></div>
-      <div id="trial" role="region" aria-label="Lernimpuls" hidden>
+      <div id="markers" role="group" aria-label="Brandschutzhinweise, Versuche, Türen und Rauchmelder"></div>
+      <div id="load-state" role="status"><span class="spinner"></span><span>Das Haus lädt …</span></div>
+      <div id="trial" class="trial-bar" role="region" aria-label="Lernimpuls" hidden>
         <div class="trial-copy"><strong id="trial-name"></strong><span id="trial-hint"></span></div>
-        <button id="trial-next" class="action" type="button"><span id="trial-action"></span>${icon('next')}</button>
+        <button id="trial-next" class="action" type="button"><svg class="trial-timer" aria-hidden="true" focusable="false"><rect width="100%" height="100%" rx="24"/><rect class="timer-fill" width="100%" height="100%" rx="24" pathLength="1"/></svg><span id="trial-action"></span>${icon('next')}</button>
+        <span id="trial-progress" class="sr-only" role="progressbar" aria-label="Ablauf des Versuchs" aria-valuemin="0" aria-valuemax="100" hidden></span>
         <button id="trial-end" class="compact close" type="button" aria-label="Lernimpuls beenden">${icon('close')}</button>
       </div>
     </section>
@@ -38,12 +42,6 @@ export function mountLayout(host: HTMLElement) {
     </footer>
     <div id="announcer" role="status" aria-live="polite" class="sr-only"></div>
     <dialog id="sheet" aria-labelledby="sheet-title"><div id="sheet-body"></div></dialog>`
-}
-
-export function element<T extends HTMLElement = HTMLElement>(id: string): T {
-  const node = document.getElementById(id)
-  if (!node) throw new Error(`Missing interface element: ${id}`)
-  return node as T
 }
 
 export function setButton(button: HTMLButtonElement, glyph: IconName, label: string) {

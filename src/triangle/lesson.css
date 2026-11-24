@@ -1,4 +1,7 @@
 #app[data-page="verbrennungsdreieck"] {
+  display: grid;
+  grid-template: auto 1fr auto / minmax(0, 1fr);
+  justify-content: stretch;
   min-height: 100dvh;
   height: auto;
   overflow: visible;
@@ -22,7 +25,7 @@
 
 .triangle-workspace {
   display: grid;
-  align-content: center;
+  grid-template: 1fr / minmax(0, 1fr);
   align-items: center;
   gap: clamp(12px, 2vh, 24px);
   width: min(1400px, 100%);
@@ -32,16 +35,12 @@
 
 /* The guide and toolbars take their natural space; the scene fits the remaining row. */
 #app[data-page="verbrennungsdreieck"].learning {
-  display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  justify-content: stretch;
   height: 100dvh;
 }
 .learning .triangle-workspace {
   grid-template-rows: minmax(0, 1fr) auto;
   align-items: stretch;
-  align-content: stretch;
-  margin-block: 0;
 }
 .learning #triangle-instrument {
   display: grid;
@@ -80,9 +79,6 @@
 }
 
 @media (min-width: 900px) {
-  .triangle-workspace {
-    margin-block: auto;
-  }
   #triangle-instrument {
     width: min(100%, max(680px, calc(230dvh - 680px)));
     justify-self: center;

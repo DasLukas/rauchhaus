@@ -57,6 +57,24 @@ async function renderedDifference(page, first, second) {
   }, images)
 }
 
+/** Measure the visible free experiment between the two toolbars in landscape. */
+async function verifyFreeExperimentCentered(page) {
+  const gaps = await page.evaluate(() => {
+    const bounds = (selector) => document.querySelector(selector).getBoundingClientRect()
+    const scene = ['.triangle-pad > path', '.triangle-knob', '.label-fuel', '.stove-canvas', '#triangle-observation'].map(bounds)
+    return {
+      above: Math.min(...scene.map((rect) => rect.top)) - bounds('.triangle-topbar').bottom,
+      below: bounds('.toolbar').top - Math.max(...scene.map((rect) => rect.bottom)),
+      // The SVG leaves room above its top vertex for half the draggable knob.
+      allowance: bounds('.triangle-knob').height / 2 + 1,
+      fits: scrollY === 0 && document.documentElement.scrollHeight <= innerHeight + 1,
+    }
+  })
+  assert.ok(gaps.fits && Math.min(gaps.above, gaps.below) >= 0, 'The free experiment must fit between the toolbars')
+  assert.ok(Math.abs(gaps.above - gaps.below) <= gaps.allowance,
+    `The free experiment should be centered (above ${gaps.above}px, below ${gaps.below}px)`)
+}
+
 /** The whole trial must stay usable without a scroll or overlapping its navigation. */
 async function verifyGuideFits(page) {
   const fits = await page.evaluate(() => {
@@ -229,8 +247,15 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   await help.getByRole('button', { name: 'Verstanden' }).waitFor()
   assert.equal(await help.getByText('Für Erwachsene', { exact: true }).count(), 0)
   await page.keyboard.press('Escape')
-  for (const [width, height] of [[1024, 768], [820, 1180], [390, 844]]) {
+  await page.getByRole('link', { name: 'Zur Übersicht' }).click()
+  for (const [width, height] of [[1080, 810], [1080, 700], [1366, 1024], [1024, 768], [820, 1180], [390, 844]]) {
     await page.setViewportSize({ width, height })
+    await triangleLink.waitFor()
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await capture(`dashboard-${width}x${height}`)
+    await triangleLink.click()
+    await readyStove.waitFor()
+    if (width > height) await verifyFreeExperimentCentered(page)
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     const labels = page.locator('.triangle-label')
     assert.equal(await labels.count(), 3)
@@ -239,7 +264,7 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
       const name = label.querySelector('span').getBoundingClientRect()
       return icon.height >= 24 && icon.bottom <= name.top + 1
     })), 'Each factor should have a large pictogram above its name')
-    await capture(`verbrennungsdreieck-${width}`)
+    await capture(`verbrennungsdreieck-${width}x${height}`)
     const initialStove = await stove.boundingBox()
     const detail = page.locator('.observation-copy:visible > span')
     const initialDetail = await detail.boundingBox()
@@ -260,14 +285,9 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
       await next.click()
     }
     assert.ok(await study.isHidden())
+    if (width > height) await verifyFreeExperimentCentered(page)
     await page.getByRole('link', { name: 'Zur Übersicht' }).click()
-    await triangleLink.waitFor()
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
-    await capture(`dashboard-${width}`)
-    await triangleLink.click()
-    await readyStove.waitFor()
   }
-  await page.getByRole('link', { name: 'Zur Übersicht' }).click()
   await triangleLink.waitFor()
   page.off('request', record)
   console.log('Verified the dashboard, stove orbit and visible fire changes, guided comparisons, touch, keyboard, mobile and tablet views.')

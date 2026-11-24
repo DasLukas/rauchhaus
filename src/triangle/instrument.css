@@ -29,6 +29,12 @@
   height: 100%;
   filter: drop-shadow(0 4px 2px #175a6329);
 }
+/* The aspect-ratio boxes size the scene independently of SVG and canvas intrinsic sizes. */
+.triangle-pad,
+.stove-canvas {
+  position: absolute;
+  inset: 0;
+}
 .triangle-contours {
   fill: none;
   stroke: #977f57;

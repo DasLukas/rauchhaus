@@ -11,7 +11,8 @@ export async function mount() {
   const markers = new Markers(document.querySelector('#markers'), () => {})
   const scene = await createHouseScene(document.querySelector('#viewport'), {
     onFrame: () => observation ?? simulation.snapshot(),
-    onProject: (positions) => markers.project(positions),
+    onProject: (positions, floor) => markers.project(positions, floor),
+    canActivate: () => false,
     onActivate() {},
     onError(error) {
       throw error

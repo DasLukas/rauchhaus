@@ -99,11 +99,25 @@ function checkModel(variant) {
     rooms: ROOMS,
     sources: SOURCES,
     classroomSources,
+    infoSpots,
+    detailOnlyMarkers,
     detectors: DETECTORS,
     roof: ROOF,
     modelFilename,
   } = getHouse(variant)
   const { names, draws, triangles, bytes } = inspectAsset(modelFilename)
+  const controls = [...DOORS, ...classroomSources].map(({ id }) => id)
+  for (const id of detailOnlyMarkers) {
+    assert(controls.includes(id), `Unknown detail-only control in ${variant}: ${id}`)
+  }
+  for (const spot of infoSpots) {
+    const room = ROOMS.find(({ id }) => id === spot.room)
+    assert(room, `Missing safety tip room for ${spot.id}`)
+    const [x, y, z] = spot.position
+    const ceiling = room.roof ? roofHeightAt(x, room.roof) : room.ceilingY
+    assert(x >= room.minX && x <= room.maxX && y >= room.floorY && y <= ceiling &&
+      z >= room.minZ && z <= room.maxZ, `Safety tip outside its room: ${spot.id}`)
+  }
   for (const roomId of new Set(classroomSources.map((source) => source.room))) {
     const room = ROOMS.find((room) => room.id === roomId)
     const surfaces = fuelSurfaces(variant, roomId)

@@ -1,5 +1,5 @@
 import { createHouseScene, type HouseScene } from './scene'
-import { CLASSROOM_SOURCES, DETECTORS, DOORS, FLOORS, HOUSE_VARIANT, ROOMS } from './simulation'
+import { CLASSROOM_SOURCES, DETECTORS, DOORS, FLOORS, HOUSE_VARIANT, INFO_SPOTS, ROOMS } from './simulation'
 import { bindLessonHint } from './ui/lesson-hint'
 import { AlarmSound } from './ui/alarm'
 import { element } from './ui/dom'
@@ -8,6 +8,7 @@ import { icon } from './ui/icons'
 import { mountLayout, setButton } from './ui/layout'
 import { Markers } from './ui/markers'
 import { showPanel, type LessonViews, type PanelKind } from './ui/panels'
+import { safetyTips } from './ui/safety-tips'
 import { LearningSession } from './ui/session'
 
 const app = element('app')
@@ -23,6 +24,7 @@ const markers = new Markers(element('markers'), activate)
 const alarm = new AlarmSound()
 const sound = element<HTMLButtonElement>('sound')
 const markerLayer = element('markers')
+const sheet = element<HTMLDialogElement>('sheet')
 const trial = element('trial')
 const nextButton = element<HTMLButtonElement>('trial-next')
 const progressBar = element('trial-progress')
@@ -34,7 +36,6 @@ const hint = bindLessonHint(lesson, 'brandhaus')
 const loading = element('load-state')
 let scene: HouseScene | undefined
 let views: LessonViews = {}
-let modal = false
 let detectorState = ''
 let ready = false
 
@@ -115,7 +116,7 @@ function updateAlarm() {
   const active = ready && Object.values(state.detectors).some(Boolean)
   const pulse = active && state.elapsed % 1.2 < 0.3
   markerLayer.classList.toggle('pulse', session.paused ? active : pulse)
-  alarm.update(pulse && !session.paused && !modal && !document.hidden)
+  alarm.update(pulse && !session.paused && !sheet.open && !document.hidden)
 }
 
 function endLesson() {
@@ -127,11 +128,8 @@ function endLesson() {
 }
 
 function openPanel(kind: PanelKind) {
-  if (modal) return
-  modal = true
-  updateAlarm()
+  if (sheet.open) return
   showPanel(kind, (selected) => {
-    modal = false
     if (selected) {
       views = {}
       session.beginLesson(selected)
@@ -148,10 +146,19 @@ function openPanel(kind: PanelKind) {
     refresh()
     if (selected) nextButton.focus({ preventScroll: true })
   }, views)
+  updateAlarm()
 }
 
 function activate(id: string) {
-  if (!ready || modal || session.stage) return
+  const button = markers.buttonFor(id)
+  if (!ready || sheet.open || !button) return
+  const spot = INFO_SPOTS.find((item) => item.id === id)
+  if (spot) {
+    // Native dialog dismissal restores this marker even after a tap on the canvas.
+    button.focus({ preventScroll: true })
+    openPanel(safetyTips[spot.id])
+    return
+  }
   const door = DOORS.find((item) => item.id === id)
   const source = CLASSROOM_SOURCES.find((item) => item.id === id)
   if (door) {
@@ -228,7 +235,7 @@ async function start() {
   scene = await createHouseScene(element('viewport'), {
     onFrame(dt) {
       const wasDone = session.trialFinished
-      const state = document.hidden || modal ? session.snapshot : session.tick(Math.min(dt, 0.2))
+      const state = document.hidden || sheet.open ? session.snapshot : session.tick(Math.min(dt, 0.2))
       updateTrialTimer()
       const alarms = DETECTORS.filter((d) => state.detectors[d.id])
       const signature = alarms.map((d) => d.id).join(',')
@@ -244,7 +251,8 @@ async function start() {
       }
       return state
     },
-    onProject: (positions) => markers.project(positions),
+    onProject: (positions, floor) => markers.project(positions, floor),
+    canActivate: (id) => Boolean(markers.buttonFor(id)),
     onFloorChange(level) {
       const floor = FLOORS.find((floor) => floor.level === level)
       announce(floor ? `${floor.label}.` : 'Das ganze Haus ist sichtbar.')

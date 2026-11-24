@@ -23,6 +23,7 @@ import {
   DOORS,
   type DoorId,
   HOUSE_VARIANT,
+  INFO_SPOTS,
   MODEL_FILENAME,
   ROOMS,
   type SimulationSnapshot,
@@ -45,8 +46,10 @@ export interface SceneCallbacks {
   /** Advance the lesson clock by this amount and return its current snapshot. */
   onFrame(deltaSeconds: number): SimulationSnapshot
   /** Reposition accessible HTML controls whenever the camera or stage changes. */
-  onProject(markers: ProjectedMarker[]): void
-  /** The child tapped a physical door or source mesh. */
+  onProject(markers: ProjectedMarker[], floor: number | null): void
+  /** Only currently available controls participate in proximity and mesh picking. */
+  canActivate(id: string): boolean
+  /** Activate the selected marker, door leaf or source object. */
   onActivate(id: string): void
   onFloorChange?(floor: number | null): void
   onError?(error: Error): void
@@ -106,6 +109,11 @@ function readAnchors(model: Group) {
     const floor = roomFloors.get(room)
     if (!anchor || floor === undefined) throw new Error(`Missing scene anchor for ${id}`)
     output.set(id, { position: anchor.getWorldPosition(new Vector3()), floor })
+  }
+  for (const spot of INFO_SPOTS) {
+    const floor = roomFloors.get(spot.room)
+    if (floor === undefined) throw new Error(`Missing room for ${spot.id}`)
+    output.set(spot.id, { position: new Vector3(...spot.position), floor })
   }
   return output
 }
@@ -235,7 +243,7 @@ export async function createHouseScene(
           (camera.floor === null || camera.floor === floor)
         projections.push({ id, x, y, visible })
       }
-      callbacks.onProject(projections)
+      callbacks.onProject(projections, camera.floor)
     }
 
     function captureRoom(snapshot: SimulationSnapshot, roomId: 'stair1' | 'living'): HTMLCanvasElement {
@@ -314,7 +322,7 @@ export async function createHouseScene(
       let closest: ProjectedMarker | undefined
       let distance = 18
       for (const marker of projections) {
-        if (!marker.visible || marker.id.startsWith('m_')) continue
+        if (!marker.visible || !callbacks.canActivate(marker.id)) continue
         const d = Math.hypot(marker.x - x, marker.y - y)
         if (d < distance) {
           closest = marker
@@ -332,14 +340,14 @@ export async function createHouseScene(
       let node: Object3D | null = hit.object
       while (node) {
         const doorId = doorIds.get(node)
-        if (doorId) {
+        if (doorId && callbacks.canActivate(doorId)) {
           callbacks.onActivate(doorId)
           return
         }
         node = node.parent
       }
       for (const [id, position] of positions) {
-        if (position.distanceToSquared(hit.point) < 0.36) {
+        if (position.distanceToSquared(hit.point) < 0.36 && callbacks.canActivate(id)) {
           callbacks.onActivate(id)
           return
         }

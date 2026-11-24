@@ -236,7 +236,7 @@ nav,
   pointer-events: auto;
   z-index: 1;
 }
-.marker:is(.source, .door)::before {
+.marker:is(.source, .door, .info)::before {
   content: "";
   position: absolute;
   z-index: -1;
@@ -279,6 +279,11 @@ nav,
 .door .marker-disk,
 .key.door {
   background: var(--teal);
+}
+.info .marker-disk {
+  width: clamp(25px, 2.9vmin, 32px);
+  height: clamp(25px, 2.9vmin, 32px);
+  background: #244b71;
 }
 .detector .marker-disk {
   display: none;

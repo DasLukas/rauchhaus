@@ -59,8 +59,19 @@ export function mountDashboard(root: HTMLElement): void {
         <ul class="info-sources">
           <li><a href="https://www.feuerwehrverband.de/app/uploads/2020/05/DFV_vfdb_Fachempfehlung_Verhalten_Brandfall_2019b.pdf#page=5">Verhalten im Brandfall (PDF)</a>
             <span>Deutscher Feuerwehrverband und vfdb, Fälle 1 und 3. Wie eine geschlossene Wohnungstür den Rauch bremst und was bei einem freien oder verrauchten Fluchtweg zu tun ist.</span></li>
-          <li><a href="https://www.provinzial.de/dam/jcr%3A3765eb23-daaa-4f56-93a9-95c5efa8982e/304001000190_0524_SP_KB_Brandschutzerziehung_Kinder.pdf#page=6">Brandschutzerziehung für Kinder (PDF)</a>
-            <span>Provinzial, S. 6–7. Wie Kinder sich in Sicherheit bringen, unter 112 Hilfe rufen und den Warnton eines Rauchmelders kennenlernen.</span></li>
+          <li><a href="https://www.provinzial.de/dam/jcr%3A3765eb23-daaa-4f56-93a9-95c5efa8982e/304001000190_0524_SP_KB_Brandschutzerziehung_Kinder.pdf#page=3">Brandschutzerziehung für Kinder (PDF)</a>
+            <span>Provinzial, S. 3 und 5–7. Kerzen mit Erwachsenen nutzen, Herdplatten und Lampen freihalten, sich bei Rauch in Sicherheit bringen und unter 112 Hilfe rufen.</span></li>
+        </ul>
+        <h3>Die Brandschutzhinweise in den Häusern</h3>
+        <ul class="info-sources">
+          <li><a href="https://www.schadenprisma.de/wp-content/uploads/pdf/2/sp_2_2023_art1.pdf#page=2">Elektrische Brandursachen im Wandel der Zeit (PDF)</a>
+            <span>Unter den vom IFS untersuchten Bränden mit elektrischer Ursache entfielen 2021 rund 54 % auf Geräte und 25 % auf die Elektroinstallation. In der <a href="https://www.ifs-ev.org/wp-content/uploads/2026/04/ifs_brandursachenstatistik_2025.pdf">IFS-Statistik für 2016–2025 (PDF)</a> lag die gesamte Kategorie Elektrizität bei 30 % der untersuchten Fälle. Das IFS untersucht vor allem Brände mit erheblichen Gebäudeschäden.</span></li>
+          <li><a href="https://www.vde.com/topics-de/verbraucherschutz/elektrogeraete-im-alltag">Elektrogeräte im Alltag</a>
+            <span>Der VDE erklärt, wie Defekte und falsche Nutzung Brände verursachen können. An der Leselampe geht es um ein beschädigtes Kabel und die Wärme unter einem Tuch.</span></li>
+          <li><a href="https://feuerwehr-frankfurt.de/ihre-sicherheit/brandschutz-zuhause">Brandschutz zu Hause</a>
+            <span>Die Feuerwehr Frankfurt erklärt, wie abgestellte Dinge den Rettungsweg einengen oder neue Brandlasten schaffen. Eine geschlossene Kellertür bremst die Ausbreitung von Feuer und Rauch in den Treppenraum.</span></li>
+          <li><a href="https://www.rauchmelder-lebensretter.de/rauchmelderpflicht/">Rauchmelderpflicht nach Bundesland</a>
+            <span>In allen Bundesländern gilt die Pflicht für Schlafräume und die zugehörigen Rettungswege innerhalb der Wohnung. Je nach Landesbauordnung kommen weitere Räume hinzu. Die zusätzlichen Melder in Modellküche und Gemeinschaftstreppe zeigen, wann dort Rauch ankommt. Das <a href="https://www.bauministerium.bayern.de/assets/stmi/buw/baurechtundtechnik/rauchwarnmelderpflicht_fragen-und-antworten.pdf">Bayerische Bauministerium (PDF)</a> erläutert den Unterschied zwischen Wohnungsflur und gemeinsamem Treppenhaus.</span></li>
         </ul>
         <h3>Rauch und Feuer im Brandhaus</h3>
         <ul class="info-sources">

@@ -9,6 +9,7 @@ import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
 import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
 import { verifyLearningModules } from './test-learning-modules.mjs'
+import { checkTapTargets, verifySafetyTips } from './test-safety-tips.mjs'
 import { landingColor, verifySmoke, verifySmokeStart } from './test-smoke-rendering.mjs'
 
 const evidence = process.env.RAUCHHAUS_SCREENSHOTS
@@ -75,6 +76,7 @@ try {
     await btn('Wohin zieht der Rauch?').click()
     await btn('Versuch starten').click()
     await page.getByText('1 von 2 · Tür offen').waitFor()
+    assert.equal(await page.locator('.marker.info[hidden]').count(), 4)
     await btn('Ergebnis ansehen').click()
     await btn('Mit geschlossener Tür testen').waitFor()
     const openLanding = await landingColor(page, 2, layout)
@@ -93,6 +95,7 @@ try {
     console.log('Passed the rendered television door comparison.')
     await btn('Versuch besprechen').click()
     await page.getByRole('heading', { name: 'Wann war mehr Rauch im Treppenhaus?' }).waitFor()
+    assert.equal(await page.locator('.marker.info:visible').count(), 0)
     assert.equal(await btn('Weiter entdecken').count(), 0)
     const safetyHeading = page.getByRole('heading', { name: 'Wenn es im Mehrfamilienhaus brennt' })
     assert.equal(await safetyHeading.count(), 0)
@@ -109,6 +112,7 @@ try {
     await capture(`${prefix}-verhalten`)
     await btn('Weiter entdecken').click()
     await page.locator('#app:not(.learning)').waitFor()
+    await page.locator('.marker.info:visible').nth(3).waitFor()
   }
 
   async function checkFireLesson(house) {
@@ -138,6 +142,7 @@ try {
     await capture(`feuer-${house}-raumdurchzuendung`)
     await btn('Versuch besprechen').click()
     await page.getByRole('heading', { name: 'Was hast du an den Möbeln entdeckt?' }).waitFor()
+    assert.equal(await page.locator('.marker.info:visible').count(), 0)
     assert.equal(await btn('Weiter entdecken').count(), 0)
     assert.equal(await page.getByText('Rollover', { exact: true }).count(), 0)
     await btn('Ergebnis ansehen').click()
@@ -148,6 +153,7 @@ try {
     await page.locator('#app:not(.learning)').waitFor()
     assert.equal(await btn('Pause').isDisabled(), true)
     assert.equal(await marker('s_tv').getAttribute('aria-pressed'), 'false')
+    await page.locator('.marker.info:visible').nth(3).waitFor()
     if (autoplay) await page.emulateMedia({ reducedMotion: 'reduce' })
   }
 
@@ -169,13 +175,10 @@ try {
   await page.setViewportSize({ width: 1448, height: 1086 })
   assert.deepEqual([...modelRequests], ['rauchhaus-klein.glb'])
   assert.equal(await page.locator('.house-picker [aria-current]').getAttribute('aria-label'), 'Kleines Haus')
-  assert.equal(
-    await page.locator('button.marker:visible').count(),
-    smallHouse.floors.length + smallHouse.doors.length + Number(Boolean(smallHouse.exteriorDoor)),
-  )
   assert.equal(await page.locator('.detector:visible').count(), smallHouse.detectors.length)
   assert.equal(await btn('Alarmton').getAttribute('aria-pressed'), 'false')
   await capture('haus-klein')
+  await verifySafetyTips(page, 'klein', smallHouse, capture)
   await verifySmokeStart(page, 'klein')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await marker('entry').click()
@@ -205,12 +208,9 @@ try {
   assert.equal(new URL(page.url()).searchParams.has('feuer'), false)
   await page.setViewportSize({ width: 1448, height: 1086 })
   assert.equal(await page.locator('.house-picker [aria-current]').getAttribute('aria-label'), 'Großes Haus')
-  assert.equal(
-    await page.locator('button.marker:visible').count(),
-    largeHouse.floors.length + largeHouse.doors.length,
-  )
   assert.equal(await btn('Pause').isDisabled(), true)
   await capture('haus')
+  await verifySafetyTips(page, 'gross', largeHouse, capture)
   await verifySmokeStart(page, 'gross')
   // Detector and audio timing use real playback, just like the fire lesson.
   await page.setViewportSize({ width: 480, height: 440 })
@@ -290,29 +290,11 @@ try {
     await page.evaluate(
       () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
     )
-    const targets = await page.evaluate(() => {
-      const markers = Array.from(
-        document.querySelectorAll('#markers button:not([hidden]),.toolbar button,.house-identity a,.house-picker a,.learning-tools button'),
-      )
-      return {
-        fits: document.documentElement.scrollWidth <= innerWidth,
-        blocked: markers.flatMap((button) => {
-          const box = button.getBoundingClientRect()
-          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
-          return box.width >= 48 && box.height >= 48 && button.contains(hit)
-            ? []
-            : [button.getAttribute('aria-label')]
-        }),
-        doors: markers.filter((node) => node.classList.contains('door')).length,
-      }
-    })
-    assert.equal(targets.fits, true)
-    assert.equal(targets.doors, largeHouse.doors.length)
-    assert.deepEqual(
-      targets.blocked,
-      [],
-      'Each 48-pixel target must receive a tap at its own centre',
-    )
+    await checkTapTargets(page)
+    await capture(`ansicht-${width}`)
+    await house.press('0')
+    await marker('dbl').waitFor()
+    await checkTapTargets(page)
     // Exercise an opposing pair with real pointer clicks in each orientation.
     for (const id of ['dbl', 'dbr']) {
       const door = marker(id)
@@ -320,7 +302,8 @@ try {
       await door.click()
       assert.notEqual(await door.getAttribute('aria-pressed'), before)
     }
-    await capture(`ansicht-${width}`)
+    await house.press('Home')
+    await marker('dbl').waitFor({ state: 'hidden' })
     console.log(`Verified independent door controls at ${width} × ${height}.`)
   }
   await marker('s_washer').click()
@@ -335,6 +318,7 @@ try {
   await capture('feuer-mobil-lernimpuls')
   await btn('Lernimpuls beenden').click()
   assert.equal(await page.locator('#trial').isVisible(), false)
+  await marker('info_cellar').waitFor()
   assert.equal(await marker('s_washer').getAttribute('aria-pressed'), 'false')
   assert.equal(await btn('Pause').isDisabled(), true)
   await verifySmoke(page)

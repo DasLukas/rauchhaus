@@ -1,25 +1,22 @@
-import { DETECTORS, DOORS, ROOMS, CLASSROOM_SOURCES, type SimulationSnapshot } from '../simulation'
+import type { ProjectedMarker } from '../scene'
+import { CLASSROOM_SOURCES, DETECTORS, DOORS, HOUSE, INFO_SPOTS, ROOMS, type SimulationSnapshot } from '../simulation'
 import { icon } from './icons'
+import { safetyTips } from './safety-tips'
 import type { Lesson } from './session'
 
-interface Position {
-  id: string
-  x: number
-  y: number
-  visible: boolean
-}
-type MarkerKind = 'source' | 'door' | 'detector'
+type MarkerKind = 'source' | 'door' | 'detector' | 'info'
 
 interface Entry {
   view: HTMLElement
   glyph: HTMLElement
   tooltip: HTMLElement
   kind: MarkerKind
+  detailOnly: boolean
   floor: number
   label: string
   on: boolean
   offset?: number
-  position?: Position
+  position?: ProjectedMarker
 }
 
 /** Accessible HTML controls follow anchors projected from the moving 3D camera. */
@@ -27,6 +24,7 @@ export class Markers {
   private readonly entries = new Map<string, Entry>()
   private lesson: Lesson | null = null
   private sourceActive = false
+  private overview = true
   private width = 0
   constructor(
     private readonly root: HTMLElement,
@@ -36,6 +34,7 @@ export class Markers {
       [CLASSROOM_SOURCES, 'source'],
       [DOORS, 'door'],
       [DETECTORS, 'detector'],
+      [INFO_SPOTS.map((spot) => ({ ...spot, label: safetyTips[spot.id].title })), 'info'],
     ] as const
     for (const [items, kind] of groups) {
       for (const item of items) {
@@ -65,7 +64,7 @@ export class Markers {
         view.dataset.marker = item.id
         const glyph = document.createElement('i')
         glyph.className = 'marker-disk'
-        if (kind !== 'detector') glyph.innerHTML = icon(kind === 'source' ? 'smoke' : 'door')
+        if (kind !== 'detector') glyph.innerHTML = icon(kind === 'source' ? 'smoke' : kind)
         const tooltip = document.createElement('span')
         tooltip.className = 'tooltip'
         tooltip.setAttribute('aria-hidden', 'true')
@@ -74,11 +73,17 @@ export class Markers {
         const roomId = 'room' in item ? item.room : item.rooms[0]
         const room = ROOMS.find((room) => room.id === roomId)
         if (!room) throw new Error(`Missing room for ${item.id}`)
+        if (kind === 'info') {
+          tooltip.textContent = item.label
+          view.setAttribute('aria-label', `Brandschutzhinweis · ${item.label} · ${room.label}`)
+          view.setAttribute('aria-haspopup', 'dialog')
+        }
         this.entries.set(item.id, {
           view,
           glyph,
           tooltip,
           kind,
+          detailOnly: HOUSE.detailOnlyMarkers.includes(item.id),
           floor: room.floor,
           label: item.label,
           on: false,
@@ -87,8 +92,15 @@ export class Markers {
     }
   }
 
-  project(positions: readonly Position[]) {
+  /** Return the actionable control shared by keyboard, touch and 3D picking. */
+  buttonFor(id: string): HTMLButtonElement | undefined {
+    const view = this.entries.get(id)?.view
+    if (view instanceof HTMLButtonElement && !view.hidden && !view.disabled) return view
+  }
+
+  project(positions: readonly ProjectedMarker[], floor: number | null) {
     this.width = this.root.clientWidth
+    this.overview = floor === null
     for (const pos of positions) {
       const entry = this.entries.get(pos.id)
       if (!entry) continue
@@ -104,6 +116,10 @@ export class Markers {
     this.sourceActive = snapshot.source !== null
     this.lesson = lesson
     for (const [id, e] of this.entries) {
+      if (e.kind === 'info') {
+        this.visibility(e)
+        continue
+      }
       let label = e.label
       if (e.kind === 'door') {
         e.on = snapshot.doors[id as keyof typeof snapshot.doors]
@@ -176,8 +192,11 @@ export class Markers {
   }
 
   private visibility(e: Entry) {
+    const freeIdle = !this.sourceActive && this.lesson === null
     e.view.hidden =
       !e.position?.visible ||
+      (e.kind === 'info' && !freeIdle) ||
+      (this.overview && freeIdle && e.detailOnly) ||
       (this.lesson === 'fire' && e.kind !== 'detector') ||
       (this.sourceActive && e.kind === 'source' && !e.on) ||
       (this.lesson === 'doors' && e.kind === 'door' && e.view.dataset.marker !== 'd1')

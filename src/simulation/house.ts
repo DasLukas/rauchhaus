@@ -50,6 +50,14 @@ export type SourceId =
   | 's_attic'
   | 's_loft'
 export type DetectorId = `m_${Exclude<RoomId, 'bedroom' | 'stairB' | 'stair0' | 'stair1' | 'stair2'> | 'bed'}`
+export type InfoId = keyof typeof smallLayout.infoSpots | keyof typeof largeLayout.infoSpots
+
+/** A safety tip anchored beside an object in one room of the cutaway. */
+export interface InfoSpot {
+  readonly id: InfoId
+  readonly room: RoomId
+  readonly position: readonly [number, number, number]
+}
 
 export interface Room {
   readonly id: RoomId
@@ -165,6 +173,11 @@ export function getHouse(variant: HouseVariant) {
     position: detector.position as [number, number, number],
     sensorY: detector.position[1],
   }))
+  const infoSpots: InfoSpot[] = Object.entries(layout.infoSpots).map(([id, spot]) => ({
+    id: id as InfoId,
+    room: spot.room as RoomId,
+    position: spot.position as [number, number, number],
+  }))
   return {
     dimensions,
     roof,
@@ -174,6 +187,8 @@ export function getHouse(variant: HouseVariant) {
     sources,
     classroomSources,
     detectors,
+    infoSpots,
+    detailOnlyMarkers: layout.detailOnlyMarkers,
     modelFilename: variant === 'klein' ? 'rauchhaus-klein.glb' : 'rauchhaus.glb',
   }
 }
@@ -190,6 +205,7 @@ export const {
   sources: SOURCES,
   classroomSources: CLASSROOM_SOURCES,
   detectors: DETECTORS,
+  infoSpots: INFO_SPOTS,
   modelFilename: MODEL_FILENAME,
 } = HOUSE
 

@@ -2,6 +2,7 @@ import { HOUSE_VARIANT } from '../simulation'
 import { icon } from './icons'
 import { lessonHelp } from './lesson-help'
 import { element } from './dom'
+import type { SafetyTip } from './safety-tips'
 import type { Lesson } from './session'
 
 const closeButton = `<button class="close compact" data-close type="button" aria-label="Schließen">${icon('close')}</button>`
@@ -82,7 +83,7 @@ const fireFindings = `
   <button type="button" class="action" data-close>Weiter entdecken ${icon('next')}</button>`
 
 const panels = { help, lessons, intro, result, smokeFindings, fireIntro, fireResult, fireFindings }
-export type PanelKind = keyof typeof panels
+export type PanelKind = keyof typeof panels | SafetyTip
 
 const descriptions = {
   open: 'Oben ist die Treppe von Rauch verdeckt.',
@@ -101,9 +102,22 @@ export function showPanel(
   const dialog = element<HTMLDialogElement>('sheet')
   const body = element('sheet-body')
   if (dialog.open) return
-  let selected: Lesson | null = null
+  // Commit the selection or dismissal before the next marker can receive input.
+  // The browser's native close event would arrive on a later animation frame.
+  function close(lesson: Lesson | null = null) {
+    dialog.close()
+    onClose(lesson)
+  }
   function render(panel: PanelKind) {
-    body.innerHTML = panels[panel]
+    if (typeof panel === 'string') {
+      body.innerHTML = panels[panel]
+      dialog.removeAttribute('aria-describedby')
+    } else {
+      body.innerHTML = `<header class="sheet-heading"><h2 id="sheet-title"></h2>${closeButton}</header><p id="tip-text"></p>`
+      element('sheet-title').textContent = panel.title
+      element('tip-text').textContent = panel.text
+      dialog.setAttribute('aria-describedby', 'tip-text')
+    }
     for (const figure of body.querySelectorAll<HTMLElement>('figure[data-view]')) {
       const key = figure.dataset.view as keyof typeof descriptions
       const image = views[key]
@@ -114,7 +128,7 @@ export function showPanel(
       }
     }
     for (const button of body.querySelectorAll<HTMLButtonElement>('[data-close]')) {
-      button.onclick = () => dialog.close()
+      button.onclick = () => close()
     }
     for (const button of body.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
       button.onclick = () => {
@@ -125,13 +139,13 @@ export function showPanel(
       }
     }
     const begin = body.querySelector<HTMLButtonElement>('[data-start]')
-    if (begin) begin.onclick = () => {
-      selected = begin.dataset.start as Lesson
-      dialog.close()
-    }
+    if (begin) begin.onclick = () => close(begin.dataset.start as Lesson)
   }
   render(kind)
-  dialog.onclose = () => onClose(selected)
+  dialog.oncancel = (event) => {
+    event.preventDefault()
+    close()
+  }
   dialog.onclick = (event) => {
     if (event.target === dialog) {
       const box = dialog.getBoundingClientRect()
@@ -141,7 +155,7 @@ export function showPanel(
         event.clientY < box.top ||
         event.clientY > box.bottom
       )
-        dialog.close()
+        close()
     }
   }
   dialog.showModal()

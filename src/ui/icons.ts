@@ -1,4 +1,5 @@
 const glyphs = {
+  info: '<circle cx="12" cy="5.4" r="1.7" fill="currentColor" stroke="none"/><path d="M10 10h2v9m-2.3 0h4.7" stroke-width="2.6"/>',
   overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   house: '<path d="M3 11.4 12 3l9 8.4M5.2 10v10.4h13.6V10"/><path d="M10 20v-6.4h4V20"/>',
   apartments: '<path d="M2 21h20M4 21V7h7V3h9v18M7.5 11h.1m-.1 4h.1M14 7h3m-3 4h3m-3 4h3m-3 6v-3h3v3"/>',

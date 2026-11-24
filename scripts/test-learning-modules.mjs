@@ -96,6 +96,8 @@ export async function verifyLearningModules(page, dashboardUrl, capture) {
   await page.getByRole('link', { name: 'Fachquellen' }).click()
   const sources = page.getByRole('dialog', { name: 'Fachquellen' })
   await sources.getByRole('heading', { name: 'Verhalten bei einem Wohnungsbrand' }).waitFor()
+  await sources.getByRole('heading', { name: 'Die Brandschutzhinweise in den Häusern' }).waitFor()
+  await sources.getByRole('link', { name: 'IFS-Statistik für 2016–2025 (PDF)' }).waitFor()
   await sources.getByRole('heading', { name: 'Rauch und Feuer im Brandhaus' }).waitFor()
   await sources.getByRole('heading', { name: 'Holzfeuer im Verbrennungsdreieck' }).waitFor()
   await sources.getByRole('button', { name: 'Schließen' }).click()

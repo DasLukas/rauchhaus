@@ -65,7 +65,9 @@ Detector anchors locate the indicator lenses on the modeled housings. The simula
 
 The GLB batches static geometry and paints vertex colors, including baked contact shading. Separate pivots keep door animation cheap. The renderer limits resolution and reduces it during sustained slow animation. Unchanged paused or empty scenes avoid repeated drawing. The smoke renderer shares a noise texture across rooms and skips empty compartments.
 
-The overview fits the selected house from its lowest storey to the ridge. Tapping a storey focuses its controls and allows panning. The DOM retains each marker's projected anchor and spaces neighbouring targets across the same storey so the two entrance doors stay individually tappable. A short line connects displaced targets to their anchors.
+The overview fits the selected house from its lowest storey to the ridge. Tapping a storey focuses its controls and allows panning. Each layout defines four `infoSpots` with room IDs and world positions beside the objects. Their IDs index the German titles and text in `src/ui/safety-tips.ts`. The large-house generator also uses the landing tip’s horizontal coordinates for the potted plant. The DOM spaces neighbouring buttons on each floor and draws a short line from a displaced button to its projected anchor.
+
+The marker overlay applies the selected floor, the layout’s `detailOnlyMarkers`, the active source and the current lesson to the displayed controls. The scene consults the same controls before accepting projected or mesh hits. Tapping an idle house tip opens the native dialog and closing it restores focus to that button. A free fire exposes its source and in-view doors, and both kinds of guided activity use their own marker selection. Returning to the idle house restores the tips.
 
 ## Build and deployment
 

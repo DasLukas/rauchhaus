@@ -2,8 +2,8 @@ import { icon } from './icons'
 
 const instructions = {
   brandhaus: {
-    explore: 'Wähle im Modell ein oranges Rauchzeichen. Die Flamme bleibt bei diesem Versuch am selben Ort. Öffne oder schließe eine Tür im Modell. Wohin zieht der Rauch?',
-    view: 'Wähle eine Etage. Verschiebe das Bild mit Maus, Finger oder Pfeiltasten. Das Hauszeichen zeigt wieder alle Etagen.',
+    explore: 'Tippe auf ein blaues i für einen Brandschutzhinweis. Ein oranges Rauchzeichen startet einen Brandversuch. Die Flamme bleibt an dieser Stelle. Öffne oder schließe eine Tür. Wohin zieht der Rauch?',
+    view: 'Tippe auf eine Etage, um weitere Türen oder Brandstellen zu entdecken. Mit den Tasten 1 bis 4 wählst du Erdgeschoss bis Dachgeschoss, mit 0 den Keller im großen Haus. Verschiebe das Bild mit Maus, Finger oder Pfeiltasten. Das Hauszeichen zeigt wieder alle Etagen.',
     lesson: 'Wähle „Lernimpuls“ und dann einen Versuch zu Rauch oder Feuer. Erkennt ein Melder im Modell Rauch, blinkt er rot. Mit dem Lautsprecher schaltest du den Modellton ein.',
   },
   verbrennungsdreieck: {

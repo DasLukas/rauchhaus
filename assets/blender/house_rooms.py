@@ -430,6 +430,11 @@ def middle():
 
 def upper():
     y = 2 * PITCH
+    # The pot beside the stair route illustrates a trip hazard. Include it in
+    # the structural clearance checks and use the same spot as the web tip.
+    select_collection("House structure")
+    x, _, z = LAYOUT["infoSpots"]["info_stairs"]["position"]
+    f.pot(x, y, z, 0.78, "terracotta")
     select_collection("Second floor west")
     at_floor(
         f.sofa,

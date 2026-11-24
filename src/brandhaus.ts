@@ -212,7 +212,9 @@ document.addEventListener('visibilitychange', updateAlarm)
 element('out').onclick = () => scene?.zoomBy(1 / 1.25)
 element('in').onclick = () => scene?.zoomBy(1.25)
 element('home').onclick = () => scene?.resetView()
-const unbindFullscreen = bindFullscreen(element<HTMLButtonElement>('fullscreen'), element('fullscreen-message'))
+const unbindFullscreen = bindFullscreen(element<HTMLButtonElement>('fullscreen'), element('fullscreen-message'), {
+  usesPinchZoom: true,
+})
 
 function showError() {
   ready = false

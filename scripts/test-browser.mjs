@@ -8,6 +8,7 @@ import { preview } from 'vite'
 import largeHouse from '../src/simulation/layout.json' with { type: 'json' }
 import smallHouse from '../src/simulation/layout-small.json' with { type: 'json' }
 
+import { verifyFullscreenPinch, verifyLegacyIpadTab } from './test-fullscreen-pinch.mjs'
 import { verifyLearningModules } from './test-learning-modules.mjs'
 import { checkTapTargets, verifySafetyTips } from './test-safety-tips.mjs'
 import { landingColor, verifySmoke, verifySmokeStart } from './test-smoke-rendering.mjs'
@@ -158,6 +159,7 @@ try {
   }
 
   await marker('entry').waitFor()
+  await verifyLegacyIpadTab(context, page.url())
   assert.equal(await btn('Einstellungen').count(), 0)
   const enterFullscreen = btn('Vollbild starten')
   const leaveFullscreen = btn('Vollbild beenden')
@@ -165,6 +167,7 @@ try {
   await enterFullscreen.click()
   await leaveFullscreen.waitFor()
   assert.ok(await page.evaluate(() => document.fullscreenElement === document.documentElement))
+  await verifyFullscreenPinch(page)
   await leaveFullscreen.click()
   await enterFullscreen.waitFor()
   assert.ok(await page.evaluate(() => document.fullscreenElement === null))

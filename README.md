@@ -29,7 +29,7 @@ In the small-house overview, the television and desk lamp can start a fire. Sele
 
 A ceiling detector turns red when smoke reaches its sensor in the model. Active detectors share a flashing rhythm. Their positions, including those in kitchens and the stairwell, are observation points chosen for the lesson. The speaker button enables a shared alarm beep. Sound starts muted. **Neu starten** restores the initial doors and camera, ends any lesson and clears all smoke and alarms.
 
-Use **Vollbild starten** to the right of the home button to present the entire workspace. Select **Vollbild beenden** to return. The control appears when the browser supports and permits page fullscreen.
+Pinch with two fingers on the house to zoom in or out. Use **Vollbild starten** to the right of the home button to present the entire workspace. Select **Vollbild beenden** to return. The control appears when the browser supports and permits page fullscreen. On iPads with Safari before 17.5, the house stays in the browser tab with its browser controls visible so both zoom gestures work.
 
 In free exploration and in the door comparison, flames stay at the selected object. Smoke can reach other rooms and the stairwell. To explore how a room fire can develop beyond the original object, choose **Wie breitet sich Feuer aus?** under **Lernimpuls**. The class can observe the television fire together and discuss two frozen views of the room. Both stops fit into about 30–40 seconds of model playback, plus discussion time. **Beobachtung zeigen** advances to the first stop or plays the short upholstery transition into the second stop.
 
